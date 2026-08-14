@@ -1,0 +1,10 @@
+sentence-transformers
+torch
+tree-sitter
+tree-sitter-javascript
+faiss-cpu
+fastapi
+uvicorn
+requests
+python-dotenv
+pydantic
