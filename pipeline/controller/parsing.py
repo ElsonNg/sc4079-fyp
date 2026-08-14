@@ -1,7 +1,11 @@
+import re
+
 import tree_sitter
 import tree_sitter_javascript
 
 from pipeline.models.parsing import FunctionUnit
+
+_WHITESPACE_RE = re.compile(r"\s+")
 
 FUNCTION_NODE_TYPES = {
     "function_declaration",
@@ -47,6 +51,10 @@ def _function_name(node: tree_sitter.Node) -> str | None:
     return name_node.text.decode("utf-8") if name_node is not None else None
 
 
+def get_node_text(node: tree_sitter.Node, source_bytes: bytes) -> str:
+    return source_bytes[node.start_byte : node.end_byte].decode("utf-8")
+
+
 def extract_function_units(source: str) -> list[FunctionUnit]:
     tree = parse_source(source)
     source_bytes = source.encode("utf-8")
@@ -62,7 +70,7 @@ def extract_function_units(source: str) -> list[FunctionUnit]:
                     end_line=node.end_point[0],
                     start_byte=node.start_byte,
                     end_byte=node.end_byte,
-                    source=source_bytes[node.start_byte : node.end_byte].decode("utf-8"),
+                    source=get_node_text(node, source_bytes),
                 )
             )
         for child in node.children:
@@ -80,3 +88,48 @@ def find_enclosing_function(
     if not candidates:
         return None
     return min(candidates, key=lambda u: u.end_line - u.start_line)
+
+
+def _find_comment_ranges(node: tree_sitter.Node) -> list[tuple[int, int]]:
+    ranges: list[tuple[int, int]] = []
+
+    def walk(n: tree_sitter.Node) -> None:
+        if n.type == "comment":
+            ranges.append((n.start_byte, n.end_byte))
+            return
+        for child in n.children:
+            walk(child)
+
+    walk(node)
+    return ranges
+
+
+def _excise_ranges(source: str, ranges: list[tuple[int, int]]) -> str:
+    source_bytes = source.encode("utf-8")
+    out = bytearray()
+    cursor = 0
+    for start, end in sorted(ranges):
+        out += source_bytes[cursor:start]
+        cursor = end
+    out += source_bytes[cursor:]
+    return out.decode("utf-8")
+
+
+def normalize_source(source: str) -> list[str]:
+    """Strips comments (via tree-sitter's `comment` node type, immune to false positives like `//` inside a
+    template literal) and collapses whitespace, returning non-empty normalized lines."""
+    tree = parse_source(source)
+    comment_ranges = _find_comment_ranges(tree.root_node)
+    stripped = _excise_ranges(source, comment_ranges)
+
+    lines: list[str] = []
+    for raw_line in stripped.splitlines():
+        collapsed = _WHITESPACE_RE.sub(" ", raw_line).strip()
+        if collapsed:
+            lines.append(collapsed)
+    return lines
+
+
+def get_normalized_node_text(node: tree_sitter.Node, source_bytes: bytes) -> list[str]:
+    """Normalized source text for any AST node - whole function, block, or statement."""
+    return normalize_source(get_node_text(node, source_bytes))
