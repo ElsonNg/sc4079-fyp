@@ -144,11 +144,15 @@ def _apply_replacements(source: str, replacements: list[tuple[int, int, str]]) -
     return out.decode("utf-8")
 
 
+def _collapse_line(raw_line: str) -> str:
+    return _WHITESPACE_RE.sub(" ", raw_line).strip()
+
+
 def _collapse_whitespace(source: str) -> list[str]:
     """Collapses interior whitespace runs to a single space per line and drops blank lines."""
     lines: list[str] = []
     for raw_line in source.splitlines():
-        collapsed = _WHITESPACE_RE.sub(" ", raw_line).strip()
+        collapsed = _collapse_line(raw_line)
         if collapsed:
             lines.append(collapsed)
     return lines
@@ -166,3 +170,34 @@ def normalize_source(source: str) -> list[str]:
 def get_normalized_node_text(node: tree_sitter.Node, source_bytes: bytes) -> list[str]:
     """Normalized source text for any AST node - whole function, block, or statement."""
     return normalize_source(get_node_text(node, source_bytes))
+
+
+def normalize_source_with_lines(source: str) -> list[tuple[int, str]]:
+    """Like normalize_source, but pairs each surviving normalized line with its raw
+    0-indexed line number in `source`. Needed by callers (module 7) that must map an
+    alignment index back to DiagnosticLine.vulnerable_line/patched_line, which are raw
+    line numbers from an un-normalized difflib diff over source.splitlines() -- while
+    normalize_source's own output has no such correspondence (blank lines dropped,
+    comments excised entirely).
+
+    Can't reuse normalize_source's "" comment-excision here: a multi-line comment's
+    newlines would be deleted along with its text, silently merging the raw lines on
+    either side of it once .splitlines() runs on the result. Comment ranges are instead
+    replaced with an equivalent run of "\n" characters -- preserving line positions --
+    so raw line numbers can be recovered directly from enumerate(stripped.splitlines()).
+    """
+    tree = parse_source(source)
+    comment_ranges = _find_comment_ranges(tree.root_node)
+    source_bytes = source.encode("utf-8")
+    replacements = [
+        (start, end, "\n" * source_bytes[start:end].count(b"\n"))
+        for start, end in comment_ranges
+    ]
+    stripped = _apply_replacements(source, replacements)
+
+    result: list[tuple[int, str]] = []
+    for raw_line_no, raw_line in enumerate(stripped.splitlines()):
+        collapsed = _collapse_line(raw_line)
+        if collapsed:
+            result.append((raw_line_no, collapsed))
+    return result
