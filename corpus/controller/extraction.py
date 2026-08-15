@@ -4,7 +4,11 @@ import re
 from corpus.controller.github import fetch_commit, fetch_file_content
 from corpus.models.commit import ExtractedFunctionPair, GitHubCommitDetail, GitHubCommitFile
 from corpus.models.corpus import DiagnosticLine
-from pipeline.controller.parsing import extract_function_units, find_enclosing_function
+from pipeline.controller.parsing import (
+    extract_function_units,
+    find_enclosing_function,
+    normalize_source_with_lines,
+)
 from pipeline.models.parsing import FunctionUnit
 
 COMMIT_URL_RE = re.compile(r"^https://github\.com/([^/]+)/([^/]+)/commit/([0-9a-fA-F]{7,40})/?$")
@@ -143,15 +147,26 @@ def _match_function_units(
 
 def extract_function_pairs_from_commit(
     owner: str, repo: str, sha: str, session=None
-) -> list[ExtractedFunctionPair]:
+) -> tuple[list[ExtractedFunctionPair], int]:
     """Fetches the commit, applies the diff cleanliness filter, and extracts function-level
     vulnerable/patched pairs for every touched production JS file. Raises CleanlinessRejection
-    if the commit fails the filter."""
+    if the commit fails the filter. Returns (pairs, skipped_identical_count).
+
+    A pre/post unit can be flagged "touched" by _touched_units (a real diff line fell
+    within its LINE range) while its extracted node TEXT is byte-identical -- e.g. a
+    reformat commit adds a trailing semicolon that sits outside the function node's own
+    byte span, or reflows a call chain around an otherwise-untouched nested function.
+    Neither side actually changed in a way this method can ever tell apart, so these
+    pairs are dropped here rather than stored as a vulnerable/patched pair with no real
+    difference -- counted, not silently discarded, per the build plan's attrition-
+    reporting requirement.
+    """
     commit = fetch_commit(owner, repo, sha, session=session)
     production_files = check_diff_cleanliness(commit)
     parent_sha = commit.parent_shas[0]
 
     pairs: list[ExtractedFunctionPair] = []
+    skipped_identical = 0
     for f in production_files:
         if f.status not in ("modified", "renamed") or not f.patch:
             continue
@@ -170,6 +185,9 @@ def extract_function_pairs_from_commit(
         touched_post = _touched_units(post_lines, post_units)
 
         for pre_unit, post_unit in _match_function_units(touched_pre, touched_post):
+            if pre_unit.source == post_unit.source:
+                skipped_identical += 1
+                continue
             pairs.append(
                 ExtractedFunctionPair(
                     file_path=f.filename,
@@ -179,14 +197,28 @@ def extract_function_pairs_from_commit(
                 )
             )
 
-    return pairs
+    return pairs, skipped_identical
 
 
 def compute_diagnostic_lines(vulnerable_source: str, patched_source: str) -> list[DiagnosticLine]:
-    """Plain line diff (not embedding-based alignment) locating which lines differ."""
+    """Plain line diff (not embedding-based alignment) locating which lines differ.
+
+    Comment-only and blank lines are excluded even when difflib flags them as
+    changed -- they're narration, not behavior, and module 7 averages its
+    verification score across every diagnostic line on a side. A comment added
+    alongside one real code line (e.g. explaining why a prototype-pollution guard was
+    added) would otherwise count for as much as the code line itself, diluting the one
+    line that actually carries the security-relevant difference. Uses
+    normalize_source_with_lines's own comment/blank-line filtering (tree-sitter-based,
+    so a `//`-looking substring inside a string/regex/template literal is never
+    mistaken for a real comment) rather than a separate text-prefix heuristic here.
+    """
     vuln_lines = vulnerable_source.splitlines()
     patched_lines = patched_source.splitlines()
     matcher = difflib.SequenceMatcher(a=vuln_lines, b=patched_lines, autojunk=False)
+
+    vuln_significant = {ln for ln, _ in normalize_source_with_lines(vulnerable_source)}
+    patched_significant = {ln for ln, _ in normalize_source_with_lines(patched_source)}
 
     diagnostics: list[DiagnosticLine] = []
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
@@ -195,11 +227,11 @@ def compute_diagnostic_lines(vulnerable_source: str, patched_source: str) -> lis
         if tag in ("delete", "replace"):
             diagnostics.extend(
                 DiagnosticLine(kind="removed", vulnerable_line=i, text=vuln_lines[i])
-                for i in range(i1, i2)
+                for i in range(i1, i2) if i in vuln_significant
             )
         if tag in ("insert", "replace"):
             diagnostics.extend(
                 DiagnosticLine(kind="added", patched_line=j, text=patched_lines[j])
-                for j in range(j1, j2)
+                for j in range(j1, j2) if j in patched_significant
             )
     return diagnostics

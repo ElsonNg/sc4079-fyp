@@ -43,5 +43,6 @@ class AttritionReport(BaseModel):
     fix_commits_processed: int = 0
     osv_confirmed_count: int = 0
     osv_unconfirmed_count: int = 0
+    function_pairs_skipped_identical: int = 0
     function_pairs_extracted: int = 0
     corpus_entries_final: int = 0

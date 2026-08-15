@@ -31,11 +31,11 @@ def bootstrap_validate(session: requests.Session | None = None) -> None:
     for ghsa_id, owner, repo, sha in BOOTSTRAP_ENTRIES:
         print(f"\n=== {ghsa_id} ({owner}/{repo}@{sha[:12]}) ===")
         try:
-            pairs = extract_function_pairs_from_commit(owner, repo, sha, session=session)
+            pairs, skipped_identical = extract_function_pairs_from_commit(owner, repo, sha, session=session)
         except CleanlinessRejection as e:
             print(f"  REJECTED by cleanliness filter: {e.reason}")
             continue
-        print(f"  {len(pairs)} function pair(s) extracted")
+        print(f"  {len(pairs)} function pair(s) extracted ({skipped_identical} skipped, identical text)")
         for pair in pairs:
             print(f"  --- {pair.file_path} :: {pair.function_name or '<anonymous>'}")
             print(f"      vulnerable ({len(pair.vulnerable_function.splitlines())} lines) / "
@@ -160,13 +160,14 @@ def _build_for_package(
 
         for owner, repo, sha in commit_refs:
             try:
-                pairs = extract_function_pairs_from_commit(owner, repo, sha, session=session)
+                pairs, skipped_identical = extract_function_pairs_from_commit(owner, repo, sha, session=session)
             except CleanlinessRejection as e:
                 report.fix_commits_rejected_unclean += 1
                 report.rejection_reasons[e.reason] = report.rejection_reasons.get(e.reason, 0) + 1
                 continue
 
             report.fix_commits_processed += 1
+            report.function_pairs_skipped_identical += skipped_identical
             confirmed = confirmed_by_sha.get(sha, False)
             if confirmed:
                 report.osv_confirmed_count += 1
@@ -225,5 +226,6 @@ def print_attrition_report(report: AttritionReport) -> None:
     print(f"  fix commits processed:         {report.fix_commits_processed}")
     print(f"  osv-confirmed commits:         {report.osv_confirmed_count}")
     print(f"  osv-unconfirmed commits:       {report.osv_unconfirmed_count}")
+    print(f"  function pairs skipped (identical vulnerable==patched): {report.function_pairs_skipped_identical}")
     print(f"  function pairs extracted:      {report.function_pairs_extracted}")
     print(f"  final corpus entries:          {report.corpus_entries_final}")
