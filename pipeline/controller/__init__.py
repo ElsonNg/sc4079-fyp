@@ -1,3 +1,10 @@
+from pipeline.controller.hashing import (
+    HashIndex,
+    abstract_identifiers,
+    build_hash_index,
+    compute_fingerprint,
+    lookup,
+)
 from pipeline.controller.parsing import (
     extract_function_units,
     find_enclosing_function,
@@ -12,4 +19,9 @@ __all__ = [
     "get_node_text",
     "get_normalized_node_text",
     "normalize_source",
+    "HashIndex",
+    "abstract_identifiers",
+    "build_hash_index",
+    "compute_fingerprint",
+    "lookup",
 ]

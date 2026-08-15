@@ -16,8 +16,24 @@ FUNCTION_NODE_TYPES = {
     "generator_function",
 }
 
+# A genuine function/method can never be named a JS reserved word. Error recovery on a
+# corrupted parse (e.g. Flow/TS syntax this JS-only grammar can't read) can stabilize
+# into a self-consistent-looking but wrong tree downstream of the original error, with
+# no local ERROR node left to catch -- e.g. `if (__DEV__) { ... }` control flow
+# misread as an object literal's shorthand-method syntax, producing a fabricated
+# method_definition literally named "if". Reserved words are a cheap, targeted signal
+# for exactly that residual case.
+_RESERVED_WORDS = {
+    "if", "else", "for", "while", "do", "switch", "case", "default", "break",
+    "continue", "return", "throw", "try", "catch", "finally", "function", "class",
+    "extends", "new", "delete", "typeof", "instanceof", "void", "yield", "await",
+    "var", "let", "const", "import", "export", "this", "super", "null", "true",
+    "false", "in", "of", "with", "debugger",
+}
+
 _language: tree_sitter.Language | None = None
 _parser: tree_sitter.Parser | None = None
+
 
 
 def _get_parser() -> tree_sitter.Parser:
@@ -61,18 +77,27 @@ def extract_function_units(source: str) -> list[FunctionUnit]:
     units: list[FunctionUnit] = []
 
     def walk(node: tree_sitter.Node) -> None:
-        if node.type in FUNCTION_NODE_TYPES:
-            units.append(
-                FunctionUnit(
-                    name=_function_name(node),
-                    node_type=node.type,
-                    start_line=node.start_point[0],
-                    end_line=node.end_point[0],
-                    start_byte=node.start_byte,
-                    end_byte=node.end_byte,
-                    source=get_node_text(node, source_bytes),
+        # `has_error` is true for a node whose own subtree contains a syntax error
+        # (e.g. Flow/TS generics like `function act<T>(...)` misread as JSX by this
+        # JS-only grammar) -- tree-sitter error-recovers silently rather than raising,
+        # and can fabricate bogus nodes (misclassified types, phantom "functions") out
+        # of the wreckage. Skip creating a unit from those rather than trusting
+        # unreliable extracted text; still recurse into children, since a clean
+        # sibling function elsewhere in the same file is unaffected.
+        if node.type in FUNCTION_NODE_TYPES and not node.has_error:
+            name = _function_name(node)
+            if name not in _RESERVED_WORDS:
+                units.append(
+                    FunctionUnit(
+                        name=name,
+                        node_type=node.type,
+                        start_line=node.start_point[0],
+                        end_line=node.end_point[0],
+                        start_byte=node.start_byte,
+                        end_byte=node.end_byte,
+                        source=get_node_text(node, source_bytes),
+                    )
                 )
-            )
         for child in node.children:
             walk(child)
 
@@ -104,15 +129,29 @@ def _find_comment_ranges(node: tree_sitter.Node) -> list[tuple[int, int]]:
     return ranges
 
 
-def _excise_ranges(source: str, ranges: list[tuple[int, int]]) -> str:
+def _apply_replacements(source: str, replacements: list[tuple[int, int, str]]) -> str:
+    """Applies non-overlapping (start_byte, end_byte, replacement_text) edits to `source`,
+    left to right. Passing "" as replacement_text for every range is equivalent to excising
+    those ranges."""
     source_bytes = source.encode("utf-8")
     out = bytearray()
     cursor = 0
-    for start, end in sorted(ranges):
+    for start, end, replacement in sorted(replacements, key=lambda r: (r[0], r[1])):
         out += source_bytes[cursor:start]
+        out += replacement.encode("utf-8")
         cursor = end
     out += source_bytes[cursor:]
     return out.decode("utf-8")
+
+
+def _collapse_whitespace(source: str) -> list[str]:
+    """Collapses interior whitespace runs to a single space per line and drops blank lines."""
+    lines: list[str] = []
+    for raw_line in source.splitlines():
+        collapsed = _WHITESPACE_RE.sub(" ", raw_line).strip()
+        if collapsed:
+            lines.append(collapsed)
+    return lines
 
 
 def normalize_source(source: str) -> list[str]:
@@ -120,14 +159,8 @@ def normalize_source(source: str) -> list[str]:
     template literal) and collapses whitespace, returning non-empty normalized lines."""
     tree = parse_source(source)
     comment_ranges = _find_comment_ranges(tree.root_node)
-    stripped = _excise_ranges(source, comment_ranges)
-
-    lines: list[str] = []
-    for raw_line in stripped.splitlines():
-        collapsed = _WHITESPACE_RE.sub(" ", raw_line).strip()
-        if collapsed:
-            lines.append(collapsed)
-    return lines
+    stripped = _apply_replacements(source, [(start, end, "") for start, end in comment_ranges])
+    return _collapse_whitespace(stripped)
 
 
 def get_normalized_node_text(node: tree_sitter.Node, source_bytes: bytes) -> list[str]:
