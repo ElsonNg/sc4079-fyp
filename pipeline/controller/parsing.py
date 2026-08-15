@@ -172,6 +172,77 @@ def get_normalized_node_text(node: tree_sitter.Node, source_bytes: bytes) -> lis
     return normalize_source(get_node_text(node, source_bytes))
 
 
+# Node types whose named_children are, as-is, the correct sibling sequence to align --
+# named_children already excludes punctuation tokens (`{`/`}`/`:`/keywords), so no
+# further filtering is needed here.
+_BLOCK_LIKE_NODE_TYPES = {
+    "statement_block",
+    "program",
+    "switch_body",
+    "else_clause",
+}
+
+# Node types whose structural children are a specific subset of named fields, taken in
+# source order. A field name repeated across multiple children (switch_case's "body"
+# field, once per statement in that case) is preserved correctly since every child is
+# checked individually against this set.
+_FIELD_BASED_CHILD_TYPES: dict[str, set[str]] = {
+    "if_statement": {"condition", "consequence", "alternative"},
+    "for_statement": {"initializer", "condition", "increment", "body"},
+    "for_in_statement": {"left", "right", "body"},
+    "while_statement": {"condition", "body"},
+    "do_statement": {"body", "condition"},
+    "switch_statement": {"value", "body"},
+    "switch_case": {"value", "body"},
+    "switch_default": {"body"},
+    "try_statement": {"body", "handler", "finalizer"},
+    "catch_clause": {"parameter", "body"},
+    "finally_clause": {"body"},
+    **{node_type: {"body"} for node_type in FUNCTION_NODE_TYPES},
+}
+
+
+def get_structural_children(node: tree_sitter.Node) -> list[tree_sitter.Node]:
+    """The sibling sequence to align for two nodes of `node`'s type -- used by
+    hierarchical alignment (Stage 3b) to recurse along the AST instead of flattening a
+    whole function body into one line sequence. Only registered container types
+    decompose further; anything else (all expressions, all atomic statements such as
+    expression_statement/return_statement/variable declarations) is a leaf by omission
+    -- alignment only ever decomposes down to statement granularity, never into
+    expression internals (the flat line-level primitive handles everything below that).
+
+    condition/value/initializer fields are included alongside body-like fields
+    deliberately, not just the body -- a security-relevant diagnostic line can land on
+    a guard condition (e.g. `if (isAdminBypass(user))`), and dropping condition fields
+    from decomposition would make that line structurally invisible to recursion.
+    """
+    if node.type in _BLOCK_LIKE_NODE_TYPES:
+        return list(node.named_children)
+
+    field_names = _FIELD_BASED_CHILD_TYPES.get(node.type)
+    if field_names is None:
+        return []
+
+    children: list[tree_sitter.Node] = []
+    for i in range(node.child_count):
+        # is_named excludes anchor/punctuation tokens that some grammar rules tag with
+        # a real field name for positional purposes -- e.g. for_statement's middle `;`
+        # separator carries field_name "condition" alongside the actual condition
+        # expression when one is present, so field-name matching alone is not enough.
+        child = node.child(i)
+        if child is not None and child.is_named and node.field_name_for_child(i) in field_names:
+            children.append(child)
+    return children
+
+
+def is_container_node_type(node_type: str) -> bool:
+    """True iff `node_type` is registered in get_structural_children's dispatch tables
+    -- i.e. an instance of this type may decompose into structural children (an actual
+    instance can still have zero children, e.g. an empty block `{}`; this only reflects
+    type-level registration, not a specific node's contents)."""
+    return node_type in _BLOCK_LIKE_NODE_TYPES or node_type in _FIELD_BASED_CHILD_TYPES
+
+
 def normalize_source_with_lines(source: str) -> list[tuple[int, str]]:
     """Like normalize_source, but pairs each surviving normalized line with its raw
     0-indexed line number in `source`. Needed by callers (module 7) that must map an
