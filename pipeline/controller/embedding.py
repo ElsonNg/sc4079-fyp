@@ -27,10 +27,27 @@ DEFAULT_MODEL_ID = "qwen3-embedding-0.6b"
 # a general-purpose embedding model, not for this pipeline. A handful of real corpus
 # functions run to 15k+ characters (~4-5k tokens); left uncapped, a batch containing
 # them makes attention's O(n^2) cost explode (observed: multi-minute hangs / MPS OOM
-# for a single such batch). Retrieval doesn't need the full body anyway -- the opening
-# of a function carries most of the signature/intent signal. Capping trades a small
-# amount of tail-end signal on rare huge functions for the pipeline actually completing.
-DEFAULT_MAX_SEQ_LENGTH = 512
+# for a single such batch). 512 was the original cap, but it truncates to roughly the
+# first ~2000 characters -- multiple real corpus revisions of the same large function
+# (e.g. axios's ~18-24k char dispatchHttpRequest, revised across 15 separate advisories)
+# share an identical opening at that length and become indistinguishable embeddings, a
+# false-negative risk for exactly the functions this stage most needs to discriminate.
+# Raised to 2048 to cover more of the body; encode()'s chunk-level OOM backoff (halving
+# batch size down to 1 item) exists specifically to absorb the rare huge-outlier cost
+# this raises, rather than avoiding it by truncating harder.
+#
+# Known residual limitation (accepted, not fixed): 2048 tokens is ~8k characters, still
+# short of dispatchHttpRequest's 18-24k characters, so some of its 15 corpus revisions
+# still tie on identical similarity to each other. Verified via smoke test against the
+# real corpus -- doesn't cause a false negative (the correct entry is still retrieved,
+# just tied with siblings), so Stage 2's shortlist still includes it; Stage 3's per-line
+# alignment (no token cap there) is what actually disambiguates which specific revision
+# matched. A true fix would need windowed/chunked embedding for over-cap functions
+# (embed multiple <=2048-token windows, combine via mean-pool or max-similarity-at-query)
+# to get full-body coverage without paying attention's O(n^2) cost on the whole body at
+# once -- not implemented; revisit if Stage 2 recall on large functions proves to be a
+# problem in the eval suite (module 11).
+DEFAULT_MAX_SEQ_LENGTH = 2048
 
 _loaded_models: dict[str, "SentenceTransformer"] = {}
 
