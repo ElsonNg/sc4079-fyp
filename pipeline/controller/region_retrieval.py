@@ -1,0 +1,176 @@
+"""Semantic retrieval over vulnerable AST regions."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Callable
+
+import faiss
+import numpy as np
+
+from pipeline.controller import embedding
+from pipeline.controller.embedding import DEFAULT_MODEL_ID
+from pipeline.models.regions import CandidateRegion, RegionRetrievalMatch, VulnerableRegionPair
+
+DEFAULT_REGION_EMBEDDINGS_DIR = Path(__file__).resolve().parent.parent.parent / "corpus" / "data" / "region_embeddings"
+DEFAULT_REGION_TOP_K = 10
+DEFAULT_REGION_THRESHOLD = 0.0
+
+
+@dataclass
+class RegionRetrievalIndex:
+    model_id: str
+    index: "faiss.Index"
+    pairs: list[VulnerableRegionPair] = field(default_factory=list)
+    fingerprint: str = ""
+
+
+def _region_fingerprint(pairs: list[VulnerableRegionPair], model_id: str) -> str:
+    values = [
+        f"{model_id}|{pair.pair_id}|{pair.vulnerable_source_sha256}|{pair.patched_source_sha256}|"
+        f"{pair.vulnerable_region.source}|{pair.patched_region.source}"
+        for pair in pairs
+    ]
+    return hashlib.sha256("\n".join(sorted(values)).encode("utf-8")).hexdigest()
+
+
+def build_region_index(
+    pairs: list[VulnerableRegionPair],
+    model_id: str = DEFAULT_MODEL_ID,
+    ef_construction: int = 200,
+    ef_search: int = 256,
+    m: int = 32,
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> RegionRetrievalIndex:
+    texts = [pair.vulnerable_region.embedding_text for pair in pairs]
+    # Keep first-time corpus indexing observable and avoid one long silent model call.
+    vectors_parts = []
+    index_batch_size = 32
+    for start in range(0, len(texts), index_batch_size):
+        vectors_parts.append(embedding.encode(model_id, texts[start : start + index_batch_size]))
+        if progress_callback is not None:
+            progress_callback(min(start + index_batch_size, len(texts)), len(texts))
+    vectors = (
+        np.concatenate(vectors_parts, axis=0)
+        if vectors_parts
+        else np.empty((0, 0), dtype=np.float32)
+    )
+    if vectors.size:
+        dimension = vectors.shape[1]
+    else:
+        dimension = embedding.get_model(model_id).get_embedding_dimension()
+    index = faiss.IndexHNSWFlat(dimension, m, faiss.METRIC_INNER_PRODUCT)
+    index.hnsw.efConstruction = ef_construction
+    index.hnsw.efSearch = ef_search
+    if vectors.size:
+        index.add(vectors)
+    return RegionRetrievalIndex(
+        model_id=model_id,
+        index=index,
+        pairs=pairs,
+        fingerprint=_region_fingerprint(pairs, model_id),
+    )
+
+
+def query_region_batch(
+    candidate_regions: list[CandidateRegion],
+    retrieval_index: RegionRetrievalIndex,
+    top_k: int = DEFAULT_REGION_TOP_K,
+    threshold: float = DEFAULT_REGION_THRESHOLD,
+) -> list[list[RegionRetrievalMatch]]:
+    if not candidate_regions or not retrieval_index.pairs:
+        return [[] for _ in candidate_regions]
+    texts = [candidate.region.embedding_text for candidate in candidate_regions]
+    vectors = embedding.encode(retrieval_index.model_id, texts)
+    k = min(top_k, len(retrieval_index.pairs))
+    similarities, ids = retrieval_index.index.search(vectors, k)
+    results: list[list[RegionRetrievalMatch]] = []
+    for candidate, row_sims, row_ids in zip(candidate_regions, similarities, ids):
+        matches: list[RegionRetrievalMatch] = []
+        for rank, (similarity, index_id) in enumerate(zip(row_sims, row_ids), start=1):
+            if index_id < 0 or float(similarity) < threshold:
+                continue
+            pair = retrieval_index.pairs[int(index_id)]
+            matches.append(
+                RegionRetrievalMatch(
+                    pair_id=pair.pair_id,
+                    similarity=float(similarity),
+                    rank=rank,
+                    candidate_region_id=candidate.region.region_id,
+                    candidate_granularity=candidate.region.granularity,
+                    corpus_granularity=pair.vulnerable_region.granularity,
+                    ghsa_id=pair.ghsa_id,
+                    cve_id=pair.cve_id,
+                    fix_commit_sha=pair.fix_commit_sha,
+                    file_path=pair.file_path,
+                    function_name=pair.function_name,
+                )
+            )
+        results.append(matches)
+    return results
+
+
+def query_regions(
+    candidate_regions: list[CandidateRegion],
+    retrieval_index: RegionRetrievalIndex,
+    top_k: int = DEFAULT_REGION_TOP_K,
+    threshold: float = DEFAULT_REGION_THRESHOLD,
+) -> list[RegionRetrievalMatch]:
+    return [
+        match
+        for batch in query_region_batch(candidate_regions, retrieval_index, top_k, threshold)
+        for match in batch
+    ]
+
+
+def aggregate_region_hits(matches: list[RegionRetrievalMatch]) -> list[tuple[str, list[RegionRetrievalMatch]]]:
+    grouped: dict[str, list[RegionRetrievalMatch]] = {}
+    for match in matches:
+        grouped.setdefault(match.pair_id, []).append(match)
+    return sorted(
+        grouped.items(),
+        key=lambda item: (
+            -max(match.similarity for match in item[1]),
+            -len(item[1]),
+            item[0],
+        ),
+    )
+
+
+def save_region_index(
+    retrieval_index: RegionRetrievalIndex,
+    directory: Path = DEFAULT_REGION_EMBEDDINGS_DIR,
+) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    stem = retrieval_index.model_id
+    faiss.write_index(retrieval_index.index, str(directory / f"{stem}.faiss"))
+    metadata = {
+        "model_id": retrieval_index.model_id,
+        "fingerprint": retrieval_index.fingerprint,
+        "pairs": [pair.model_dump() for pair in retrieval_index.pairs],
+    }
+    (directory / f"{stem}.meta.json").write_text(json.dumps(metadata), encoding="utf-8")
+
+
+def load_region_index(
+    pairs: list[VulnerableRegionPair],
+    model_id: str = DEFAULT_MODEL_ID,
+    directory: Path = DEFAULT_REGION_EMBEDDINGS_DIR,
+) -> RegionRetrievalIndex | None:
+    index_path = directory / f"{model_id}.faiss"
+    metadata_path = directory / f"{model_id}.meta.json"
+    if not index_path.exists() or not metadata_path.exists():
+        return None
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    expected = _region_fingerprint(pairs, model_id)
+    if metadata.get("fingerprint") != expected:
+        return None
+    return RegionRetrievalIndex(
+        model_id=model_id,
+        index=faiss.read_index(str(index_path)),
+        pairs=pairs,
+        fingerprint=expected,
+    )

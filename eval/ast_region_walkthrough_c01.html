@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AST-region detection walkthrough — C01</title>
+  <style>
+    :root { color-scheme: light; --ink:#17202a; --muted:#5b6875; --line:#dce3e9; --blue:#0b5cab; --green:#16734a; --panel:#f6f8fa; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:15px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink); background:#fff; }
+    main { max-width:1180px; margin:0 auto; padding:32px 22px 64px; }
+    h1 { margin:0 0 8px; font-size:30px; letter-spacing:-.02em; }
+    h2 { margin:34px 0 10px; font-size:21px; border-bottom:1px solid var(--line); padding-bottom:6px; }
+    h3 { margin:24px 0 8px; font-size:17px; }
+    p { max-width:950px; }
+    .lede { color:var(--muted); font-size:16px; }
+    .status { display:inline-block; padding:4px 10px; border-radius:999px; background:#e5f5ec; color:var(--green); font-weight:700; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; }
+    .card { border:1px solid var(--line); border-radius:10px; padding:14px 16px; background:#fff; }
+    .card .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+    .card .value { margin-top:3px; font-weight:650; }
+    .flow { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:16px 0; }
+    .step { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:9px 12px; }
+    .arrow { color:var(--muted); font-weight:700; }
+    pre { margin:10px 0 16px; padding:15px; overflow:auto; border:1px solid var(--line); border-radius:8px; background:#111827; color:#e5edf5; font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre; }
+    code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .inline { padding:2px 5px; border-radius:4px; background:var(--panel); }
+    table { width:100%; border-collapse:collapse; margin:10px 0 16px; font-size:14px; }
+    th, td { text-align:left; vertical-align:top; border:1px solid var(--line); padding:8px 9px; }
+    th { background:var(--panel); font-weight:650; }
+    .num { font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .good { color:var(--green); font-weight:700; }
+    .note { border-left:4px solid var(--blue); padding:10px 14px; background:#f1f7ff; }
+    .small { color:var(--muted); font-size:13px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>AST-region vulnerable-clone detection: complete worked example</h1>
+  <p class="lede">This is a static walkthrough of the real C01 result from the 30-candidate evaluation. It shows the exact source slices, retrieval values, vulnerable-versus-patched comparison, and decision gates used by the current implementation.</p>
+
+  <div class="grid">
+    <div class="card"><div class="label">Candidate</div><div class="value">C01 — alpha rename + dead branch</div></div>
+    <div class="card"><div class="label">Expected corpus entry</div><div class="value">GHSA-3p68-rc4w-qgx5 / CVE-2025-62718</div></div>
+    <div class="card"><div class="label">Observed result</div><div class="value"><span class="status">flagged</span> — high provenance confidence</div></div>
+    <div class="card"><div class="label">Candidate regions</div><div class="value">96 generated, 960 retrieval matches</div></div>
+  </div>
+
+  <h2>1. Pipeline for this candidate</h2>
+  <div class="flow">
+    <div class="step">Candidate function</div><div class="arrow">→</div>
+    <div class="step">96 AST/block/context regions</div><div class="arrow">→</div>
+    <div class="step">Top-10 retrieval per region</div><div class="arrow">→</div>
+    <div class="step">Aggregate by corpus region pair</div><div class="arrow">→</div>
+    <div class="step">Compare 3 signals</div><div class="arrow">→</div>
+    <div class="step">Vulnerable vs patched margin</div><div class="arrow">→</div>
+    <div class="step">Decision gates</div>
+  </div>
+  <p>Candidate regions are embedded independently. The current implementation does not average all region embeddings. It groups retrieval hits by corpus region-pair identity, ranks aggregates by their best similarity, and retains support information such as the number of candidate regions and granularities involved.</p>
+
+  <h2>2. Exact candidate code</h2>
+  <pre><code>function setProxy(requestOptions, proxySettings, requestTarget) {
+    if (false) {
+      void 0;
+    }
+
+  let proxyValue = proxySettings;
+  if (!proxyValue &amp;&amp; proxyValue !== false) {
+    const proxyAddress = getProxyForUrl(requestTarget);
+    if (proxyAddress) {
+      proxyValue = new URL(proxyAddress);
+    }
+  }
+  if (proxyValue) {
+    // Basic proxy authorization
+    if (proxyValue.username) {
+      proxyValue.auth = (proxyValue.username || '') + ':' + (proxyValue.password || '');
+    }
+
+    if (proxyValue.auth) {
+      // Support proxy auth object form
+      const hasProxyCredentials = Boolean(proxyValue.auth.username || proxyValue.auth.password);
+
+      if (hasProxyCredentials) {
+        proxyValue.auth = (proxyValue.auth.username || '') + ':' + (proxyValue.auth.password || '');
+      } else if (typeof proxyValue.auth === 'object') {
+        throw new AxiosError('Invalid proxy authorization', AxiosError.ERR_BAD_OPTION, { proxy: proxyValue });
+      }
+
+      const encodedCredentials = Buffer.from(proxyValue.auth, 'utf8').toString('base64');
+
+      requestOptions.headers['Proxy-Authorization'] = 'Basic ' + encodedCredentials;
+    }
+
+    requestOptions.headers.host = requestOptions.hostname + (requestOptions.port ? ':' + requestOptions.port : '');
+    const targetProxyHost = proxyValue.hostname || proxyValue.host;
+    requestOptions.hostname = targetProxyHost;
+    // Replace 'host' since options is not a URL object
+    requestOptions.host = targetProxyHost;
+    requestOptions.port = proxyValue.port;
+    requestOptions.path = requestTarget;
+    if (proxyValue.protocol) {
+      requestOptions.protocol = proxyValue.protocol.includes(':') ? proxyValue.protocol : &#96;&#36;{proxyValue.protocol}:&#96;;
+    }
+  }
+
+  requestOptions.beforeRedirects.proxy = function beforeRedirect(nextRedirect) {
+    // Configure proxy for redirected request, passing the original config proxy to apply
+    // the exact same logic as if the redirected request was performed by axios directly.
+    setProxy(nextRedirect, proxySettings, nextRedirect.href);
+  };
+}</code></pre>
+  <p class="small">The dead branch and renamed identifiers are transformations applied by the candidate fixture. They are not the reason this example is considered vulnerable; they are intended to test clone robustness.</p>
+
+  <h2>3. The exact candidate region selected for verification</h2>
+  <p>The highest-margin evidence used candidate region <code class="inline">candidate:C01:0027</code>. It is a fine-grained <code class="inline">changed</code> region, not the entire function.</p>
+  <pre><code>proxyValue = new URL(proxyAddress);</code></pre>
+  <table>
+    <tr><th>Field</th><th>Value</th></tr>
+    <tr><td>Granularity</td><td><code>changed</code></td></tr>
+    <tr><td>Node type</td><td><code>expression_statement</code></td></tr>
+    <tr><td>Source span</td><td>bytes 269–304; line 9 (zero-based span metadata)</td></tr>
+    <tr><td>AST path</td><td><code>function_declaration / statement_block / if_statement / statement_block / if_statement / statement_block / expression_statement</code></td></tr>
+    <tr><td>AST shape</td><td><code>expression_statement → assignment_expression → identifier → new_expression → identifier → arguments → identifier</code></td></tr>
+    <tr><td>Normalized tokens</td><td><code>proxyValue = new URL ( proxyAddress ) ;</code></td></tr>
+  </table>
+
+  <h2>4. Retrieval against the corpus index</h2>
+  <p>Each of the 96 candidate regions queried the 524 vulnerable corpus regions with <code class="inline">top_k=10</code>. That produced 960 retained retrieval matches. The expected vulnerable entry reached aggregate rank 1. After retrieval, the verifier selected the evidence with the strongest vulnerable-minus-patched margin.</p>
+  <table>
+    <tr><th>Aggregate</th><th>Best similarity</th><th>Support count</th><th>Candidate granularities</th><th>Interpretation</th></tr>
+    <tr><td>Expected <code>setProxy:block</code></td><td class="num">0.9737849236</td><td class="num">58</td><td>block, changed, context</td><td class="good">Rank 1</td></tr>
+    <tr><td>Expected <code>setProxy:changed</code></td><td class="num">0.9736220241</td><td class="num">55</td><td>block, changed, context</td><td>Rank 2</td></tr>
+    <tr><td>Expected <code>setProxy:function</code></td><td class="num">0.9593061209</td><td class="num">12</td><td>block, changed, context, function</td><td>Rank 3</td></tr>
+    <tr><td>Expected <code>setProxy:context</code></td><td class="num">0.9514704943</td><td class="num">50</td><td>block, changed, context</td><td>Rank 4</td></tr>
+    <tr><td>Other corpus region pair</td><td class="num">0.9493057728</td><td class="num">12</td><td>block, changed, context, function</td><td>Rank 5</td></tr>
+  </table>
+  <div class="note"><strong>Important:</strong> the current aggregate rank is driven primarily by the maximum region similarity. Support count is retained for confidence classification and tie-breaking, but the scores are not averaged into a pooled similarity.</div>
+
+  <h2>5. Exact vulnerable and patched regions compared</h2>
+  <h3>Vulnerable corpus region</h3>
+  <p>Corpus entry: <code class="inline">axios/axios — lib/adapters/http.js — setProxy</code></p>
+  <pre><code>proxy = new URL(proxyUrl);</code></pre>
+  <p class="small">Region ID: <code>...:setProxy:changed:vulnerable</code><br>Node type: <code>expression_statement</code>; span bytes 187–213; line 5 (zero-based metadata).</p>
+
+  <h3>Patched corpus region</h3>
+  <pre><code>if (!shouldBypassProxy(location)) {
+        proxy = new URL(proxyUrl);
+      }</code></pre>
+  <p class="small">Region ID: <code>...:setProxy:changed:patched</code><br>Node type: <code>if_statement</code>; span bytes 187–265; lines 5–7 (zero-based metadata).</p>
+
+  <table>
+    <tr><th>Compared feature</th><th>Candidate vs vulnerable</th><th>Candidate vs patched</th></tr>
+    <tr><td>AST structural score</td><td class="num">1.0000000000</td><td class="num">0.5642857143</td></tr>
+    <tr><td>Role/token score</td><td class="num">1.0000000000</td><td class="num">0.6043956044</td></tr>
+    <tr><td>Semantic feature score</td><td class="num">1.0000000000</td><td class="num">0.5000000000</td></tr>
+    <tr><td>Local source/alignment score</td><td>Not calculated</td><td>Not calculated</td></tr>
+    <tr><td>AST coverage</td><td class="num">1.0000000000</td><td>—</td></tr>
+  </table>
+
+  <h3>What each comparison feature means</h3>
+  <table>
+    <tr><th>Feature</th><th>How it is calculated</th><th>What a high score means</th><th>Used in final score?</th></tr>
+    <tr>
+      <td><strong>AST structural score</strong></td>
+      <td>
+        The verifier compares three AST properties:
+        <code>0.55 × shape similarity + 0.25 × AST-path similarity + 0.20 × node-type match</code>.
+        Shape and path similarity use sequence similarity; node type contributes <code>1.0</code> only when the types are equal.
+      </td>
+      <td>The candidate has the same syntactic construction and occupies a similar position in the function tree.</td>
+      <td>Yes, weighted at 33.3%.</td>
+    </tr>
+    <tr>
+      <td><strong>Role/token score</strong></td>
+      <td>
+        Tokens are normalized by replacing ordinary identifiers with <code>ID</code> and literals with <code>LIT</code>,
+        while preserving keywords and operators. The score is
+        <code>0.75 × role-token sequence similarity + 0.25 × operator Jaccard similarity</code>.
+      </td>
+      <td>The candidate performs the same kinds of operations in the same order, even when variable names differ.</td>
+      <td>Yes, weighted at 33.3%.</td>
+    </tr>
+    <tr>
+      <td><strong>Semantic feature score</strong></td>
+      <td>
+        This is a lightweight feature-overlap score, not the embedding similarity. It compares sets of
+        called functions, member accesses, and literal values:
+        <code>0.50 × calls Jaccard + 0.30 × members Jaccard + 0.20 × literals Jaccard</code>.
+      </td>
+      <td>The candidate uses the same important calls, property accesses, and literal values.</td>
+      <td>Yes, weighted at 33.3%.</td>
+    </tr>
+    <tr>
+      <td><strong>Local source/alignment score</strong></td>
+      <td>
+        The local alignment helper is retained for a later ablation but is disabled in the active verifier.
+      </td>
+      <td>Not applicable to the current decision.</td>
+      <td><strong>No.</strong></td>
+    </tr>
+    <tr>
+      <td><strong>AST coverage</strong></td>
+      <td>
+        <code>min(candidate AST-shape length, vulnerable AST-shape length) / max(candidate AST-shape length, vulnerable AST-shape length)</code>.
+        It measures how much the two AST-shape descriptions overlap in size.
+      </td>
+      <td>The candidate region is comparable in structural extent to the vulnerable reference rather than being only a tiny fragment.</td>
+      <td><strong>No.</strong> It is recorded as evidence but is not currently included in the side score or decision gates.</td>
+    </tr>
+  </table>
+
+  <div class="note">
+    <strong>For this C01 comparison:</strong> the candidate and vulnerable regions have the same AST shape, token roles, and overall construction, so those three scores are 1.0. The patched region adds an <code>if (!shouldBypassProxy(location))</code> guard, changing its AST shape, call set, and token sequence. That is why its structural, token, and semantic scores are lower.
+  </div>
+
+  <h3>How the two sides become a decision</h3>
+  <p>The verifier calculates the same weighted side score twice: once against the vulnerable region and once against its paired patched region. It then computes the vulnerable-minus-patched margin:</p>
+  <pre><code>vulnerable_score = compare(candidate, vulnerable_region)
+patched_score    = compare(candidate, patched_region)
+margin           = vulnerable_score - patched_score</code></pre>
+  <p>A candidate is provisionally <strong>flagged</strong> when the vulnerable score is at least <code>0.75</code> and the margin is at least <code>0.08</code>. It is <strong>cleared</strong> when the same margin is at most <code>-0.08</code>; values between those boundaries become <strong>manual_review</strong>. There is one configured margin threshold, interpreted symmetrically. The current implementation then uses support count, granularity diversity, and a larger margin to assign provenance confidence.</p>
+
+  <h2>6. Score calculation</h2>
+  <p>The active side score is:</p>
+  <pre><code>side_score = (structural + token + semantic) / 3</code></pre>
+  <table>
+    <tr><th>Side</th><th>Calculation</th><th>Score</th></tr>
+    <tr><td>Vulnerable</td><td><code>(1.0 + 1.0 + 1.0) / 3</code></td><td class="num good">1.0000000000</td></tr>
+    <tr><td>Patched</td><td><code>(0.5642857143 + 0.6043956044 + 0.5) / 3</code></td><td class="num">0.5562271062</td></tr>
+  </table>
+  <p>The vulnerable-minus-patched margin is:</p>
+  <pre><code>margin = 1.0000000000 - 0.5562271062
+       = 0.4437728938</code></pre>
+
+  <h3>Where the score weights came from</h3>
+  <p>The active verifier now uses equal weights. This deliberately avoids pretending that the previous hand-set hierarchy was empirically calibrated:</p>
+  <table>
+    <tr><th>Component</th><th>Weight</th><th>Design rationale</th></tr>
+    <tr>
+      <td>AST structural similarity</td><td><strong>33.3%</strong></td>
+      <td>One of three equally weighted signals; it remains the primary conceptual signal because syntax structure should survive identifier renaming and formatting changes.</td>
+    </tr>
+    <tr>
+      <td>Role/token similarity</td><td><strong>33.3%</strong></td>
+      <td>Preserves operation order, keywords, and operators while abstracting ordinary identifier names.</td>
+    </tr>
+    <tr>
+      <td>Semantic feature overlap</td><td><strong>33.3%</strong></td>
+      <td>Uses calls, member accesses, and literals as a third independent local clue.</td>
+    </tr>
+    <tr>
+      <td>Local source/alignment similarity</td><td><strong>Excluded</strong></td>
+      <td>Disabled from the active score; its helper remains available for a later ablation.</td>
+    </tr>
+  </table>
+  <p>The active component weights sum to 1.0. There are also provisional internal weights:</p>
+  <ul>
+    <li>AST structure: 55% AST-shape sequence similarity, 25% AST-path sequence similarity, 20% exact node-type match.</li>
+    <li>Role/token similarity: 75% normalized role-token sequence similarity, 25% operator-set overlap.</li>
+    <li>Semantic features: 50% call overlap, 30% member-access overlap, 20% literal overlap.</li>
+  </ul>
+  <div class="note">
+    <strong>Objective status:</strong> equal weighting is a deliberately simple starting assumption, not evidence-derived calibration. The current positive-only fixture cannot tell us whether equal weighting is optimal because it contains no benign or patched negatives and therefore cannot measure precision or false positives. A defensible next step is to freeze a held-out, advisory-disjoint validation set and compare or fit weights against flagged, cleared, and manual-review outcomes.
+  </div>
+
+  <h2>7. Decision making</h2>
+  <table>
+    <tr><th>Gate</th><th>Configured threshold</th><th>Observed value</th><th>Result</th></tr>
+    <tr><td>Vulnerable score</td><td><code>≥ 0.75</code></td><td class="num">1.0000000000</td><td class="good">Pass</td></tr>
+    <tr><td>Positive side of symmetric margin</td><td><code>≥ +0.08</code></td><td class="num">0.4437728938</td><td class="good">Pass</td></tr>
+    <tr><td>Negative side of symmetric margin</td><td><code>≤ -0.08</code></td><td class="num">0.4437728938</td><td>Not cleared</td></tr>
+    <tr><td>Support for confidence</td><td><code>support ≥ 3</code></td><td class="num">58</td><td class="good">Pass</td></tr>
+    <tr><td>Granularity support</td><td><code>granularities ≥ 2</code></td><td class="num">3</td><td class="good">Pass</td></tr>
+    <tr><td>High-confidence margin</td><td><code>margin ≥ 0.15</code></td><td class="num">0.4437728938</td><td class="good">Pass</td></tr>
+  </table>
+  <p><strong>Final decision:</strong> <span class="status">flagged</span>. The detector considers this candidate more similar to the vulnerable region than the patched region, with strong support across multiple candidate granularities.</p>
+
+  <h3>What the thresholds and confidence checks mean</h3>
+  <table>
+    <tr><th>Check</th><th>Current value</th><th>Meaning</th><th>How it was chosen</th></tr>
+    <tr>
+      <td><strong>Minimum vulnerable score</strong></td>
+      <td><code>0.75</code></td>
+      <td>Requires the candidate to have a reasonably strong direct comparison with the vulnerable region before it can be flagged.</td>
+      <td>Provisional engineering threshold. It has not been calibrated against a held-out set.</td>
+    </tr>
+    <tr>
+      <td><strong>Minimum margin</strong></td>
+      <td><code>+0.08</code></td>
+      <td>Requires the vulnerable comparison to beat the patched comparison by at least 0.08. High similarity to both sides is therefore not enough to flag.</td>
+      <td>Provisional separation margin intended to prevent near-ties from becoming automatic findings.</td>
+    </tr>
+    <tr>
+      <td><strong>Negative side of margin</strong></td>
+      <td><code>≤ −0.08</code></td>
+      <td>If <code>vulnerable_score − patched_score ≤ −0.08</code>, the patched side clearly wins and the candidate is classified as <code>cleared</code>. This uses the same <code>minimum_margin</code> value as the positive side; there is no separate clear-gate parameter.</td>
+      <td>Symmetric interpretation of the one margin threshold.</td>
+    </tr>
+    <tr>
+      <td><strong>Support for confidence</strong></td>
+      <td><code>support_count ≥ 3</code></td>
+      <td>At least three distinct candidate regions retrieved the same corpus region-pair. This is evidence that the match is not supported by only one outlier region.</td>
+      <td>Heuristic confidence signal; it does not change the flagged/manual/cleared status.</td>
+    </tr>
+    <tr>
+      <td><strong>Granularity support</strong></td>
+      <td><code>granularity_count ≥ 2</code></td>
+      <td>The same corpus pair is supported by at least two candidate region types, such as <code>changed</code>, <code>block</code>, <code>context</code>, or <code>function</code>.</td>
+      <td>Heuristic diversity signal intended to reward agreement across resolutions.</td>
+    </tr>
+    <tr>
+      <td><strong>High-confidence margin</strong></td>
+      <td><code>margin ≥ +0.15</code></td>
+      <td>Requires a stronger vulnerable-over-patched separation before the result can receive high provenance confidence.</td>
+      <td>Provisional stricter margin; not calibrated to a measured precision target.</td>
+    </tr>
+  </table>
+  <div class="note">
+    <strong>Threshold status:</strong> these values were configured as initial, conservative-looking engineering defaults while the region pipeline was being built. They were not learned from the 30-case positive fixture, because that fixture contains no benign or patched negative cases. Proper calibration requires advisory-disjoint vulnerable positives plus patched and benign negatives, followed by measuring precision, recall, abstention, and false-positive rates across candidate thresholds.
+  </div>
+
+  <h2>8. What this example does and does not prove</h2>
+  <ul>
+    <li>It demonstrates the mechanics of the current detector on one known positive candidate.</li>
+    <li>It does not prove that the candidate is vulnerable from semantics alone; C01 is a generated positive fixture derived from a known vulnerable corpus entry.</li>
+    <li>The thresholds are provisional and were not calibrated on a held-out negative set.</li>
+    <li>The final 30-case evaluation contained positives only, so this walkthrough says nothing about false-positive rates.</li>
+    <li>The HTML reflects the current implementation, including its max-similarity-first aggregation and disabled local-alignment helper.</li>
+  </ul>
+
+  <p class="small">Source artifacts: <code>eval/candidate_subset_30.jsonl</code>, <code>eval/candidate_subset_30_region_results.json</code>, and the active region extraction/retrieval/verification controllers.</p>
+</main>
+</body>
+</html>

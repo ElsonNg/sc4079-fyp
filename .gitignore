@@ -8,3 +8,9 @@ CLAUDE.md
 AGENTS.md
 .claude
 docs/*
+
+# Generated embedding indexes and local incremental-scan state
+corpus/data/embeddings/*
+corpus/data/region_embeddings/*
+.provtrail/
+corpus/data/cache/

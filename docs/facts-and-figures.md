@@ -90,6 +90,25 @@ by the same developer who designed the verifier.
 No accuracy result from validate_e2e.py or validate_worst_case.py is claimed in this
 snapshot until the scripts have been run and their output recorded below.
 
+### Candidate subset fixture
+
+On 2026-08-16, a reproducible positive-only fixture was generated at
+`eval/candidate_subset_30.jsonl`:
+
+| Measure | Value |
+|---|---:|
+| Candidate records | 30 |
+| Distinct corpus entries | 22 |
+| Transformation families | 8 |
+| Distinct CVE IDs | 11 |
+| OSV-confirmed records | 17 / 30 |
+| Expected status | Flagged for every record |
+| Structural validation | 30 / 30 parseable |
+
+This fixture establishes coverage for deterministic structural clone generation; it
+does not establish detector precision, recall, or runtime semantic equivalence. It
+must be paired with patched/benign hard negatives before accuracy claims are made.
+
 ## 4. Methodology facts and evidence
 
 The following are implementation facts, followed by their practical implication. An
@@ -121,6 +140,10 @@ implication is not a measured error rate unless a result is recorded in Section 
 - 63 fast automated tests passed in the recorded run.
 - The repository defines a 13-pattern hand-authored clone pilot, but no result from
   that pilot is recorded yet.
+- The 30-case positive candidate fixture reached the correct corpus entry at Recall@5
+  for 30/30 cases and at Recall@1 for 23/30 cases.
+- On that same positive fixture, current verification flagged 15/30 and returned
+  manual_review for 15/30; no candidate was cleared.
 
 ### Established by source inspection
 
@@ -151,6 +174,59 @@ or artifact path with the experiment record.
 | Run ID | Date | Code state | Corpus/split | Cases | Hash FP | R@1 | R@5 | R@10 | Threshold misses | Verification correct | Manual review | E2E correct | Notes |
 |---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
 | BASE-000 | 2026-08-16 | ffa3b60 + local changes | Not run | — | — | — | — | — | — | — | — | — | Initial evidence ledger; do not treat as accuracy result |
+| BASE-001-CAND30 | 2026-08-16 | af74f82 + local changes | `candidate_subset_30.jsonl`; 22 corpus entries / 11 CVEs; positive-only | 30 | 1 abstracted hash match* | 23/30 (76.7%) | 30/30 (100.0%) | 30/30 (100.0%) | 0/30 | 15/30 flagged | 15/30 | 15/30 | Qwen3-Embedding-0.6B; k=5; threshold=0.7; fresh 131-entry index; raw artifact linked below |
+
+\*The one abstracted hash match is not a false positive for this positive clone
+fixture; it is a renamed/reformatted clone that reached the hash stage. The row is
+retained here because the existing register has a hash column, but it must not be
+interpreted as a precision measurement.
+
+### BASE-001-CAND30 detailed result
+
+Raw per-candidate output: [candidate_subset_30_current_results.json](../eval/candidate_subset_30_current_results.json).
+
+| Stage/result | Figure |
+|---|---:|
+| Candidates | 30 |
+| Corpus entries searched | 131 |
+| Hash matches | 1 / 30 (3.3%), abstracted only |
+| Correct entry Recall@1 | 23 / 30 (76.7%) |
+| Correct entry Recall@5 | 30 / 30 (100.0%) |
+| Correct entry Recall@10 | 30 / 30 (100.0%) |
+| Correct entry reached default shortlist (k=5, threshold=0.7) | 30 / 30 (100.0%) |
+| Isolated verification flagged | 15 / 30 (50.0%) |
+| Isolated verification manual review | 15 / 30 (50.0%) |
+| Isolated verification cleared | 0 / 30 (0.0%) |
+| End-to-end correct-entry flagged | 15 / 30 (50.0%) |
+| End-to-end correct-entry manual review | 15 / 30 (50.0%) |
+| End-to-end correct-entry not retrieved | 0 / 30 (0.0%) |
+
+The 15 manual-review cases were C02, C04, C06, C10, C12, C13, C14, C16, C17,
+C19, C20, C24, C26, C29, and C30. Verification scores ranged from -0.027 to
+0.691; the 15 flagged cases were at or above the current +0.1 margin, while all
+manual-review cases were below it. This is a measured positive-set result, not a
+precision or generalization result: there were no benign or patched candidates in
+this run.
+
+By transformation family, the flagged/manual-review counts were:
+
+| Transformation family | Flagged | Manual review | Total |
+|---|---:|---:|---:|
+| `alpha_rename+block_rewrite` | 1 | 0 | 1 |
+| `alpha_rename+boolean_expansion` | 0 | 1 | 1 |
+| `alpha_rename+dead_branch` | 5 | 6 | 11 |
+| `alpha_rename+reformat` | 3 | 2 | 5 |
+| `alpha_rename+return_split` | 5 | 4 | 9 |
+| `alpha_rename+statement_reorder` | 0 | 1 | 1 |
+| `alpha_rename+ternary_expansion` | 0 | 1 | 1 |
+| `dead_branch` | 1 | 0 | 1 |
+| **Total** | **15** | **15** | **30** |
+
+This baseline indicates that retrieval was not the limiting stage on this fixture:
+all 30 correct corpus entries reached the default shortlist, while verification
+abstained on half of the known positives. The result supports calibrating or
+replacing the current line/diagnostic verification score, while preserving the
+distinction between a retrieval miss and a verification manual-review outcome.
 
 Recommended first baseline runs:
 
@@ -170,11 +246,12 @@ a failure has a reproducible case or a documented source-level defect.
 
 | Failure ID | First observed | Stage | Reproduction | Observed behavior | Impact | Root cause | Fixed by | Status |
 |---|---|---|---|---|---|---|---|---|
-| FL-000 | 2026-08-16 | Evaluation | No reproducible run yet | Accuracy not established | Cannot quantify detector reliability | Baseline scripts have not been recorded in this ledger | Baseline evaluation | Open |
+| FL-000 | 2026-08-16 | Evaluation | Initial snapshot `BASE-000` | No baseline result was recorded | Accuracy was not quantifiable at the initial snapshot | Baseline scripts had not yet been run | `BASE-001-CAND30` | Superseded |
 | FL-001 | Existing source note | Retrieval | Long axios functions | 2,048-token cap can make later revisions tie | Wrong or ambiguous ranking risk | Whole-function truncation | AST-region/windowed retrieval | Known, unmeasured |
 | FL-002 | Existing source note | Verification | Pure insertion/deletion fix | One side can use whole-function fallback while the other uses diagnostic-line scores | Threshold comparison may be unstable | Non-equivalent score scales | Calibrated region-level scoring | Known, unmeasured |
 | FL-003 | Existing source note | Corpus | TypeScript/unsupported syntax | Function extraction may skip or misparse units | Silent coverage loss | JavaScript-only parser/extractor | Parser coverage expansion and explicit reporting | Known |
 | FL-004 | Existing source note | Retrieval | Same identity, changed source | Existing index may be considered fresh | Stale retrieval evidence | Identity-only fingerprint | Content-aware index fingerprint | Known |
+| FL-005 | 2026-08-16 | Verification | `BASE-001-CAND30`; positive candidates C02, C04, C06, C10, C12, C13, C14, C16, C17, C19, C20, C24, C26, C29, C30 | 15/30 known vulnerable clones entered `manual_review`; none were cleared | 50% positive-set abstention | Current +0.1 margin applied to verification score; these scores were below the flag boundary | Region-level/calibrated verification | Observed |
 
 The failure ledger must distinguish:
 
@@ -231,10 +308,11 @@ The current evidence supports a pivot hypothesis, not a final accuracy claim:
 - whole-function retrieval is vulnerable to dilution and truncation;
 - verification thresholds and fallback score paths are not calibrated;
 - the available clone benchmark is hand-authored and not statistically representative;
-- fast tests validate mechanics, but the key real-model and end-to-end results remain to
-  be recorded.
+- on the 30-case positive fixture, retrieval reached every correct entry within the
+  default shortlist, but verification flagged only half and abstained on half;
+- fast tests validate mechanics, but broader advisory-disjoint real-model and
+  end-to-end results remain to be recorded.
 
 Until the baseline register contains advisory-disjoint results, claims about the
 current detector should use terms such as “pilot,” “known limitation,” and
 “unmeasured,” rather than reporting an overall accuracy percentage.
-
