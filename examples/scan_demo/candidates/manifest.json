@@ -1,0 +1,242 @@
+[
+  {
+    "candidate_id": "C01",
+    "file": "vulnerable_clone.js",
+    "transformation_family": "alpha_rename+dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-3p68-rc4w-qgx5",
+    "cve_id": "CVE-2025-62718"
+  },
+  {
+    "candidate_id": "C02",
+    "file": "candidates/C02_alpha_rename_return_split.js",
+    "transformation_family": "alpha_rename+return_split",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-42h9-826w-cgv3",
+    "cve_id": "CVE-2026-67313"
+  },
+  {
+    "candidate_id": "C03",
+    "file": "candidates/C03_alpha_rename_dead_branch.js",
+    "transformation_family": "alpha_rename+dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-42h9-826w-cgv3",
+    "cve_id": "CVE-2026-67313"
+  },
+  {
+    "candidate_id": "C04",
+    "file": "candidates/C04_alpha_rename_boolean_expansion.js",
+    "transformation_family": "alpha_rename+boolean_expansion",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-42h9-826w-cgv3",
+    "cve_id": "CVE-2026-67313"
+  },
+  {
+    "candidate_id": "C05",
+    "file": "candidates/C05_alpha_rename_dead_branch.js",
+    "transformation_family": "alpha_rename+dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-4hjh-wcwx-xvwj",
+    "cve_id": "CVE-2025-58754"
+  },
+  {
+    "candidate_id": "C06",
+    "file": "candidates/C06_alpha_rename_reformat.js",
+    "transformation_family": "alpha_rename+reformat",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-4hjh-wcwx-xvwj",
+    "cve_id": "CVE-2025-58754"
+  },
+  {
+    "candidate_id": "C07",
+    "file": "candidates/C07_alpha_rename_reformat.js",
+    "transformation_family": "alpha_rename+reformat",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-4hjh-wcwx-xvwj",
+    "cve_id": "CVE-2025-58754"
+  },
+  {
+    "candidate_id": "C08",
+    "file": "candidates/C08_alpha_rename_return_split.js",
+    "transformation_family": "alpha_rename+return_split",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-4hjh-wcwx-xvwj",
+    "cve_id": "CVE-2025-58754"
+  },
+  {
+    "candidate_id": "C09",
+    "file": "candidates/C09_dead_branch.js",
+    "transformation_family": "dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-4hjh-wcwx-xvwj",
+    "cve_id": "CVE-2025-58754"
+  },
+  {
+    "candidate_id": "C10",
+    "file": "candidates/C10_alpha_rename_statement_reorder.js",
+    "transformation_family": "alpha_rename+statement_reorder",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-62hf-57xw-28j9",
+    "cve_id": "CVE-2026-42039"
+  },
+  {
+    "candidate_id": "C11",
+    "file": "candidates/C11_alpha_rename_block_rewrite.js",
+    "transformation_family": "alpha_rename+block_rewrite",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-62hf-57xw-28j9",
+    "cve_id": "CVE-2026-42039"
+  },
+  {
+    "candidate_id": "C12",
+    "file": "candidates/C12_alpha_rename_reformat.js",
+    "transformation_family": "alpha_rename+reformat",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-62hf-57xw-28j9",
+    "cve_id": "CVE-2026-42039"
+  },
+  {
+    "candidate_id": "C13",
+    "file": "candidates/C13_alpha_rename_return_split.js",
+    "transformation_family": "alpha_rename+return_split",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-8hc4-vh64-cxmj",
+    "cve_id": "CVE-2024-39338"
+  },
+  {
+    "candidate_id": "C14",
+    "file": "candidates/C14_alpha_rename_ternary_expansion.js",
+    "transformation_family": "alpha_rename+ternary_expansion",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-fvcv-3m26-pcqx",
+    "cve_id": "CVE-2026-40175"
+  },
+  {
+    "candidate_id": "C15",
+    "file": "candidates/C15_alpha_rename_dead_branch.js",
+    "transformation_family": "alpha_rename+dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-fvcv-3m26-pcqx",
+    "cve_id": "CVE-2026-40175"
+  },
+  {
+    "candidate_id": "C16",
+    "file": "candidates/C16_alpha_rename_dead_branch.js",
+    "transformation_family": "alpha_rename+dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-j5f8-grm9-p9fc",
+    "cve_id": "CVE-2026-44486"
+  },
+  {
+    "candidate_id": "C17",
+    "file": "candidates/C17_alpha_rename_return_split.js",
+    "transformation_family": "alpha_rename+return_split",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-jr5f-v2jv-69x6",
+    "cve_id": "CVE-2025-27152"
+  },
+  {
+    "candidate_id": "C18",
+    "file": "candidates/C18_alpha_rename_return_split.js",
+    "transformation_family": "alpha_rename+return_split",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-jr5f-v2jv-69x6",
+    "cve_id": "CVE-2025-27152"
+  },
+  {
+    "candidate_id": "C19",
+    "file": "candidates/C19_alpha_rename_dead_branch.js",
+    "transformation_family": "alpha_rename+dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-q8qp-cvcw-x6jj",
+    "cve_id": "CVE-2026-42264"
+  },
+  {
+    "candidate_id": "C20",
+    "file": "candidates/C20_alpha_rename_dead_branch.js",
+    "transformation_family": "alpha_rename+dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-qw6h-vgh9-j6wx",
+    "cve_id": "CVE-2024-43796"
+  },
+  {
+    "candidate_id": "C21",
+    "file": "candidates/C21_alpha_rename_return_split.js",
+    "transformation_family": "alpha_rename+return_split",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-rv95-896h-c2vc",
+    "cve_id": "CVE-2024-29041"
+  },
+  {
+    "candidate_id": "C22",
+    "file": "candidates/C22_alpha_rename_return_split.js",
+    "transformation_family": "alpha_rename+return_split",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-rv95-896h-c2vc",
+    "cve_id": "CVE-2024-29041"
+  },
+  {
+    "candidate_id": "C23",
+    "file": "candidates/C23_alpha_rename_reformat.js",
+    "transformation_family": "alpha_rename+reformat",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-3p68-rc4w-qgx5",
+    "cve_id": "CVE-2025-62718"
+  },
+  {
+    "candidate_id": "C24",
+    "file": "candidates/C24_alpha_rename_dead_branch.js",
+    "transformation_family": "alpha_rename+dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-42h9-826w-cgv3",
+    "cve_id": "CVE-2026-67313"
+  },
+  {
+    "candidate_id": "C25",
+    "file": "candidates/C25_alpha_rename_return_split.js",
+    "transformation_family": "alpha_rename+return_split",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-42h9-826w-cgv3",
+    "cve_id": "CVE-2026-67313"
+  },
+  {
+    "candidate_id": "C26",
+    "file": "candidates/C26_alpha_rename_dead_branch.js",
+    "transformation_family": "alpha_rename+dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-42h9-826w-cgv3",
+    "cve_id": "CVE-2026-67313"
+  },
+  {
+    "candidate_id": "C27",
+    "file": "candidates/C27_alpha_rename_reformat.js",
+    "transformation_family": "alpha_rename+reformat",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-4hjh-wcwx-xvwj",
+    "cve_id": "CVE-2025-58754"
+  },
+  {
+    "candidate_id": "C28",
+    "file": "candidates/C28_alpha_rename_dead_branch.js",
+    "transformation_family": "alpha_rename+dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-62hf-57xw-28j9",
+    "cve_id": "CVE-2026-42039"
+  },
+  {
+    "candidate_id": "C29",
+    "file": "candidates/C29_alpha_rename_return_split.js",
+    "transformation_family": "alpha_rename+return_split",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-fvcv-3m26-pcqx",
+    "cve_id": "CVE-2026-40175"
+  },
+  {
+    "candidate_id": "C30",
+    "file": "candidates/C30_alpha_rename_dead_branch.js",
+    "transformation_family": "alpha_rename+dead_branch",
+    "expected_status": "flagged",
+    "ghsa_id": "GHSA-62hf-57xw-28j9",
+    "cve_id": "CVE-2026-42039"
+  }
+]

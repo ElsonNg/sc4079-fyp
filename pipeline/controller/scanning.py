@@ -6,7 +6,7 @@ import hashlib
 import json
 import sys
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
@@ -27,6 +27,10 @@ from pipeline.models.regions import RegionDetectionResult
 
 JS_EXTENSIONS = (".js", ".jsx", ".mjs", ".cjs")
 DEFAULT_CORPUS_VERSION = "unknown"
+# Bump this whenever the persisted RegionDetectionResult shape or its serialized
+# metadata contract changes. This prevents old cache entries from being treated as
+# complete results after adding fields such as CVE/version provenance.
+RESULT_CACHE_SCHEMA_VERSION = 2
 
 
 class Detector(Protocol):
@@ -173,7 +177,12 @@ def scan_directory(
     state_path = config.state_path or root / ".provtrail" / DEFAULT_STATE_FILENAME
     previous = load_scan_state(state_path)
     snapshot = build_merkle_snapshot(root)
-    config_fingerprint = fingerprint_config(config.detector)
+    config_fingerprint = fingerprint_config(
+        {
+            "detector": asdict(config.detector),
+            "result_cache_schema": RESULT_CACHE_SCHEMA_VERSION,
+        }
+    )
     context_matches = bool(
         previous
         and previous.target_root == str(root)

@@ -17,6 +17,13 @@ from pipeline.controller.scanning import (
     corpus_fingerprint,
     scan_directory,
 )
+from pipeline.controller.reporting import (
+    format_audit_summary,
+    format_verbose,
+    load_scan_report,
+    report_exit_code,
+    report_view,
+)
 
 
 def _add_db_path(parser: argparse.ArgumentParser) -> None:
@@ -38,6 +45,12 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--minimum-vulnerable-score", type=float, default=0.75)
     scan.add_argument("--minimum-margin", type=float, default=0.08)
     scan.add_argument("--json", action="store_true", help="Print structured JSON instead of the summary")
+
+    report = commands.add_parser("report", help="Inspect a saved scan report without rerunning detection")
+    report.add_argument("path", type=Path, help="Scan JSON file or target directory")
+    report.add_argument("--verbose", action="store_true", help="Show CVE, version, score, and provenance details")
+    report.add_argument("--include-cleared", action="store_true", help="Include cleared findings in detailed output")
+    report.add_argument("--json", action="store_true", help="Print the structured report view")
 
     corpus = commands.add_parser("corpus", help="Manage the vulnerability corpus")
     corpus_commands = corpus.add_subparsers(dest="corpus_command", required=True)
@@ -74,23 +87,34 @@ def _scan(args: argparse.Namespace) -> int:
         detector_factory=build_default_detector_factory(entries, detector_config),
     )
     payload = summary.to_dict()
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    output_path = args.output or args.path.resolve() / ".provtrail" / "latest-scan.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     if args.json:
         print(json.dumps(payload, indent=2))
     else:
-        print(f"Scanned {summary.target_root}")
-        print(f"  files:                 {summary.total_files}")
-        print(f"  functions:             {summary.total_functions}")
-        print(f"  scanned functions:     {summary.scanned_functions}")
-        print(f"  reused functions:      {summary.reused_functions}")
-        print(f"  changed files:         {len(summary.changed_files)}")
-        for status, count in summary.status_counts.items():
-            print(f"  {status:22s} {count}")
-        if args.output:
-            print(f"  JSON report:           {args.output}")
-    return 0
+        print(format_audit_summary(payload))
+        print(f"  report:                {output_path}")
+    return report_exit_code(payload)
+
+
+def _report(args: argparse.Namespace) -> int:
+    report_path = args.path
+    if report_path.is_dir():
+        report_path = report_path / ".provtrail" / "latest-scan.json"
+    try:
+        payload = load_scan_report(report_path)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        print(f"Unable to read scan report: {exc}")
+        return 2
+
+    if args.json:
+        print(json.dumps(report_view(payload, include_cleared=args.include_cleared), indent=2))
+    elif args.verbose:
+        print(format_verbose(payload, include_cleared=args.include_cleared))
+    else:
+        print(format_audit_summary(payload))
+    return report_exit_code(payload)
 
 
 def _corpus_build(args: argparse.Namespace) -> int:
@@ -120,6 +144,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "scan":
         return _scan(args)
+    if args.command == "report":
+        return _report(args)
     if args.corpus_command == "build":
         return _corpus_build(args)
     return _corpus_stats(args)

@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from corpus.models.github import CWE
+from pipeline.models.hashing import HashMatch
 
 RegionGranularity = Literal["changed", "block", "context", "function"]
 RegionChangeKind = Literal["insertion", "deletion", "replacement", "movement", "mixed", "unknown"]
@@ -48,6 +49,10 @@ class VulnerableRegionPair(BaseModel):
     file_path: str
     function_name: str | None = None
     package_name: str
+    ecosystem: str = "npm"
+    osv_id: str | None = None
+    affected_versions: list[str] = Field(default_factory=list)
+    fixed_versions: list[str] = Field(default_factory=list)
     vulnerable_region: AstRegion
     patched_region: AstRegion
     change_kind: RegionChangeKind = "unknown"
@@ -71,6 +76,13 @@ class RegionRetrievalMatch(BaseModel):
     corpus_granularity: RegionGranularity
     ghsa_id: str
     cve_id: str | None = None
+    osv_id: str | None = None
+    cwes: list[CWE] = Field(default_factory=list)
+    severity: str = "unknown"
+    package_name: str | None = None
+    ecosystem: str | None = None
+    affected_versions: list[str] = Field(default_factory=list)
+    fixed_versions: list[str] = Field(default_factory=list)
     fix_commit_sha: str
     file_path: str
     function_name: str | None = None
@@ -112,6 +124,7 @@ class RegionDetectionResult(BaseModel):
     candidate_id: str | None = None
     provenance_confidence: ProvenanceConfidence = "none"
     hash_match_types: list[str] = Field(default_factory=list)
+    hash_matches: list[HashMatch] = Field(default_factory=list)
     candidate_region_count: int
     retrieval_match_count: int
     aggregates: list[RegionAggregate] = Field(default_factory=list)

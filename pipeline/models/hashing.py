@@ -16,10 +16,15 @@ class FunctionFingerprint(BaseModel):
 class HashMatch(BaseModel):
     ghsa_id: str
     cve_id: str | None = None
+    osv_id: str | None = None
     side: Literal["vulnerable", "patched"]
     match_type: Literal["exact", "abstracted"]
     cwes: list[CWE] = []
     severity: str = "unknown"
+    package_name: str | None = None
+    ecosystem: str | None = None
+    affected_versions: list[str] = []
+    fixed_versions: list[str] = []
     repo: str
     fix_commit_sha: str
     file_path: str
