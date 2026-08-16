@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import os
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -11,6 +14,14 @@ from corpus.controller.build import build_corpus, print_attrition_report
 from corpus.controller.store import load_entries, save_entries
 from pipeline.controller.region_detection import RegionDetectorConfig
 from pipeline.controller.region_verification import RegionVerifierConfig
+from pipeline.controller.review_explanation import (
+    DEFAULT_OLLAMA_HOST,
+    DEFAULT_OLLAMA_MODEL,
+    DEFAULT_OLLAMA_TIMEOUT,
+    OllamaExplanationConfig,
+    enrich_manual_review_findings,
+    explanation_progress,
+)
 from pipeline.controller.scanning import (
     ScanConfig,
     build_default_detector_factory,
@@ -33,6 +44,13 @@ def _add_db_path(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--db-path", type=Path, default=None, help="Corpus SQLite path")
 
 
+def _positive_float(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed) or parsed <= 0:
+        raise argparse.ArgumentTypeError("must be greater than zero")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="provtrail", description="Detect JavaScript vulnerability clones")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -53,6 +71,27 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--retrieval-threshold", type=float, default=0.0)
     scan.add_argument("--minimum-vulnerable-score", type=float, default=0.75)
     scan.add_argument("--minimum-margin", type=float, default=0.08)
+    scan.add_argument(
+        "--explain-review",
+        action="store_true",
+        help="Generate optional local Ollama relevance verdicts for manual-review findings",
+    )
+    scan.add_argument(
+        "--ollama-model",
+        default=os.environ.get("PROVTRAIL_OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL),
+        help=f"Ollama model used for review explanations (default: {DEFAULT_OLLAMA_MODEL})",
+    )
+    scan.add_argument(
+        "--ollama-host",
+        default=os.environ.get("OLLAMA_HOST", DEFAULT_OLLAMA_HOST),
+        help=f"Ollama API host (default: {DEFAULT_OLLAMA_HOST})",
+    )
+    scan.add_argument(
+        "--ollama-timeout",
+        type=_positive_float,
+        default=DEFAULT_OLLAMA_TIMEOUT,
+        help=f"Per-request Ollama timeout in seconds (default: {DEFAULT_OLLAMA_TIMEOUT:g})",
+    )
     scan.add_argument("--json", action="store_true", help="Print structured JSON instead of the summary")
 
     report = commands.add_parser("report", help="Inspect a saved scan report without rerunning detection")
@@ -95,6 +134,21 @@ def _scan(args: argparse.Namespace) -> int:
         config=scan_config,
         detector_factory=build_default_detector_factory(entries, detector_config),
     )
+    if args.explain_review:
+        cache_path = Path(summary.state_path).with_name("review-explanations.json")
+        enrich_manual_review_findings(
+            summary,
+            entries=entries,
+            scan_config=scan_config,
+            ollama_config=OllamaExplanationConfig(
+                model=args.ollama_model,
+                host=args.ollama_host,
+                timeout=args.ollama_timeout,
+            ),
+            cache_path=cache_path,
+            progress_callback=explanation_progress,
+            warning_callback=lambda message: print(f"warning: {message}", file=sys.stderr),
+        )
     payload = summary.to_dict()
     output_path = args.output or args.path.resolve() / ".provtrail" / "latest-scan.json"
     html_output_path = args.html_output or output_path.with_suffix(".html")
@@ -113,6 +167,13 @@ def _scan(args: argparse.Namespace) -> int:
         print(json.dumps(payload, indent=2))
     else:
         print(format_audit_summary(payload))
+        if summary.explanation_run.get("enabled"):
+            run = summary.explanation_run
+            print(
+                "  review explanations:   "
+                f"{run['generated']} generated, {run['reused']} reused, "
+                f"{run['unavailable']} unavailable"
+            )
         print(f"  structured report:     {output_path}")
         print(f"  HTML report:           {html_output_path}")
     return report_exit_code(payload)

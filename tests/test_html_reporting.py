@@ -147,11 +147,14 @@ def test_html_report_is_self_contained_and_includes_core_views():
     )
     output = render_html_report(data)
 
-    assert "Project directory" in output
+    assert "Project Directory" in output
     assert ">Findings<" in output
+    assert "<th>Severity</th><th>LLM Decision</th><th>Location</th>" in output
     assert ">Recommendations<" in output
     assert "folder-closed" in output
     assert "Back to project overview" in output
+    assert "function selectFile(path){selectedFile=path;$$('.tree-file').forEach" in output
+    assert "function selectFile(path){selectedFile=path;buildTree();renderFile()}" not in output
     assert "code-compare" in output
     assert "reference-stack" in output
     assert ".code-compare{height:720px}" in output
@@ -179,30 +182,51 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert '<circle cx="12" cy="12" r="9"/>' in output
     assert "kind==='manual_review'?'Review'" in output
     assert ".badge.manual_review{color:var(--focus);background:var(--focus-bg)}" in output
+    assert ".badge.llm_dismissed{color:var(--muted);background:var(--surface-2)}" in output
+    assert ".badge.llm_escalate{color:var(--amber);background:var(--amber-bg)}" in output
+    assert ".tree-file.llm_dismissed,.tree summary.llm_dismissed{color:var(--muted)}" in output
+    assert ".tree-file.flagged{color:var(--red)}" not in output
+    assert ".tree-file.llm_escalate,.tree summary.llm_escalate{color:var(--amber)}" in output
     assert "attentionStatus(findings)" in output
-    assert "findings.some(f=>f.status==='flagged')?'flagged'" in output
-    assert "const statusRank={flagged:0,manual_review:1,cleared:2}" in output
+    assert "if(findings.some(f=>f.status==='flagged'))return'flagged'" in output
+    assert "const statusRank={flagged:0,llm_escalate:1,manual_review:2,llm_dismissed:3,cleared:4}" in output
     assert "statusRank[fileStatus(a)]-statusRank[fileStatus(b)]||a.localeCompare(b)" in output
-    assert 'affectedFiles.map(path=>`<button class="overview-file" data-path="${esc(path)}"><span class="file-name">' in output
+    assert 'affectedFiles.map(path=>{const status=fileStatus(path),findings=byFile.get(path)||[];return `<button class="overview-file ${esc(status)}"' in output
     assert ".overview-file{font-weight:550}" in output
-    assert '<details class="finding-card" open>' in output
+    assert ".overview-file.flagged .file-name{color:var(--red)}" not in output
+    assert ".overview-file.llm_escalate .file-name{color:var(--amber)}" in output
+    assert "function findingCard(f,openByDefault=false)" in output
+    assert "<details class=\"finding-card\"${openByDefault?' open':''}>" in output
+    assert "fs.map(f=>findingCard(f,fs.length===1))" in output
+    assert "function countMarkers(findings)" in output
+    assert ".count-marker.flagged{color:var(--red)}" in output
+    assert ".count-marker.llm_escalate{color:var(--amber)}" in output
+    assert ".count-marker.manual_review{color:var(--focus)}" in output
+    assert ".count-marker.llm_dismissed{color:var(--muted)}" in output
     assert '<summary class="finding-head">' in output
     assert "finding-chevron" in output
-    assert "const headerBadges=needsReview?badge(f.status)" in output
+    assert "llmStatus=verdict==='dismissed'?'llm_dismissed':verdict==='flagged'?'llm_escalate':''" in output
+    assert "needsReview?(llmStatus?badge(llmStatus,llmStatus):badge(f.status))" in output
+    assert "LLM Dismissed" in output
+    assert "LLM Escalate" in output
+    assert "function llmDecision(finding)" in output
+    assert "if(finding.status!=='manual_review')return'<span class=\"muted\">—</span>'" in output
+    assert "${llmDecision(f)}</td><td><strong>${esc(f.path)}" in output
+    assert 'colspan="7"' in output
     assert "<dt>Potential impact</dt>" in output
     assert "if confirmed</strong>" in output
-    assert "</div></div></header>${fs.length?fs.map(findingCard)" in output
+    assert "</div></div></header>${fs.length?fs.map(f=>findingCard(f,fs.length===1))" in output
     assert '<h1 class="wordmark">provtrail</h1>' in output
     assert ".wordmark{margin:0;color:var(--teal)" in output
     assert 'class="mark"' not in output
     assert "Request URL validation can be bypassed" in output
     assert "title.toLocaleLowerCase()!==identifier.toLocaleLowerCase()" in output
     assert "p.cve_id||p.ghsa_id||p.osv_id||p.identifier" in output
-    assert 'class="advisory-action"' in output
-    assert "icons.external" in output
+    assert 'class="advisory-action"' not in output
+    assert "icons.external" not in output
     assert 'class="advisory-id-link"' in output
+    assert "const linkedIdentifier=advisoryIdentifierLink(p.advisory_url,identifier)" in output
     assert "`${linkedIdentifier}: ${esc(title)}`" in output
-    assert "`${esc(identifier)}: ${esc(title)}`" in output
     assert 'class="affected-locations"' in output
     assert "background:var(--location-bg)" in output
     assert "Version ranges apply to upstream" in output
@@ -212,6 +236,8 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "Show more" in output
     assert "Show less" in output
     assert "-webkit-line-clamp:3" in output
+    assert ".summary-toggle{border:0;background:transparent;color:var(--focus);padding:0;font-weight:inherit;text-decoration:underline;text-underline-offset:3px}" in output
+    assert ".summary-toggle:hover" not in output
     assert ".patch-line.removed{background:var(--red-bg);color:var(--red)}" in output
     assert ".patch-line.added{background:var(--teal-bg);color:var(--teal)}" in output
     assert "kind==='Removed'?'−':'+'" in output
@@ -296,6 +322,55 @@ def test_embedded_javascript_has_valid_syntax(tmp_path):
     assert result.returncode == 0, result.stderr
 
 
+def test_manual_review_explanation_is_embedded_in_its_finding():
+    summary = _summary()
+    summary.findings[0]["result"]["status"] = "manual_review"
+    summary.findings[0]["review_explanation"] = {
+        "status": "generated",
+        "model": "qwen3:8b",
+        "generated_at": "2026-08-17T10:00:00+08:00",
+        "relevance_tier": 2,
+        "llm_verdict": "needs_review",
+        "verdict_rationale": "The request path is present, but redirect handling is outside the region.",
+        "security_mechanism": "Every redirect destination must be validated.",
+        "supporting_evidence": ["The original request path remains."],
+        "contradicting_evidence": ["A validation branch is also present."],
+        "review_steps": ["Trace validation across every redirect."],
+        "limitations": ["Runtime configuration was not evaluated."],
+        "error_code": None,
+    }
+    summary.explanation_run = {
+        "enabled": True,
+        "provider": "ollama",
+        "model": "qwen3:8b",
+        "generated": 1,
+        "reused": 0,
+        "unavailable": 0,
+    }
+
+    data = build_html_report_data(summary, entries=[_entry()], config=ScanConfig())
+    output = render_html_report(data)
+
+    assert data["schema"] == "provtrail_html_report_v2"
+    assert data["explanation_run"]["model"] == "qwen3:8b"
+    assert data["findings"][0]["review_explanation"]["status"] == "generated"
+    assert "LLM Explanation" in output
+    assert "By ${model}" in output
+    assert "Verdict: ${verdictText}" in output
+    assert "LLM verdict: ${verdictText}" not in output
+    assert "Tier ${tier} of 3" not in output
+    assert "Totally irrelevant" not in output
+    assert "Independent advisory-relevance opinion" in output
+    assert "if(verdict==='dismissed')return" in output
+    assert 'class="review-explanation dismissed"' in output
+    assert ".review-explanation.dismissed .verdict-rationale" in output
+    assert "reviews.some(f=>llmVerdict(f)==='flagged')" in output
+    assert "reviews.some(f=>llmVerdict(f)!=='dismissed')" in output
+    assert "Trace validation across every redirect." in output
+    assert "Review explanation model" in output
+    assert "Explanations unavailable" in output
+
+
 def test_existing_corpus_database_is_migrated_and_metadata_round_trips(tmp_path):
     path = tmp_path / "corpus.db"
     conn = sqlite3.connect(path)
@@ -351,6 +426,59 @@ def test_cli_scan_writes_json_and_html_artifacts(monkeypatch, tmp_path):
     html_path = tmp_path / ".provtrail" / "latest-scan.html"
     assert json_path.exists()
     assert html_path.exists()
-    assert json.loads(json_path.read_text(encoding="utf-8"))["schema"] == "provtrail_scan_v2"
+    assert json.loads(json_path.read_text(encoding="utf-8"))["schema"] == "provtrail_scan_v3"
     assert "source" not in json_path.read_text(encoding="utf-8")
-    assert "Project directory" in html_path.read_text(encoding="utf-8")
+    assert "Project Directory" in html_path.read_text(encoding="utf-8")
+
+
+def test_cli_explain_review_wires_ollama_options_and_persists_result(monkeypatch, tmp_path):
+    summary = _summary()
+    calls = []
+
+    def explain(received_summary, **kwargs):
+        calls.append((received_summary, kwargs))
+        received_summary.findings[0]["review_explanation"] = {
+            "status": "generated",
+            "model": kwargs["ollama_config"].model,
+            "relevance_tier": 1,
+            "llm_verdict": "dismissed",
+            "verdict_rationale": "The advisory mechanism is absent.",
+        }
+        received_summary.explanation_run = {
+            "enabled": True,
+            "provider": "ollama",
+            "model": kwargs["ollama_config"].model,
+            "generated": 1,
+            "reused": 0,
+            "unavailable": 0,
+        }
+
+    monkeypatch.setattr("cli.main.load_entries", lambda *_args, **_kwargs: [_entry()])
+    monkeypatch.setattr("cli.main.scan_directory", lambda *_args, **_kwargs: summary)
+    monkeypatch.setattr("cli.main.build_default_detector_factory", lambda *_args, **_kwargs: lambda: None)
+    monkeypatch.setattr("cli.main.enrich_manual_review_findings", explain)
+
+    exit_code = main(
+        [
+            "scan",
+            str(tmp_path),
+            "--explain-review",
+            "--ollama-model",
+            "qwen3:8b",
+            "--ollama-host",
+            "localhost:11434",
+            "--ollama-timeout",
+            "30",
+        ]
+    )
+
+    assert exit_code == 1
+    assert len(calls) == 1
+    _, kwargs = calls[0]
+    assert kwargs["ollama_config"].model == "qwen3:8b"
+    assert kwargs["ollama_config"].host == "localhost:11434"
+    assert kwargs["ollama_config"].timeout == 30
+    assert kwargs["cache_path"].name == "review-explanations.json"
+    saved = json.loads((tmp_path / ".provtrail" / "latest-scan.json").read_text())
+    assert saved["explanation_run"]["generated"] == 1
+    assert saved["findings"][0]["review_explanation"]["llm_verdict"] == "dismissed"

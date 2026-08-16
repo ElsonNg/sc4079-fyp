@@ -105,6 +105,7 @@ def finding_detail(finding: dict[str, Any]) -> dict[str, Any]:
         "evidence": _best_evidence(result),
         "hash_match_types": result.get("hash_match_types", []),
         "message": result.get("message"),
+        "review_explanation": finding.get("review_explanation"),
     }
 
 
@@ -214,6 +215,18 @@ def format_verbose(report: dict[str, Any], include_cleared: bool = False) -> str
             lines.append(f"  patched score:          {float(evidence.get('patched_score', 0.0)):.3f}")
             lines.append(f"  score margin:           {float(evidence.get('vulnerable_minus_patched', 0.0)):.3f}")
             lines.append(f"  retrieval similarity:   {float(evidence.get('retrieval_similarity', 0.0)):.3f}")
+        explanation = detail.get("review_explanation")
+        if explanation:
+            lines.append(f"  local explanation:      {explanation.get('status', 'unavailable')}")
+            lines.append(f"    model:                {_display(explanation.get('model'))}")
+            if explanation.get("status") == "generated":
+                lines.append(f"    LLM verdict:          {_display(explanation.get('llm_verdict'))}")
+                lines.append(f"    relevance tier:       {_display(explanation.get('relevance_tier'))} / 3")
+                lines.append(f"    rationale:            {_display(explanation.get('verdict_rationale'))}")
+                lines.append(f"    security mechanism:   {_display(explanation.get('security_mechanism'))}")
+                lines.append(f"    review steps:         {_display(explanation.get('review_steps'))}")
+            else:
+                lines.append(f"    reason:               {_display(explanation.get('error_code'))}")
         advisories = detail.get("advisories", [])
         if not advisories:
             lines.append("  advisory metadata:      not recorded")

@@ -53,6 +53,15 @@ def _report() -> dict:
                 "name": "otherRequest",
                 "start_line": 0,
                 "end_line": 4,
+                "review_explanation": {
+                    "status": "generated",
+                    "model": "qwen3:8b",
+                    "relevance_tier": 2,
+                    "llm_verdict": "needs_review",
+                    "verdict_rationale": "Redirect validation is not visible in this region.",
+                    "security_mechanism": "Redirect destinations must be validated.",
+                    "review_steps": ["Trace redirect destinations through the request path."],
+                },
                 "result": {
                     "status": "manual_review",
                     "provenance_confidence": "ambiguous",
@@ -137,6 +146,12 @@ def test_verbose_report_contains_cve_and_version_metadata():
     assert "fixed versions:" in output
     assert "1.15.0" in output
     assert "score margin:           0.290" in output
+    assert "local explanation:      generated" in output
+    assert "model:                qwen3:8b" in output
+    assert "LLM verdict:          needs_review" in output
+    assert "relevance tier:       2 / 3" in output
+    assert "Redirect validation is not visible in this region." in output
+    assert "Trace redirect destinations through the request path." in output
 
 
 def test_report_view_excludes_cleared_by_default_and_can_include_them():
@@ -144,6 +159,7 @@ def test_report_view_excludes_cleared_by_default_and_can_include_them():
 
     assert len(report_view(report)["findings"]) == 2
     assert len(report_view(report, include_cleared=True)["findings"]) == 3
+    assert report_view(report)["findings"][1]["review_explanation"]["model"] == "qwen3:8b"
 
 
 def test_cli_report_reads_saved_json_without_detector(tmp_path, capsys):

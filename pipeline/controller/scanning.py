@@ -61,6 +61,16 @@ class ScanSummary:
     status_counts: dict[str, int]
     findings: list[dict[str, Any]]
     state_path: str
+    explanation_run: dict[str, Any] = field(
+        default_factory=lambda: {
+            "enabled": False,
+            "provider": "ollama",
+            "model": None,
+            "generated": 0,
+            "reused": 0,
+            "unavailable": 0,
+        }
+    )
 
     def to_dict(self) -> dict[str, Any]:
         public_findings = [
@@ -68,7 +78,7 @@ class ScanSummary:
             for finding in self.findings
         ]
         return {
-            "schema": "provtrail_scan_v2",
+            "schema": "provtrail_scan_v3",
             "target_root": self.target_root,
             "root_hash": self.root_hash,
             "previous_root_hash": self.previous_root_hash,
@@ -82,6 +92,7 @@ class ScanSummary:
             "status_counts": self.status_counts,
             "findings": public_findings,
             "state_path": self.state_path,
+            "explanation_run": self.explanation_run,
         }
 
 
