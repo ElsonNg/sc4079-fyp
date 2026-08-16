@@ -42,6 +42,10 @@ class VulnerableRegionPair(BaseModel):
     pair_id: str
     ghsa_id: str
     cve_id: str | None = None
+    advisory_title: str = ""
+    advisory_description: str = ""
+    advisory_url: str = ""
+    advisory_references: list[str] = Field(default_factory=list)
     cwes: list[CWE] = Field(default_factory=list)
     severity: str = "unknown"
     repo: str
@@ -77,6 +81,10 @@ class RegionRetrievalMatch(BaseModel):
     ghsa_id: str
     cve_id: str | None = None
     osv_id: str | None = None
+    advisory_title: str = ""
+    advisory_description: str = ""
+    advisory_url: str = ""
+    advisory_references: list[str] = Field(default_factory=list)
     cwes: list[CWE] = Field(default_factory=list)
     severity: str = "unknown"
     package_name: str | None = None

@@ -6,6 +6,10 @@ from corpus.models.github import CWE
 class RetrievalMatch(BaseModel):
     ghsa_id: str
     cve_id: str | None = None
+    advisory_title: str = ""
+    advisory_description: str = ""
+    advisory_url: str = ""
+    advisory_references: list[str] = []
     cwes: list[CWE] = []
     severity: str = "unknown"
     repo: str

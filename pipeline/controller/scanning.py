@@ -30,7 +30,7 @@ DEFAULT_CORPUS_VERSION = "unknown"
 # Bump this whenever the persisted RegionDetectionResult shape or its serialized
 # metadata contract changes. This prevents old cache entries from being treated as
 # complete results after adding fields such as CVE/version provenance.
-RESULT_CACHE_SCHEMA_VERSION = 2
+RESULT_CACHE_SCHEMA_VERSION = 3
 
 
 class Detector(Protocol):
@@ -53,6 +53,7 @@ class ScanSummary:
     previous_root_hash: str | None
     changed_files: list[str]
     deleted_files: list[str]
+    scanned_files: list[str]
     total_files: int
     total_functions: int
     scanned_functions: int
@@ -62,19 +63,24 @@ class ScanSummary:
     state_path: str
 
     def to_dict(self) -> dict[str, Any]:
+        public_findings = [
+            {key: value for key, value in finding.items() if key != "source"}
+            for finding in self.findings
+        ]
         return {
-            "schema": "provtrail_scan_v1",
+            "schema": "provtrail_scan_v2",
             "target_root": self.target_root,
             "root_hash": self.root_hash,
             "previous_root_hash": self.previous_root_hash,
             "changed_files": self.changed_files,
             "deleted_files": self.deleted_files,
+            "scanned_files": self.scanned_files,
             "total_files": self.total_files,
             "total_functions": self.total_functions,
             "scanned_functions": self.scanned_functions,
             "reused_functions": self.reused_functions,
             "status_counts": self.status_counts,
-            "findings": self.findings,
+            "findings": public_findings,
             "state_path": self.state_path,
         }
 
@@ -87,6 +93,15 @@ def corpus_fingerprint(entries: list[CorpusEntry]) -> str:
                 "identity": [entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name],
                 "vulnerable": entry.vulnerable_function,
                 "patched": entry.patched_function,
+                "advisory": {
+                    "title": entry.advisory_title,
+                    "description": entry.advisory_description,
+                    "url": entry.advisory_url,
+                    "references": entry.advisory_references,
+                    "severity": entry.severity,
+                    "affected_versions": entry.affected_versions,
+                    "fixed_versions": entry.fixed_versions,
+                },
             }
         )
     encoded = json.dumps(
@@ -247,6 +262,10 @@ def scan_directory(
             "start_line": record["start_line"],
             "end_line": record["end_line"],
             "function_hash": record["function_hash"],
+            # Kept on the in-memory summary for HTML rendering. ``to_dict``
+            # deliberately removes source so the established JSON artifact remains
+            # safe to share and compact.
+            "source": record["source"],
             "result": result.model_dump(mode="json"),
         }
         findings.append(finding)
@@ -267,6 +286,7 @@ def scan_directory(
         previous_root_hash=previous_root_hash,
         changed_files=sorted(changed),
         deleted_files=sorted(deleted),
+        scanned_files=_js_files(snapshot, config.extensions),
         total_files=len(_js_files(snapshot, config.extensions)),
         total_functions=len(findings),
         scanned_functions=scanned_functions,

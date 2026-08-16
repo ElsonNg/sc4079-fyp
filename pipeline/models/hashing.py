@@ -17,6 +17,10 @@ class HashMatch(BaseModel):
     ghsa_id: str
     cve_id: str | None = None
     osv_id: str | None = None
+    advisory_title: str = ""
+    advisory_description: str = ""
+    advisory_url: str = ""
+    advisory_references: list[str] = []
     side: Literal["vulnerable", "patched"]
     match_type: Literal["exact", "abstracted"]
     cwes: list[CWE] = []

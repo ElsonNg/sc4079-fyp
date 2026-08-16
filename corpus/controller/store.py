@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS corpus_entries (
     ghsa_id TEXT NOT NULL,
     cve_id TEXT,
     osv_id TEXT,
+    advisory_title TEXT NOT NULL DEFAULT '',
+    advisory_description TEXT NOT NULL DEFAULT '',
+    advisory_url TEXT NOT NULL DEFAULT '',
+    advisory_references TEXT NOT NULL DEFAULT '[]',
     cwes TEXT NOT NULL DEFAULT '[]',
     severity TEXT NOT NULL DEFAULT 'unknown',
     package_name TEXT NOT NULL,
@@ -32,12 +36,18 @@ CREATE TABLE IF NOT EXISTS corpus_entries (
 
 _UPSERT_SQL = """
 INSERT INTO corpus_entries (
-    ghsa_id, cve_id, osv_id, cwes, severity, package_name, ecosystem, repo,
+    ghsa_id, cve_id, osv_id, advisory_title, advisory_description, advisory_url,
+    advisory_references, cwes, severity, package_name, ecosystem, repo,
     fix_commit_sha, file_path, function_name, vulnerable_function,
     patched_function, diagnostic_lines, affected_versions, fixed_versions, osv_confirmed
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (ghsa_id, fix_commit_sha, file_path, function_name) DO UPDATE SET
-    cve_id=excluded.cve_id, osv_id=excluded.osv_id, cwes=excluded.cwes,
+    cve_id=excluded.cve_id, osv_id=excluded.osv_id,
+    advisory_title=excluded.advisory_title,
+    advisory_description=excluded.advisory_description,
+    advisory_url=excluded.advisory_url,
+    advisory_references=excluded.advisory_references,
+    cwes=excluded.cwes,
     severity=excluded.severity, package_name=excluded.package_name,
     ecosystem=excluded.ecosystem, repo=excluded.repo,
     vulnerable_function=excluded.vulnerable_function,
@@ -54,6 +64,17 @@ def get_connection(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.execute(SCHEMA)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(corpus_entries)")}
+    migrations = {
+        "advisory_title": "TEXT NOT NULL DEFAULT ''",
+        "advisory_description": "TEXT NOT NULL DEFAULT ''",
+        "advisory_url": "TEXT NOT NULL DEFAULT ''",
+        "advisory_references": "TEXT NOT NULL DEFAULT '[]'",
+    }
+    for column, declaration in migrations.items():
+        if column not in columns:
+            conn.execute(f"ALTER TABLE corpus_entries ADD COLUMN {column} {declaration}")
+    conn.commit()
     return conn
 
 
@@ -67,6 +88,10 @@ def save_entries(entries: list[CorpusEntry], db_path: Path | str = DEFAULT_DB_PA
                     e.ghsa_id,
                     e.cve_id,
                     e.osv_id,
+                    e.advisory_title,
+                    e.advisory_description,
+                    e.advisory_url,
+                    json.dumps(e.advisory_references),
                     json.dumps([c.model_dump() for c in e.cwes]),
                     e.severity,
                     e.package_name,
@@ -101,6 +126,10 @@ def load_entries(db_path: Path | str = DEFAULT_DB_PATH) -> list[CorpusEntry]:
                 ghsa_id=d["ghsa_id"],
                 cve_id=d["cve_id"],
                 osv_id=d["osv_id"],
+                advisory_title=d["advisory_title"],
+                advisory_description=d["advisory_description"],
+                advisory_url=d["advisory_url"],
+                advisory_references=json.loads(d["advisory_references"]),
                 cwes=[CWE(**c) for c in json.loads(d["cwes"])],
                 severity=d["severity"],
                 package_name=d["package_name"],

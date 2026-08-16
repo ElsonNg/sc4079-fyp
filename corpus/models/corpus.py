@@ -14,6 +14,10 @@ class CorpusEntry(BaseModel):
     ghsa_id: str
     cve_id: str | None = None
     osv_id: str | None = None
+    advisory_title: str = ""
+    advisory_description: str = ""
+    advisory_url: str = ""
+    advisory_references: list[str] = []
     cwes: list[CWE] = []
     severity: str = "unknown"
     package_name: str

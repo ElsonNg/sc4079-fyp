@@ -24,6 +24,9 @@ from pipeline.controller.reporting import (
     report_exit_code,
     report_view,
 )
+from pipeline.controller.html_reporting import build_html_report_data, write_html_report
+
+PROVTRAIL_VERSION = "development"
 
 
 def _add_db_path(parser: argparse.ArgumentParser) -> None:
@@ -39,6 +42,12 @@ def build_parser() -> argparse.ArgumentParser:
     _add_db_path(scan)
     scan.add_argument("--state-path", type=Path, default=None)
     scan.add_argument("--output", type=Path, default=None, help="Write structured scan JSON to this path")
+    scan.add_argument(
+        "--html-output",
+        type=Path,
+        default=None,
+        help="Write the self-contained HTML report to this path",
+    )
     scan.add_argument("--model", default=None)
     scan.add_argument("--top-k", type=int, default=10)
     scan.add_argument("--retrieval-threshold", type=float, default=0.0)
@@ -88,13 +97,24 @@ def _scan(args: argparse.Namespace) -> int:
     )
     payload = summary.to_dict()
     output_path = args.output or args.path.resolve() / ".provtrail" / "latest-scan.json"
+    html_output_path = args.html_output or output_path.with_suffix(".html")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    temporary = output_path.with_name(f".{output_path.name}.tmp")
+    temporary.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    temporary.replace(output_path)
+    html_data = build_html_report_data(
+        summary,
+        entries=entries,
+        config=scan_config,
+        tool_version=PROVTRAIL_VERSION,
+    )
+    write_html_report(html_output_path, html_data)
     if args.json:
         print(json.dumps(payload, indent=2))
     else:
         print(format_audit_summary(payload))
-        print(f"  report:                {output_path}")
+        print(f"  structured report:     {output_path}")
+        print(f"  HTML report:           {html_output_path}")
     return report_exit_code(payload)
 
 

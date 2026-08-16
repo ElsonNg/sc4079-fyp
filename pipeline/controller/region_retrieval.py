@@ -30,7 +30,8 @@ class RegionRetrievalIndex:
 
 def _region_fingerprint(pairs: list[VulnerableRegionPair], model_id: str) -> str:
     values = [
-        f"{model_id}|{pair.pair_id}|{pair.vulnerable_source_sha256}|{pair.patched_source_sha256}|"
+        f"{model_id}|{pair.pair_id}|{pair.advisory_title}|"
+        f"{pair.vulnerable_source_sha256}|{pair.patched_source_sha256}|"
         f"{pair.vulnerable_region.source}|{pair.patched_region.source}"
         for pair in pairs
     ]
@@ -105,6 +106,10 @@ def query_region_batch(
                     ghsa_id=pair.ghsa_id,
                     cve_id=pair.cve_id,
                     osv_id=pair.osv_id,
+                    advisory_title=pair.advisory_title,
+                    advisory_description=pair.advisory_description,
+                    advisory_url=pair.advisory_url,
+                    advisory_references=pair.advisory_references,
                     cwes=pair.cwes,
                     severity=pair.severity,
                     package_name=pair.package_name,

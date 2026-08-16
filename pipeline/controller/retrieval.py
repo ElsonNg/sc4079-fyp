@@ -32,7 +32,7 @@ def _normalized_text(source: str) -> str:
 
 def _corpus_fingerprint(entries: list[CorpusEntry]) -> str:
     keys = sorted(
-        f"{e.ghsa_id}|{e.fix_commit_sha}|{e.file_path}|{e.function_name}"
+        f"{e.ghsa_id}|{e.advisory_title}|{e.fix_commit_sha}|{e.file_path}|{e.function_name}"
         for e in entries
     )
     return hashlib.sha256("\n".join(keys).encode("utf-8")).hexdigest()
@@ -42,6 +42,10 @@ def _match_from_entry(entry: CorpusEntry) -> RetrievalMatch:
     return RetrievalMatch(
         ghsa_id=entry.ghsa_id,
         cve_id=entry.cve_id,
+        advisory_title=entry.advisory_title,
+        advisory_description=entry.advisory_description,
+        advisory_url=entry.advisory_url,
+        advisory_references=entry.advisory_references,
         cwes=entry.cwes,
         severity=entry.severity,
         repo=entry.repo,
