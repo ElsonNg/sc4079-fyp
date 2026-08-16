@@ -330,6 +330,7 @@ _TEMPLATE = r'''<!doctype html>
 .outcome .top-details{margin:8px 0 0}
 .outcome .top-details summary{color:var(--focus);background:transparent;border-radius:0;padding:0}.recommendation-summary{line-height:1.55}.recommendation-summary.collapsed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}.summary-toggle{border:0;background:transparent;color:var(--focus);padding:0;font-weight:800;text-decoration:underline;text-underline-offset:3px}.summary-toggle:hover{color:var(--ink)}
 .badge.manual_review{color:var(--focus);background:var(--focus-bg)}.metric.manual_review strong{color:var(--focus)}.finding-card>summary{list-style:none;cursor:pointer}.finding-card>summary::-webkit-details-marker{display:none}.finding-chevron{display:inline-flex;color:var(--muted);transition:transform .16s ease}.finding-card[open] .finding-chevron{transform:rotate(180deg)}
+.overview-file{font-weight:550}
 @media(max-width:1000px){.explorer{height:280px;min-height:0}.code-compare,.reference-stack,.detected-panel{height:auto}.code-panel .code{max-height:380px}}
 </style>
 </head>

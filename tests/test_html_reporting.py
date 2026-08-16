@@ -184,6 +184,7 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "const statusRank={flagged:0,manual_review:1,cleared:2}" in output
     assert "statusRank[fileStatus(a)]-statusRank[fileStatus(b)]||a.localeCompare(b)" in output
     assert 'affectedFiles.map(path=>`<button class="overview-file" data-path="${esc(path)}"><span class="file-name">' in output
+    assert ".overview-file{font-weight:550}" in output
     assert '<details class="finding-card" open>' in output
     assert '<summary class="finding-head">' in output
     assert "finding-chevron" in output
