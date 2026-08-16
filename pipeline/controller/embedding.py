@@ -48,6 +48,7 @@ DEFAULT_MODEL_ID = "qwen3-embedding-0.6b"
 # once -- not implemented; revisit if Stage 2 recall on large functions proves to be a
 # problem in the eval suite (module 11).
 DEFAULT_MAX_SEQ_LENGTH = 2048
+DEFAULT_EMBEDDING_BATCH_SIZE = 4
 
 _loaded_models: dict[str, "SentenceTransformer"] = {}
 
@@ -73,7 +74,10 @@ def get_model(model_id: str) -> "SentenceTransformer":
 
 def _is_oom_error(exc: RuntimeError) -> bool:
     message = str(exc).lower()
-    return "out of memory" in message or "outofmemory" in message
+    return any(
+        marker in message
+        for marker in ("out of memory", "outofmemory", "invalid buffer size")
+    )
 
 
 def _clear_device_cache(model: "SentenceTransformer") -> None:
@@ -111,7 +115,11 @@ def _encode_chunk(model: "SentenceTransformer", chunk: list[str], batch_size: in
             current_batch_size = max(1, current_batch_size // 2)
 
 
-def encode(model_id: str, texts: list[str], batch_size: int = 32) -> np.ndarray:
+def encode(
+    model_id: str,
+    texts: list[str],
+    batch_size: int = DEFAULT_EMBEDDING_BATCH_SIZE,
+) -> np.ndarray:
     """Batch-encode `texts` with `model_id`, returning L2-normalized float32 vectors
     (so downstream FAISS inner-product search is equivalent to cosine similarity).
 

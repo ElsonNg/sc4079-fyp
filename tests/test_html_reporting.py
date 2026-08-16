@@ -155,13 +155,15 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "code-compare" in output
     assert "reference-stack" in output
     assert ".code-compare{height:720px}" in output
+    assert "grid-template-columns:46px max-content;min-width:100%;width:max-content" in output
     assert "overflow-y:scroll" in output
     assert ".metric.manual_review strong" in output
     assert ".bar-fill.vulnerable" in output
     assert ".bar-fill.patched" in output
     assert ".bar-fill.retrieval" in output
     assert "Project code" in output
-    assert "Show scan details" in output
+    assert "<summary>Details</summary>" in output
+    assert ".outcome .top-details summary{color:var(--focus);background:transparent;border-radius:0;padding:0}" in output
     assert "$('#outcome-title').textContent=report.project" in output
     assert "need attention`:'No vulnerability clone findings'" not in output
     assert "function updateGeneratedTime()" in output
@@ -170,17 +172,45 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "3_600_000" in output
     assert "86_400_000" in output
     assert "setInterval(updateGeneratedTime" not in output
-    assert output.index('id="generated"') < output.index("Show scan details")
-    assert output.index("Show scan details") < output.index('id="metrics"')
+    assert output.index('id="generated"') < output.index("<summary>Details</summary>")
+    assert output.index("<summary>Details</summary>") < output.index('id="metrics"')
     assert "flagIcon" in output
-    assert "<span aria-hidden=\"true\">?</span> " in output
+    assert "reviewIcon" in output
+    assert '<circle cx="12" cy="12" r="9"/>' in output
     assert "kind==='manual_review'?'Review'" in output
+    assert ".badge.manual_review{color:var(--focus);background:var(--focus-bg)}" in output
+    assert "attentionStatus(findings)" in output
+    assert "findings.some(f=>f.status==='flagged')?'flagged'" in output
+    assert "const statusRank={flagged:0,manual_review:1,cleared:2}" in output
+    assert "statusRank[fileStatus(a)]-statusRank[fileStatus(b)]||a.localeCompare(b)" in output
+    assert 'affectedFiles.map(path=>`<button class="overview-file" data-path="${esc(path)}"><span class="file-name">' in output
+    assert '<details class="finding-card" open>' in output
+    assert '<summary class="finding-head">' in output
+    assert "finding-chevron" in output
+    assert "const headerBadges=needsReview?badge(f.status)" in output
+    assert "<dt>Potential impact</dt>" in output
+    assert "if confirmed</strong>" in output
     assert "</div></div></header>${fs.length?fs.map(findingCard)" in output
     assert '<h1 class="wordmark">provtrail</h1>' in output
     assert ".wordmark{margin:0;color:var(--teal)" in output
     assert 'class="mark"' not in output
     assert "Request URL validation can be bypassed" in output
-    assert "identifier.toLocaleLowerCase()!==title.toLocaleLowerCase()" in output
+    assert "title.toLocaleLowerCase()!==identifier.toLocaleLowerCase()" in output
+    assert "p.cve_id||p.ghsa_id||p.osv_id||p.identifier" in output
+    assert 'class="advisory-action"' in output
+    assert "icons.external" in output
+    assert 'class="advisory-id-link"' in output
+    assert "`${linkedIdentifier}: ${esc(title)}`" in output
+    assert "`${esc(identifier)}: ${esc(title)}`" in output
+    assert 'class="affected-locations"' in output
+    assert "background:var(--location-bg)" in output
+    assert "Version ranges apply to upstream" in output
+    assert "For copied or adapted code" in output
+    assert "These ranges describe the source advisory" not in output
+    assert "description.length>240" in output
+    assert "Show more" in output
+    assert "Show less" in output
+    assert "-webkit-line-clamp:3" in output
     assert ".patch-line.removed{background:var(--red-bg);color:var(--red)}" in output
     assert ".patch-line.added{background:var(--teal-bg);color:var(--teal)}" in output
     assert "kind==='Removed'?'−':'+'" in output
