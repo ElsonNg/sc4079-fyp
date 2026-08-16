@@ -75,7 +75,11 @@ def _sim_at_diagnostic(
     weights a verdict toward whichever side's diagnostic change spans more lines;
     undocumented in the build plan and not separately tested, since neither the flat
     nor the mean-of-ops alternative was clearly the one the build plan intended."""
-    scores = [op.score for line in lines if (op := find_op_at_line(alignment, side, line)) is not None]
+    scores = [
+        _verification_op_score(op)
+        for line in lines
+        if (op := find_op_at_line(alignment, side, line)) is not None
+    ]
     if not scores:
         return alignment.normalized_score, True
     return sum(scores) / len(scores), False
@@ -89,6 +93,20 @@ def _bucket(score: float, margin: float) -> Literal["flagged", "cleared", "manua
     return "manual_review"
 
 
+def _verification_op_score(op) -> float:
+    """Use an identity score for exact normalized op text.
+
+    Alignment scores are shifted by the model's unrelated/related midpoint, so an
+    exact candidate/reference match is only about 0.54 for the default model. That
+    baseline is not an identity signal and becomes biased when the vulnerable and
+    patched sides have different numbers of diagnostic lines. Non-identical matches
+    and gaps retain their model/DP score.
+    """
+    if op.a_lines and op.b_lines and op.a_lines == op.b_lines:
+        return 1.0
+    return op.score
+
+
 def _diagnostic_scores(
     diagnostic_lines: list[DiagnosticLine],
     align_vs_vulnerable: HierarchicalAlignment,
@@ -99,11 +117,11 @@ def _diagnostic_scores(
         vulnerable_score = None
         if d.vulnerable_line is not None:
             op = find_op_at_line(align_vs_vulnerable, "b", d.vulnerable_line)
-            vulnerable_score = op.score if op is not None else None
+            vulnerable_score = _verification_op_score(op) if op is not None else None
         patched_score = None
         if d.patched_line is not None:
             op = find_op_at_line(align_vs_patched, "b", d.patched_line)
-            patched_score = op.score if op is not None else None
+            patched_score = _verification_op_score(op) if op is not None else None
         scores.append(
             DiagnosticLineScore(
                 kind=d.kind,

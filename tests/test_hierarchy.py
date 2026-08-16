@@ -131,6 +131,11 @@ function handleInput(input) {
 }
 """
 
+METHOD_ONLY = """constructor(message) {
+    super(message);
+    this.name = 'AxiosError';
+}"""
+
 
 @pytest.fixture
 def fake_embedding(monkeypatch):
@@ -425,6 +430,18 @@ def test_else_clause_passthrough_forces_recursion(fake_embedding):
     assert result.ops[0].kind == "match"
     assert result.ops[0].score == pytest.approx(1.0)
     assert result.ops[0].children is not None  # forced, even though qA()/qB() bodies differ
+
+
+def test_method_only_source_is_wrapped_and_ranges_map_back(fake_embedding):
+    result = align_functions(METHOD_ONLY, METHOD_ONLY, EmbeddingCache(), match_midpoint=0.0)
+
+    assert result.a.start_line == 0
+    assert result.a.end_line == 3
+    assert result.b.start_line == 0
+    assert result.b.end_line == 3
+    op = find_op_at_line(result, "b", 1)
+    assert op is not None
+    assert op.b.start_line <= 1 <= op.b.end_line
 
 
 def test_catch_clause_is_not_forced_through_passthrough(fake_embedding):

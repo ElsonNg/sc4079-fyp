@@ -72,6 +72,20 @@ def test_sim_at_diagnostic_falls_back_when_every_lookup_misses():
     assert fallback_used is True
 
 
+def test_sim_at_diagnostic_treats_exact_op_text_as_identity():
+    alignment = _alignment(
+        [
+            HierarchicalOp(
+                kind="match", score=0.2, a=_range(1, 1), b=_range(1, 1),
+                a_lines=["return value;"], b_lines=["return value;"],
+            )
+        ]
+    )
+    score, fallback_used = _sim_at_diagnostic(alignment, "b", [1])
+    assert score == pytest.approx(1.0)
+    assert fallback_used is False
+
+
 # --- _bucket -----------------------------------------------------------------------------
 
 
@@ -137,14 +151,13 @@ def test_diagnostic_scores_pairs_kind_specific_lines_with_the_matching_side():
 
 # A single-line "replace" diff -- both vulnerable_line and patched_line are populated
 # by compute_diagnostic_lines, so this exercises the real diagnostic-line reading path
-# on both sides, not the empty-lines fallback. Measured directly (smoke test, both
-# models): a single-line reword this subtle -- same statement shape, same variable,
-# string-concat vs. escape-call -- scores only ~0.05 apart, inside the default margin.
-# That is the intended behavior, not a bug: the manual_review bucket exists precisely
-# for edits an embedding alone can't confidently separate (build plan module 7: "don't
-# collapse this to binary"). Used below to pin that bucket, not as a flagged/cleared
-# anchor -- AUTHORIZE_VULNERABLE/_PATCHED below carries a much larger, multi-line
-# semantic difference and is used for the flagged/cleared anchors instead.
+# on both sides, not the empty-lines fallback. Used below as the corpus entry for the
+# manual_review demo -- not with candidate == vulnerable_function/patched_function
+# verbatim (that's a self-anchor/self-clear case, and _verification_op_score's exact-
+# text identity bonus now correctly resolves those decisively -- see
+# BUILD_QUERY_AMBIGUOUS_CANDIDATE below for the actual manual_review fixture) but
+# AUTHORIZE_VULNERABLE/_PATCHED below carries a much larger, multi-line semantic
+# difference and is used for the flagged/cleared anchors instead.
 BUILD_QUERY_VULNERABLE = """
 function buildQuery(input) {
     const query = "SELECT * FROM users WHERE name = '" + input + "'";
@@ -155,6 +168,19 @@ function buildQuery(input) {
 BUILD_QUERY_PATCHED = """
 function buildQuery(input) {
     const query = "SELECT * FROM users WHERE name = " + db.escape(input);
+    return query;
+}
+"""
+
+# A third variant of the diagnostic line -- a template literal -- that matches neither
+# side's exact text (so neither alignment gets _verification_op_score's identity
+# bonus), while still resembling both. Measured directly: scores only ~0.03 apart,
+# inside the default margin. This is the intended behavior, not a bug: the
+# manual_review bucket exists precisely for edits an embedding alone can't confidently
+# separate (build plan module 7: "don't collapse this to binary").
+BUILD_QUERY_AMBIGUOUS_CANDIDATE = """
+function buildQuery(input) {
+    const query = `SELECT * FROM users WHERE name = ${input}`;
     return query;
 }
 """
@@ -244,13 +270,13 @@ def test_renamed_identifier_clone_of_vulnerable_is_still_flagged():
 
 
 @pytest.mark.slow
-def test_subtle_single_line_reword_lands_in_manual_review():
-    # BUILD_QUERY_VULNERABLE/_PATCHED differ by one line, same statement shape, same
-    # variable -- too subtle for embedding similarity alone to confidently separate
-    # (measured ~0.05 apart, inside a 0.1 margin). Pins the deliberate three-bucket
-    # design: this must not silently resolve to flagged or cleared.
+def test_ambiguous_candidate_lands_in_manual_review():
+    # Neither exactly vulnerable_function nor exactly patched_function -- genuinely
+    # too close to call, not just an unresolved self-anchor/self-clear case. Pins the
+    # deliberate three-bucket design: this must not silently resolve to flagged or
+    # cleared.
     entry = _build_query_entry()
-    result = verify_candidate(entry.vulnerable_function, entry, EmbeddingCache(), margin=_TEST_MARGIN)
+    result = verify_candidate(BUILD_QUERY_AMBIGUOUS_CANDIDATE, entry, EmbeddingCache(), margin=_TEST_MARGIN)
     assert result.status == "manual_review"
 
 

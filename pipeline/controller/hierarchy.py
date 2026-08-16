@@ -152,27 +152,79 @@ def _representative_text(node: tree_sitter.Node, source_bytes: bytes) -> str:
     return " ".join(get_normalized_node_text(node, source_bytes))
 
 
-def _node_range(node: tree_sitter.Node) -> NodeRange:
-    return NodeRange(
-        node_type=node.type,
-        start_byte=node.start_byte,
-        end_byte=node.end_byte,
-        start_line=node.start_point[0],
-        end_line=node.end_point[0],
+@dataclass(frozen=True)
+class _FunctionSource:
+    """Parsed source plus the coordinate translation needed for method snippets.
+
+    Corpus extraction can legitimately return a class method without its surrounding
+    class. JavaScript does not parse that text as a standalone function, so alignment
+    parses a method inside a synthetic class. The wrapper is internal; all ranges
+    exposed by this module are translated back to the original source coordinates.
+    """
+
+    source: str
+    root: tree_sitter.Node
+    line_offset: int = 0
+    byte_offset: int = 0
+
+
+_SYNTHETIC_CLASS_PREFIX = "class __CodexSynthetic {\n"
+_SYNTHETIC_CLASS_SUFFIX = "\n}\n"
+
+
+def _find_function_node(tree: tree_sitter.Tree) -> tree_sitter.Node | None:
+    def find(node: tree_sitter.Node) -> tree_sitter.Node | None:
+        if node.type in FUNCTION_NODE_TYPES:
+            return node
+        for child in node.children:
+            found = find(child)
+            if found is not None:
+                return found
+        return None
+
+    return find(tree.root_node)
+
+
+def _parse_function_source(source: str) -> _FunctionSource:
+    tree = parse_source(source)
+    root = _find_function_node(tree)
+    if root is not None:
+        return _FunctionSource(source=source, root=root)
+
+    wrapped = _SYNTHETIC_CLASS_PREFIX + source + _SYNTHETIC_CLASS_SUFFIX
+    wrapped_tree = parse_source(wrapped)
+    root = _find_function_node(wrapped_tree)
+    if root is None:
+        raise ValueError("No function node found in source")
+    return _FunctionSource(
+        source=wrapped,
+        root=root,
+        line_offset=_SYNTHETIC_CLASS_PREFIX.count("\n"),
+        byte_offset=len(_SYNTHETIC_CLASS_PREFIX.encode("utf-8")),
     )
 
 
-def _node_range_span(nodes: list[tree_sitter.Node]) -> NodeRange:
+def _node_range(node: tree_sitter.Node, line_offset: int = 0, byte_offset: int = 0) -> NodeRange:
+    return NodeRange(
+        node_type=node.type,
+        start_byte=node.start_byte - byte_offset,
+        end_byte=node.end_byte - byte_offset,
+        start_line=node.start_point[0] - line_offset,
+        end_line=node.end_point[0] - line_offset,
+    )
+
+
+def _node_range_span(nodes: list[tree_sitter.Node], line_offset: int = 0, byte_offset: int = 0) -> NodeRange:
     """Covering range for a contiguous run of >=1 sibling nodes (a span_merge's
     multi-node side). Nodes are already in source order, so the first/last suffice."""
     if len(nodes) == 1:
-        return _node_range(nodes[0])
+        return _node_range(nodes[0], line_offset, byte_offset)
     return NodeRange(
         node_type="span",
-        start_byte=nodes[0].start_byte,
-        end_byte=nodes[-1].end_byte,
-        start_line=nodes[0].start_point[0],
-        end_line=nodes[-1].end_point[0],
+        start_byte=nodes[0].start_byte - byte_offset,
+        end_byte=nodes[-1].end_byte - byte_offset,
+        start_line=nodes[0].start_point[0] - line_offset,
+        end_line=nodes[-1].end_point[0] - line_offset,
     )
 
 
@@ -189,7 +241,8 @@ def _line_byte_offsets(source: str) -> list[int]:
 
 
 def _leaf_node_range(
-    line_offsets: list[int], filtered_lines: list[tuple[int, str]], start_idx: int, end_idx: int
+    line_offsets: list[int], filtered_lines: list[tuple[int, str]], start_idx: int, end_idx: int,
+    line_offset: int = 0, byte_offset: int = 0,
 ) -> NodeRange:
     """NodeRange for a leaf-level op spanning local indices [start_idx, end_idx) into
     `filtered_lines` (a node's own normalize_source_with_lines subset)."""
@@ -197,10 +250,10 @@ def _leaf_node_range(
     end_line_no = filtered_lines[end_idx - 1][0]
     return NodeRange(
         node_type="line_range",
-        start_byte=line_offsets[start_line_no],
-        end_byte=line_offsets[end_line_no + 1],
-        start_line=start_line_no,
-        end_line=end_line_no,
+        start_byte=line_offsets[start_line_no] - byte_offset,
+        end_byte=line_offsets[end_line_no + 1] - byte_offset,
+        start_line=start_line_no - line_offset,
+        end_line=end_line_no - line_offset,
     )
 
 
@@ -232,21 +285,7 @@ def _collect_required_texts(
 
 
 def _root_function_node(source: str) -> tree_sitter.Node:
-    tree = parse_source(source)
-
-    def find(node: tree_sitter.Node) -> tree_sitter.Node | None:
-        if node.type in FUNCTION_NODE_TYPES:
-            return node
-        for child in node.children:
-            found = find(child)
-            if found is not None:
-                return found
-        return None
-
-    result = find(tree.root_node)
-    if result is None:
-        raise ValueError("No function node found in source")
-    return result
+    return _parse_function_source(source).root
 
 
 def _align_node_pair(
@@ -264,12 +303,16 @@ def _align_node_pair(
     max_span_lines: int,
     gap_penalty: float,
     span_merge_penalty: float,
+    line_offset_a: int = 0,
+    line_offset_b: int = 0,
+    byte_offset_a: int = 0,
+    byte_offset_b: int = 0,
 ) -> HierarchicalAlignment | None:
     """Recursive core. Returns None only for the trivial leaf case where both sides
     reduce to <=1 line each -- already fully described by the caller's own match op
     (its a/b/a_lines/b_lines/score), so a further 1x1 DP call would add nothing."""
-    a_range = _node_range(node_a)
-    b_range = _node_range(node_b)
+    a_range = _node_range(node_a, line_offset_a, byte_offset_a)
+    b_range = _node_range(node_b, line_offset_b, byte_offset_b)
 
     if is_container_node_type(node_a.type) and is_container_node_type(node_b.type):
         children_a = get_structural_children(node_a)
@@ -285,14 +328,15 @@ def _align_node_pair(
                 children_a[0], children_b[0], lines_a, lines_b, line_offsets_a, line_offsets_b,
                 source_bytes_a, source_bytes_b, cache, model_id, match_midpoint,
                 max_span_lines, gap_penalty, span_merge_penalty,
+                line_offset_a, line_offset_b, byte_offset_a, byte_offset_b,
             )
             raw_score = nested.raw_score if nested is not None else 1.0
             normalized_score = nested.normalized_score if nested is not None else 1.0
             op = HierarchicalOp(
                 kind="match",
                 score=1.0,  # forced passthrough -- a grammar-guaranteed correspondence, not a computed similarity
-                a=_node_range(children_a[0]),
-                b=_node_range(children_b[0]),
+                a=_node_range(children_a[0], line_offset_a, byte_offset_a),
+                b=_node_range(children_b[0], line_offset_b, byte_offset_b),
                 a_lines=[_representative_text(children_a[0], source_bytes_a)],
                 b_lines=[_representative_text(children_b[0], source_bytes_b)],
                 children=nested,
@@ -319,9 +363,10 @@ def _align_node_pair(
                     child_a, child_b, lines_a, lines_b, line_offsets_a, line_offsets_b,
                     source_bytes_a, source_bytes_b, cache, model_id, match_midpoint,
                     max_span_lines, gap_penalty, span_merge_penalty,
+                    line_offset_a, line_offset_b, byte_offset_a, byte_offset_b,
                 )
-                a_range_op = _node_range(child_a)
-                b_range_op = _node_range(child_b)
+                a_range_op = _node_range(child_a, line_offset_a, byte_offset_a)
+                b_range_op = _node_range(child_b, line_offset_b, byte_offset_b)
             else:
                 # gap/span_merge: terminal by design -- there is no single node pair to
                 # recurse into (span_merge pairs one node against several; gap pairs one
@@ -329,9 +374,13 @@ def _align_node_pair(
                 # candidates" true: recursion only ever crosses into sibling pairs under
                 # the same parent, never spans a structural boundary.
                 if sib_op.a_end > sib_op.a_start:
-                    a_range_op = _node_range_span(children_a[sib_op.a_start : sib_op.a_end])
+                    a_range_op = _node_range_span(
+                        children_a[sib_op.a_start : sib_op.a_end], line_offset_a, byte_offset_a
+                    )
                 if sib_op.b_end > sib_op.b_start:
-                    b_range_op = _node_range_span(children_b[sib_op.b_start : sib_op.b_end])
+                    b_range_op = _node_range_span(
+                        children_b[sib_op.b_start : sib_op.b_end], line_offset_b, byte_offset_b
+                    )
             ops.append(
                 HierarchicalOp(
                     kind=sib_op.kind, score=sib_op.score,
@@ -361,8 +410,20 @@ def _align_node_pair(
 
     ops = []
     for op in leaf.ops:
-        a_range_op = _leaf_node_range(line_offsets_a, filt_a, op.a_start, op.a_end) if op.a_end > op.a_start else None
-        b_range_op = _leaf_node_range(line_offsets_b, filt_b, op.b_start, op.b_end) if op.b_end > op.b_start else None
+        a_range_op = (
+            _leaf_node_range(
+                line_offsets_a, filt_a, op.a_start, op.a_end, line_offset_a, byte_offset_a
+            )
+            if op.a_end > op.a_start
+            else None
+        )
+        b_range_op = (
+            _leaf_node_range(
+                line_offsets_b, filt_b, op.b_start, op.b_end, line_offset_b, byte_offset_b
+            )
+            if op.b_end > op.b_start
+            else None
+        )
         ops.append(
             HierarchicalOp(
                 kind=op.kind, score=op.score, a=a_range_op, b=b_range_op,
@@ -397,24 +458,33 @@ def align_functions(
     calling this once per shortlisted candidate against its own corpus entry); it's
     never asking whether they do.
     """
-    node_a = _root_function_node(source_a)
-    node_b = _root_function_node(source_b)
-    source_bytes_a = source_a.encode("utf-8")
-    source_bytes_b = source_b.encode("utf-8")
-    lines_a = normalize_source_with_lines(source_a)
-    lines_b = normalize_source_with_lines(source_b)
-    line_offsets_a = _line_byte_offsets(source_a)
-    line_offsets_b = _line_byte_offsets(source_b)
+    parsed_a = _parse_function_source(source_a)
+    parsed_b = _parse_function_source(source_b)
+    node_a = parsed_a.root
+    node_b = parsed_b.root
+    source_bytes_a = parsed_a.source.encode("utf-8")
+    source_bytes_b = parsed_b.source.encode("utf-8")
+    lines_a = normalize_source_with_lines(parsed_a.source)
+    lines_b = normalize_source_with_lines(parsed_b.source)
+    line_offsets_a = _line_byte_offsets(parsed_a.source)
+    line_offsets_b = _line_byte_offsets(parsed_b.source)
     resolved_midpoint = match_midpoint if match_midpoint is not None else get_match_midpoint(model_id)
 
-    required = _collect_required_texts(node_a, source_bytes_a, [text for _, text in lines_a], max_span_lines)
-    required |= _collect_required_texts(node_b, source_bytes_b, [text for _, text in lines_b], max_span_lines)
+    function_lines_a = [
+        text for line, text in lines_a if node_a.start_point[0] <= line <= node_a.end_point[0]
+    ]
+    function_lines_b = [
+        text for line, text in lines_b if node_b.start_point[0] <= line <= node_b.end_point[0]
+    ]
+    required = _collect_required_texts(node_a, source_bytes_a, function_lines_a, max_span_lines)
+    required |= _collect_required_texts(node_b, source_bytes_b, function_lines_b, max_span_lines)
     cache.get_or_encode(model_id, sorted(required))
 
     result = _align_node_pair(
         node_a, node_b, lines_a, lines_b, line_offsets_a, line_offsets_b,
         source_bytes_a, source_bytes_b, cache, model_id, resolved_midpoint,
         max_span_lines, gap_penalty, span_merge_penalty,
+        parsed_a.line_offset, parsed_b.line_offset, parsed_a.byte_offset, parsed_b.byte_offset,
     )
     # Root nodes are always FUNCTION_NODE_TYPES, i.e. always containers -- the
     # leaf-trivial None case can only occur inside recursion, never at the top.

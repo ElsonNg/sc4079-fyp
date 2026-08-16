@@ -7,4 +7,6 @@ __pycache__/
 CLAUDE.md
 AGENTS.md
 .claude
-docs/
+docs/*
+!docs/
+!docs/*.md
