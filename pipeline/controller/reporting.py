@@ -9,6 +9,7 @@ from typing import Any
 
 SEVERITY_ORDER = ("critical", "high", "moderate", "medium", "low", "info", "unknown")
 ACTIVE_STATUSES = {"flagged", "manual_review"}
+DIVIDER = "─" * 72
 
 
 def load_scan_report(path: Path | str) -> dict[str, Any]:
@@ -148,6 +149,38 @@ def audit_summary(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def final_metrics(report: dict[str, Any]) -> dict[str, Any]:
+    summary = audit_summary(report)
+    verdicts: Counter[str] = Counter()
+    unavailable = 0
+    for finding in report.get("findings", []):
+        if _result(finding).get("status") != "manual_review":
+            continue
+        explanation = finding.get("review_explanation") or {}
+        if explanation.get("status") == "generated":
+            verdicts[str(explanation.get("llm_verdict") or "needs_review")] += 1
+        elif explanation.get("status") == "unavailable":
+            unavailable += 1
+    reviewed = sum(verdicts.values())
+    manual_review = summary["manual_review"]
+    return {
+        "deterministic_flagged": summary["flagged"],
+        "llm_escalated": verdicts["flagged"],
+        "llm_dismissed": verdicts["dismissed"],
+        "llm_needs_review": verdicts["needs_review"],
+        "llm_unavailable": unavailable,
+        "llm_unreviewed": max(0, manual_review - reviewed - unavailable),
+        "llm_reviewed": reviewed,
+        "manual_review": manual_review,
+        "total_escalated": summary["flagged"] + verdicts["flagged"],
+        "total_functions": summary["total_functions"],
+    }
+
+
+def _percentage(numerator: int, denominator: int) -> str:
+    return f"{(100.0 * numerator / denominator):.2f}%" if denominator else "0.00%"
+
+
 def report_view(report: dict[str, Any], include_cleared: bool = False) -> dict[str, Any]:
     details = [
         finding_detail(finding)
@@ -164,23 +197,42 @@ def report_view(report: dict[str, Any], include_cleared: bool = False) -> dict[s
 
 def format_audit_summary(report: dict[str, Any]) -> str:
     summary = audit_summary(report)
+    metrics = final_metrics(report)
     findings = summary["findings"]
     headline = "✔ No vulnerability clone findings" if findings == 0 else f"✖ {findings} vulnerability clone finding(s)"
-    lines = [headline]
+    lines = [DIVIDER, "PROVTRAIL SCAN RESULT", DIVIDER, headline]
+    lines.extend(["", "SCAN OVERVIEW"])
+    lines.append(f"  functions analyzed:    {summary['total_functions']}")
+    lines.append(f"  functions recomputed:  {summary['scanned_functions']}")
+    lines.append(f"  functions reused:      {summary['reused_functions']}")
+    lines.append(f"  changed files:         {summary['changed_files']}")
+    lines.extend(["", DIVIDER, "DETERMINISTIC RESULTS"])
     lines.append(f"  flagged:               {summary['flagged']}")
     lines.append(f"  manual review:         {summary['manual_review']}")
     lines.append(f"  cleared:               {summary['cleared']}")
     lines.append(f"  unique advisories:     {summary['unique_advisories']}")
-    lines.append("  severity:")
+    lines.extend(["", DIVIDER, "SEVERITY"])
     if summary["severity"]:
         for severity, count in summary["severity"].items():
-            lines.append(f"    {severity:18s} {count}")
+            lines.append(f"  {severity:22s}{count}")
     else:
-        lines.append("    none")
-    lines.append(f"  functions scanned:     {summary['total_functions']}")
-    lines.append(f"  functions recomputed:  {summary['scanned_functions']}")
-    lines.append(f"  functions reused:      {summary['reused_functions']}")
-    lines.append(f"  changed files:         {summary['changed_files']}")
+        lines.append("  none")
+    lines.extend(["", DIVIDER, "FINAL METRICS"])
+    lines.append(f"  deterministic flagged: {metrics['deterministic_flagged']}")
+    lines.append(f"  LLM escalated:         {metrics['llm_escalated']}")
+    lines.append(f"  LLM dismissed:         {metrics['llm_dismissed']}")
+    lines.append(f"  LLM needs review:      {metrics['llm_needs_review']}")
+    lines.append(f"  LLM unavailable:       {metrics['llm_unavailable']}")
+    lines.append(f"  LLM not run:           {metrics['llm_unreviewed']}")
+    lines.append(f"  total escalated:       {metrics['total_escalated']}")
+    lines.append(
+        f"  escalation rate:      {_percentage(metrics['total_escalated'], metrics['total_functions'])}"
+    )
+    lines.append(
+        f"  LLM review coverage:  {_percentage(metrics['llm_reviewed'], metrics['manual_review'])}"
+    )
+    lines.append("  target recall:         N/A (requires labeled ground truth)")
+    lines.append(DIVIDER)
     return "\n".join(lines)
 
 

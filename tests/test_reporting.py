@@ -1,7 +1,13 @@
 import json
 
 from cli.main import main
-from pipeline.controller.reporting import audit_summary, format_verbose, report_view
+from pipeline.controller.reporting import (
+    audit_summary,
+    final_metrics,
+    format_audit_summary,
+    format_verbose,
+    report_view,
+)
 
 
 def _report() -> dict:
@@ -135,6 +141,30 @@ def test_audit_summary_counts_findings_and_unique_advisories():
     assert summary["cleared"] == 1
     assert summary["unique_advisories"] == 1
     assert summary["severity"] == {"high": 2}
+
+
+def test_final_metrics_separate_deterministic_and_llm_outcomes():
+    metrics = final_metrics(_report())
+
+    assert metrics["deterministic_flagged"] == 1
+    assert metrics["llm_escalated"] == 0
+    assert metrics["llm_dismissed"] == 0
+    assert metrics["llm_needs_review"] == 1
+    assert metrics["total_escalated"] == 1
+
+
+def test_audit_summary_has_divided_sections_and_honest_recall_label():
+    output = format_audit_summary(_report())
+
+    assert "PROVTRAIL SCAN RESULT" in output
+    assert "SCAN OVERVIEW" in output
+    assert "DETERMINISTIC RESULTS" in output
+    assert "SEVERITY" in output
+    assert "FINAL METRICS" in output
+    assert "deterministic flagged: 1" in output
+    assert "LLM needs review:      1" in output
+    assert "target recall:         N/A (requires labeled ground truth)" in output
+    assert output.count("─" * 72) >= 5
 
 
 def test_verbose_report_contains_cve_and_version_metadata():

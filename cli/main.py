@@ -53,6 +53,7 @@ from pipeline.controller.scanning import (
     scan_directory,
 )
 from pipeline.controller.reporting import (
+    DIVIDER,
     format_audit_summary,
     format_verbose,
     load_scan_report,
@@ -220,15 +221,10 @@ def _scan(args: argparse.Namespace) -> int:
         print(json.dumps(payload, indent=2))
     else:
         print(format_audit_summary(payload))
-        if summary.explanation_run.get("enabled"):
-            run = summary.explanation_run
-            print(
-                "  review explanations:   "
-                f"{run['generated']} generated, {run['reused']} reused, "
-                f"{run['unavailable']} unavailable"
-            )
+        print("ARTIFACTS")
         print(f"  structured report:     {output_path}")
         print(f"  HTML report:           {html_output_path}")
+        print(DIVIDER)
     return report_exit_code(payload)
 
 
