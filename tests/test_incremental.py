@@ -122,3 +122,50 @@ def test_scan_state_is_valid_json(tmp_path):
     parsed = json.loads(state_path.read_text(encoding="utf-8"))
     assert parsed["schema_version"] == 1
     assert parsed["snapshot"]["root_hash"]
+
+
+def test_scan_reports_intermediate_progress(tmp_path):
+    (tmp_path / "src.js").write_text(
+        "function first() { return 1; }\nfunction second() { return 2; }\n",
+        encoding="utf-8",
+    )
+    events = []
+
+    result = scan_directory(
+        tmp_path,
+        detector=_FakeDetector(),
+        config=ScanConfig(state_path=tmp_path / "state.json"),
+        progress_callback=events.append,
+    )
+
+    assert result.total_functions == 2
+    assert [event["phase"] for event in events] == [
+        "snapshot_start",
+        "snapshot_complete",
+        "file_start",
+        "function_start",
+        "function_complete",
+        "function_start",
+        "function_complete",
+        "file_complete",
+        "scan_complete",
+    ]
+    function_events = [event for event in events if event["phase"] == "function_complete"]
+    assert [event["status"] for event in function_events] == ["manual_review", "manual_review"]
+    assert all(event["source"] == "scanned" for event in function_events)
+
+
+def test_scan_reports_detector_initialization_when_factory_is_lazy(tmp_path):
+    (tmp_path / "src.js").write_text("function first() { return 1; }\n", encoding="utf-8")
+    events = []
+
+    scan_directory(
+        tmp_path,
+        detector_factory=_FakeDetector,
+        config=ScanConfig(state_path=tmp_path / "state.json"),
+        progress_callback=events.append,
+    )
+
+    phases = [event["phase"] for event in events]
+    assert phases.index("detector_start") < phases.index("detector_ready")
+    assert phases.index("detector_ready") < phases.index("function_complete")

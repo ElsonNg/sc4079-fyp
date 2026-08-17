@@ -153,14 +153,32 @@ def final_metrics(report: dict[str, Any]) -> dict[str, Any]:
     summary = audit_summary(report)
     verdicts: Counter[str] = Counter()
     unavailable = 0
+    attention_levels: Counter[str] = Counter()
     for finding in report.get("findings", []):
-        if _result(finding).get("status") != "manual_review":
+        status = _result(finding).get("status")
+        if status not in ACTIVE_STATUSES:
             continue
         explanation = finding.get("review_explanation") or {}
-        if explanation.get("status") == "generated":
+        if status == "manual_review" and explanation.get("status") == "generated":
             verdicts[str(explanation.get("llm_verdict") or "needs_review")] += 1
-        elif explanation.get("status") == "unavailable":
+        elif status == "manual_review" and explanation.get("status") == "unavailable":
             unavailable += 1
+
+        if (
+            status == "manual_review"
+            and explanation.get("status") == "generated"
+            and explanation.get("llm_verdict") == "dismissed"
+        ):
+            continue
+        severity = str(finding_detail(finding).get("severity") or "unknown").lower()
+        if severity in {"critical", "high"}:
+            attention_levels["high"] += 1
+        elif severity in {"low", "info"}:
+            attention_levels["low"] += 1
+        else:
+            # Moderate/medium and unknown severities remain visible in the
+            # middle bucket rather than being understated as low attention.
+            attention_levels["medium"] += 1
     reviewed = sum(verdicts.values())
     manual_review = summary["manual_review"]
     return {
@@ -172,13 +190,14 @@ def final_metrics(report: dict[str, Any]) -> dict[str, Any]:
         "llm_unreviewed": max(0, manual_review - reviewed - unavailable),
         "llm_reviewed": reviewed,
         "manual_review": manual_review,
-        "total_escalated": summary["flagged"] + verdicts["flagged"],
+        "attention": {
+            "high": attention_levels["high"],
+            "medium": attention_levels["medium"],
+            "low": attention_levels["low"],
+        },
+        "final_findings": sum(attention_levels.values()),
         "total_functions": summary["total_functions"],
     }
-
-
-def _percentage(numerator: int, denominator: int) -> str:
-    return f"{(100.0 * numerator / denominator):.2f}%" if denominator else "0.00%"
 
 
 def report_view(report: dict[str, Any], include_cleared: bool = False) -> dict[str, Any]:
@@ -206,11 +225,11 @@ def format_audit_summary(report: dict[str, Any]) -> str:
     lines.append(f"  functions recomputed:  {summary['scanned_functions']}")
     lines.append(f"  functions reused:      {summary['reused_functions']}")
     lines.append(f"  changed files:         {summary['changed_files']}")
-    lines.extend(["", DIVIDER, "DETERMINISTIC RESULTS"])
+    lines.extend(["", DIVIDER, "RESULTS"])
     lines.append(f"  flagged:               {summary['flagged']}")
     lines.append(f"  manual review:         {summary['manual_review']}")
     lines.append(f"  cleared:               {summary['cleared']}")
-    lines.append(f"  unique advisories:     {summary['unique_advisories']}")
+    lines.append(f"  advisories:            {summary['unique_advisories']}")
     lines.extend(["", DIVIDER, "SEVERITY"])
     if summary["severity"]:
         for severity, count in summary["severity"].items():
@@ -218,22 +237,27 @@ def format_audit_summary(report: dict[str, Any]) -> str:
     else:
         lines.append("  none")
     lines.extend(["", DIVIDER, "FINAL METRICS"])
-    lines.append(f"  deterministic flagged: {metrics['deterministic_flagged']}")
+    lines.append(f"  Deterministic flagged: {metrics['deterministic_flagged']}")
     lines.append(f"  LLM escalated:         {metrics['llm_escalated']}")
     lines.append(f"  LLM dismissed:         {metrics['llm_dismissed']}")
     lines.append(f"  LLM needs review:      {metrics['llm_needs_review']}")
-    lines.append(f"  LLM unavailable:       {metrics['llm_unavailable']}")
-    lines.append(f"  LLM not run:           {metrics['llm_unreviewed']}")
-    lines.append(f"  total escalated:       {metrics['total_escalated']}")
-    lines.append(
-        f"  escalation rate:      {_percentage(metrics['total_escalated'], metrics['total_functions'])}"
-    )
-    lines.append(
-        f"  LLM review coverage:  {_percentage(metrics['llm_reviewed'], metrics['manual_review'])}"
-    )
-    lines.append("  target recall:         N/A (requires labeled ground truth)")
     lines.append(DIVIDER)
     return "\n".join(lines)
+
+
+def format_attention(report: dict[str, Any]) -> str:
+    metrics = final_metrics(report)
+    attention = metrics["attention"]
+    return "\n".join(
+        [
+            "ATTENTION",
+            f"  High:                  {attention['high']}",
+            f"  Medium:                {attention['medium']}",
+            f"  Low:                   {attention['low']}",
+            f"  Total:                 {metrics['final_findings']}",
+            DIVIDER,
+        ]
+    )
 
 
 def _display(value: Any, fallback: str = "not recorded") -> str:

@@ -13,7 +13,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from corpus.controller.store import load_entries
+from corpus.controller.store import DEFAULT_DB_PATH, load_entries
 from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
 
 DEFAULT_POSITIVE_INPUT = Path(__file__).resolve().parent.parent / "eval" / "candidate_subset_30.jsonl"
@@ -44,6 +44,12 @@ def main() -> None:
     parser.add_argument("--negative-input", type=Path, default=DEFAULT_NEGATIVE_INPUT)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--db-path", type=Path, default=DEFAULT_DB_PATH)
+    parser.add_argument(
+        "--corpus-prefix",
+        default=None,
+        help="Only index corpus entries whose ghsa_id starts with this prefix",
+    )
     args = parser.parse_args()
 
     positives = _load_records(args.positive_input)
@@ -57,7 +63,11 @@ def main() -> None:
         f"evaluating {len(records)} candidate(s)...",
         flush=True,
     )
-    entries = load_entries()
+    entries = load_entries(args.db_path)
+    if args.corpus_prefix:
+        entries = [entry for entry in entries if entry.ghsa_id.startswith(args.corpus_prefix)]
+    if not entries:
+        raise RuntimeError("No corpus entries matched the requested database/filter")
     config = RegionDetectorConfig(
         retrieval_top_k=10,
         retrieval_threshold=0.0,
@@ -67,7 +77,14 @@ def main() -> None:
         f"Preparing detector: {len(entries)} corpus entries, model={config.model_id}, top_k=10...",
         flush=True,
     )
-    detector = build_region_detector(entries, config=config)
+    def report_index_progress(completed: int, total: int) -> None:
+        print(f"Indexing regions: {completed}/{total}", flush=True)
+
+    detector = build_region_detector(
+        entries,
+        config=config,
+        progress_callback=report_index_progress,
+    )
     print(
         f"Detector ready: {len(detector.region_index.pairs)} vulnerable/patched region pairs. "
         "Evaluating serially...",

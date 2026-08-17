@@ -54,6 +54,7 @@ from pipeline.controller.scanning import (
 )
 from pipeline.controller.reporting import (
     DIVIDER,
+    format_attention,
     format_audit_summary,
     format_verbose,
     load_scan_report,
@@ -74,6 +75,51 @@ def _positive_float(value: str) -> float:
     if not math.isfinite(parsed) or parsed <= 0:
         raise argparse.ArgumentTypeError("must be greater than zero")
     return parsed
+
+
+def _scan_progress(event: dict) -> None:
+    """Render live scan progress without contaminating JSON stdout."""
+    phase = event["phase"]
+    if phase == "snapshot_start":
+        message = f"scan: discovering JavaScript files in {event['root']}..."
+    elif phase == "snapshot_complete":
+        message = f"scan: found {event['total_files']} JavaScript file(s)"
+    elif phase == "detector_start":
+        message = "detector: loading model and AST-region index..."
+    elif phase == "detector_ready":
+        message = "detector: ready"
+    elif phase == "file_start":
+        message = (
+            f"[file {event['completed_files'] + 1}/{event['total_files']}] "
+            f"{event['path']} ({event['function_count']} function(s))"
+        )
+    elif phase == "function_start":
+        name = event["name"] or "<anonymous>"
+        message = (
+            f"  [function {event['function_index']}/{event['function_count']}] "
+            f"running {name}..."
+        )
+    elif phase == "function_complete":
+        name = event["name"] or "<anonymous>"
+        message = (
+            f"  [function {event['function_index']}/{event['function_count']}] "
+            f"{name}: {event['status']} ({event['source']})"
+        )
+    elif phase == "file_complete":
+        message = (
+            f"[file {event['completed_files']}/{event['total_files']}] "
+            f"complete: {event['path']} — {event['scanned_count']} scanned, "
+            f"{event['reused_count']} reused"
+        )
+    elif phase == "scan_complete":
+        message = (
+            f"scan: complete — {event['total_files']} file(s), "
+            f"{event['total_functions']} function(s), "
+            f"{event['scanned_functions']} scanned, {event['reused_functions']} reused"
+        )
+    else:
+        return
+    print(message, file=sys.stderr, flush=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -187,6 +233,7 @@ def _scan(args: argparse.Namespace) -> int:
         entries=entries,
         config=scan_config,
         detector_factory=build_default_detector_factory(entries, detector_config),
+        progress_callback=_scan_progress,
     )
     if args.explain_review:
         cache_path = Path(summary.state_path).with_name("review-explanations.json")
@@ -225,6 +272,7 @@ def _scan(args: argparse.Namespace) -> int:
         print(f"  structured report:     {output_path}")
         print(f"  HTML report:           {html_output_path}")
         print(DIVIDER)
+        print(format_attention(payload))
     return report_exit_code(payload)
 
 

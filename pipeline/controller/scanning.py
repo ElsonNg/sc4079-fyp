@@ -193,6 +193,7 @@ def scan_directory(
     detector_factory: Callable[[], Detector] | None = None,
     entries: list[CorpusEntry] | None = None,
     config: ScanConfig | None = None,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> ScanSummary:
     """Scan JavaScript functions, reusing safe cached results where possible."""
 
@@ -200,9 +201,17 @@ def scan_directory(
     root = Path(root).resolve()
     if not root.is_dir():
         raise NotADirectoryError(root)
+
+    def progress(phase: str, **details: Any) -> None:
+        if progress_callback is not None:
+            progress_callback({"phase": phase, **details})
+
     state_path = config.state_path or root / ".provtrail" / DEFAULT_STATE_FILENAME
+    progress("snapshot_start", root=str(root))
     previous = load_scan_state(state_path)
     snapshot = build_merkle_snapshot(root)
+    js_files = _js_files(snapshot, config.extensions)
+    progress("snapshot_complete", total_files=len(js_files))
     config_fingerprint = fingerprint_config(
         {
             "detector": asdict(config.detector),
@@ -234,33 +243,83 @@ def scan_directory(
         if lazy_detector is None:
             if detector_factory is None:
                 raise ValueError("A detector or detector_factory is required for uncached functions")
+            progress("detector_start")
             lazy_detector = detector_factory()
+            progress("detector_ready")
         return lazy_detector
 
-    for relative_path in _js_files(snapshot, config.extensions):
+    for file_index, relative_path in enumerate(js_files, start=1):
         file_unchanged = context_matches and relative_path not in changed
         if file_unchanged and relative_path in previous_by_path:
             records = [dict(record) for record in previous_by_path[relative_path]]
             for record in records:
                 current_records[record["function_id"]] = record
                 reused_functions += 1
+            progress(
+                "file_complete",
+                completed_files=file_index,
+                total_files=len(js_files),
+                path=relative_path,
+                function_count=len(records),
+                scanned_count=0,
+                reused_count=len(records),
+            )
             continue
 
-        for record in _extract_file_functions(root, relative_path):
+        records = _extract_file_functions(root, relative_path)
+        file_scanned = 0
+        file_reused = 0
+        progress(
+            "file_start",
+            completed_files=file_index - 1,
+            total_files=len(js_files),
+            path=relative_path,
+            function_count=len(records),
+        )
+        for function_index, record in enumerate(records, start=1):
+            progress(
+                "function_start",
+                path=relative_path,
+                function_index=function_index,
+                function_count=len(records),
+                name=record["name"],
+            )
             function_hash = record["function_hash"]
             cached = result_cache.get(function_hash)
             if cached is not None:
                 result = _result_from_record(cached, record["function_id"])
                 reused_functions += 1
+                file_reused += 1
+                source = "reused"
             else:
                 result = get_detector().detect(record["source"], candidate_id=record["function_id"])
                 scanned_functions += 1
+                file_scanned += 1
+                source = "scanned"
                 result_cache[function_hash] = {
                     "function_hash": function_hash,
                     "result": result.model_dump(mode="json"),
                 }
             record["result"] = result.model_dump(mode="json")
             current_records[record["function_id"]] = record
+            progress(
+                "function_complete",
+                path=relative_path,
+                function_index=function_index,
+                function_count=len(records),
+                name=record["name"],
+                status=result.status,
+                source=source,
+            )
+        progress(
+            "file_complete",
+            completed_files=file_index,
+            total_files=len(js_files),
+            path=relative_path,
+            function_count=len(records),
+            scanned_count=file_scanned,
+            reused_count=file_reused,
+        )
 
     findings = []
     for record in sorted(current_records.values(), key=lambda item: (item["path"], item["start_byte"])):
@@ -291,14 +350,21 @@ def scan_directory(
     )
     save_scan_state(state, state_path)
     statuses = Counter(finding["result"]["status"] for finding in findings)
+    progress(
+        "scan_complete",
+        total_files=len(js_files),
+        total_functions=len(findings),
+        scanned_functions=scanned_functions,
+        reused_functions=reused_functions,
+    )
     return ScanSummary(
         target_root=str(root),
         root_hash=snapshot.root_hash,
         previous_root_hash=previous_root_hash,
         changed_files=sorted(changed),
         deleted_files=sorted(deleted),
-        scanned_files=_js_files(snapshot, config.extensions),
-        total_files=len(_js_files(snapshot, config.extensions)),
+        scanned_files=js_files,
+        total_files=len(js_files),
         total_functions=len(findings),
         scanned_functions=scanned_functions,
         reused_functions=reused_functions,

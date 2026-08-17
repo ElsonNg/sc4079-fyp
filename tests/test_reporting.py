@@ -1,9 +1,10 @@
 import json
 
-from cli.main import main
+from cli.main import _scan_progress, main
 from pipeline.controller.reporting import (
     audit_summary,
     final_metrics,
+    format_attention,
     format_audit_summary,
     format_verbose,
     report_view,
@@ -150,21 +151,45 @@ def test_final_metrics_separate_deterministic_and_llm_outcomes():
     assert metrics["llm_escalated"] == 0
     assert metrics["llm_dismissed"] == 0
     assert metrics["llm_needs_review"] == 1
-    assert metrics["total_escalated"] == 1
+    assert metrics["attention"] == {"high": 2, "medium": 0, "low": 0}
+    assert metrics["final_findings"] == 2
 
 
-def test_audit_summary_has_divided_sections_and_honest_recall_label():
+def test_audit_summary_has_divided_sections_and_final_counts():
     output = format_audit_summary(_report())
 
     assert "PROVTRAIL SCAN RESULT" in output
     assert "SCAN OVERVIEW" in output
-    assert "DETERMINISTIC RESULTS" in output
+    assert "RESULTS" in output
+    assert "DETERMINISTIC RESULTS" not in output
     assert "SEVERITY" in output
     assert "FINAL METRICS" in output
-    assert "deterministic flagged: 1" in output
+    assert "advisories:            1" in output
+    assert "security advisories" not in output
+    assert "unique advisories:" not in output
+    assert "Deterministic flagged: 1" in output
     assert "LLM needs review:      1" in output
-    assert "target recall:         N/A (requires labeled ground truth)" in output
+    assert "LLM unavailable:" not in output
+    assert "LLM not run:" not in output
+    assert "escalation rate:" not in output
+    assert "LLM review coverage:" not in output
+    assert "target recall:" not in output
+    assert "total escalated:" not in output
     assert output.count("─" * 72) >= 5
+
+
+def test_final_findings_counts_every_item_still_requiring_attention():
+    report = _report()
+    output = format_attention(report)
+    assert "ATTENTION" in output
+    assert "High:                  2" in output
+    assert "Medium:                0" in output
+    assert "Low:                   0" in output
+    assert "Total:                 2" in output
+
+    report["findings"][1]["review_explanation"]["llm_verdict"] = "dismissed"
+    assert final_metrics(report)["final_findings"] == 1
+    assert "Total:                 1" in format_attention(report)
 
 
 def test_verbose_report_contains_cve_and_version_metadata():
@@ -212,3 +237,22 @@ def test_cli_report_returns_zero_when_all_findings_are_cleared(tmp_path, capsys)
 
     assert main(["report", str(path)]) == 0
     assert "No vulnerability clone findings" in capsys.readouterr().out
+
+
+def test_scan_progress_is_written_to_stderr(capsys):
+    _scan_progress({"phase": "detector_start"})
+    _scan_progress(
+        {
+            "phase": "function_complete",
+            "function_index": 2,
+            "function_count": 5,
+            "name": "request",
+            "status": "flagged",
+            "source": "scanned",
+        }
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "loading model and AST-region index" in captured.err
+    assert "[function 2/5] request: flagged (scanned)" in captured.err
