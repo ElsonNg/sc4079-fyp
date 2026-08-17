@@ -218,7 +218,14 @@ def format_audit_summary(report: dict[str, Any]) -> str:
     summary = audit_summary(report)
     metrics = final_metrics(report)
     findings = summary["findings"]
-    headline = "✔ No vulnerability clone findings" if findings == 0 else f"✖ {findings} vulnerability clone finding(s)"
+    headline = (
+        "✔ No vulnerability clone findings"
+        if findings == 0
+        else (
+            f"✖ {findings} vulnerability clone finding(s) · "
+            f"{metrics['final_findings']} requiring attention (!)"
+        )
+    )
     lines = [DIVIDER, "PROVTRAIL SCAN RESULT", DIVIDER, headline]
     lines.extend(["", "SCAN OVERVIEW"])
     lines.append(f"  functions analyzed:    {summary['total_functions']}")

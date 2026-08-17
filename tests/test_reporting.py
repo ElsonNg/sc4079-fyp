@@ -159,6 +159,7 @@ def test_audit_summary_has_divided_sections_and_final_counts():
     output = format_audit_summary(_report())
 
     assert "PROVTRAIL SCAN RESULT" in output
+    assert "✖ 2 vulnerability clone finding(s) · 2 requiring attention (!)" in output
     assert "SCAN OVERVIEW" in output
     assert "RESULTS" in output
     assert "DETERMINISTIC RESULTS" not in output
@@ -190,6 +191,7 @@ def test_final_findings_counts_every_item_still_requiring_attention():
     report["findings"][1]["review_explanation"]["llm_verdict"] = "dismissed"
     assert final_metrics(report)["final_findings"] == 1
     assert "Total:                 1" in format_attention(report)
+    assert "✖ 2 vulnerability clone finding(s) · 1 requiring attention (!)" in format_audit_summary(report)
 
 
 def test_verbose_report_contains_cve_and_version_metadata():

@@ -147,6 +147,53 @@ def test_html_report_is_self_contained_and_includes_core_views():
     )
     output = render_html_report(data)
 
+    assert "<title>provtrail - demo</title>" in output
+    assert ">Results<" in output
+    assert 'id="files" class="panel active"' in output
+    assert 'id="results" class="panel"' in output
+    assert output.index('data-tab="recommendations"') < output.index('data-tab="results"')
+    assert "<h2>Scan Summary</h2>" in output
+    assert "Results requiring attention" not in output
+    assert "Prioritized findings after deterministic detection and optional LLM review." not in output
+    assert "Total requiring attention" in output
+    assert "Initial Results" in output
+    assert "Final Review Decisions" in output
+    assert "Passed screening" in output
+    assert "No vulnerable clone detected" not in output
+    assert "Scan coverage" in output
+    assert output.index("<h3>Scan coverage</h3>") < output.index("<h3>Initial Results</h3>")
+    assert output.index("<h3>Initial Results</h3>") < output.index("<h3>Final Review Decisions</h3>")
+    assert "function renderResults()" in output
+    assert "initSummary();renderResults();buildTree()" in output
+    assert ".attention-total{background:var(--focus-bg);color:var(--ink)}" in output
+    assert ".result-row.escalated dd{color:var(--amber)}" in output
+    assert ".result-row.dismissed dd{color:var(--muted)}" in output
+    assert data["results"]["final_metrics"]["attention"] == {
+        "high": 1,
+        "medium": 0,
+        "low": 0,
+    }
+    assert data["results"]["final_metrics"]["final_findings"] == 1
+    assert "View breakdown" in output
+    assert 'id="evidence-dialog"' in output
+    assert "function evidenceBreakdown(f)" in output
+    assert "function openEvidenceBreakdown(findingId)" in output
+    assert "bindEvidenceBreakdowns($('#file-pane'))" in output
+    assert "Retrieval similarity · 0% verdict weight" in output
+    assert "AST coverage · diagnostic only" in output
+    assert "Weighted verifier score" in output
+    assert "Vulnerable similarity" in output
+    assert "Patched similarity" in output
+    assert "50% AST shape ratio + 50% AST path ratio" in output
+    assert "50% call-set Jaccard + 50% member-access Jaccard" in output
+    assert output.index("<span>Retrieval similarity</span>") < output.index("<span>Vulnerable score</span>")
+    assert output.index("<span>Vulnerable score</span>") < output.index("<span>Patched score</span>")
+    assert output.index("<span>Patched score</span>") < output.index("<span>Score margin</span>")
+    assert ".calculation-table th:nth-child(4),.calculation-table th:nth-child(6)" in output
+    assert 'class="equation-list"' not in output
+    assert ".evidence-breakdown-trigger{display:inline-flex" in output
+    assert ".evidence-dialog::backdrop" in output
+    assert ".showModal()" in output
     assert "Project Directory" in output
     assert ">Findings<" in output
     assert "${rows.length} result${rows.length===1?'':'s'}" in output
@@ -177,7 +224,8 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "86_400_000" in output
     assert "setInterval(updateGeneratedTime" not in output
     assert output.index('id="generated"') < output.index("<summary>Details</summary>")
-    assert output.index("<summary>Details</summary>") < output.index('id="metrics"')
+    assert 'id="metrics"' not in output
+    assert "$('#metrics').innerHTML" not in output
     assert "flagIcon" in output
     assert "reviewIcon" in output
     assert '<circle cx="12" cy="12" r="9"/>' in output
@@ -297,6 +345,19 @@ def test_html_payload_escapes_script_terminators_but_round_trips_source():
     assert reconstructed == dangerous
 
 
+def test_html_report_normalizes_entities_in_version_ranges():
+    summary = _summary()
+    summary.findings[0]["result"]["hash_matches"][0]["affected_versions"] = [
+        ">0.0.1&nbsp;&lt;2.0.0"
+    ]
+
+    data = build_html_report_data(summary, entries=[_entry()], config=ScanConfig())
+
+    assert data["findings"][0]["primary"]["affected_versions"] == [">0.0.1 <2.0.0"]
+    assert data["recommendations"][0]["affected_versions"] == [">0.0.1 <2.0.0"]
+    assert "&nbsp;" not in render_html_report(data)
+
+
 def test_candidate_highlight_uses_local_verified_region_when_available():
     source = """function request(url) {
   const parsed = new URL(url);
@@ -314,6 +375,46 @@ def test_candidate_highlight_uses_local_verified_region_when_available():
 
     assert lines
     assert len(lines) < len(source.splitlines())
+
+
+def test_html_payload_keeps_verifier_signal_scores_for_breakdown():
+    summary = _summary()
+    result = summary.findings[0]["result"]
+    match = result["hash_matches"][0]
+    result["hash_matches"] = []
+    result["aggregates"] = [
+        {
+            "pair_id": "pair-1",
+            "top_matches": [{**match, "pair_id": "pair-1", "similarity": 0.88}],
+        }
+    ]
+    result["evidence"] = [
+        {
+            "pair_id": "pair-1",
+            "structural_vulnerable": 0.90,
+            "structural_patched": 0.60,
+            "token_vulnerable": 0.84,
+            "token_patched": 0.51,
+            "semantic_vulnerable": 0.75,
+            "semantic_patched": 0.30,
+            "local_alignment_vulnerable": None,
+            "local_alignment_patched": None,
+            "retrieval_similarity": 0.88,
+            "vulnerable_score": 0.83,
+            "patched_score": 0.47,
+            "vulnerable_minus_patched": 0.36,
+            "ast_coverage": 0.72,
+        }
+    ]
+
+    data = build_html_report_data(summary, entries=[_entry()], config=ScanConfig())
+    evidence = data["findings"][0]["evidence"]
+
+    assert evidence["structural_vulnerable"] == 0.90
+    assert evidence["token_vulnerable"] == 0.84
+    assert evidence["semantic_vulnerable"] == 0.75
+    assert evidence["retrieval_similarity"] == 0.88
+    assert evidence["ast_coverage"] == 0.72
 
 
 def test_embedded_javascript_has_valid_syntax(tmp_path):
