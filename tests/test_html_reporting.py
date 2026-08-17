@@ -230,7 +230,7 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "<dt>Potential impact</dt>" in output
     assert "if confirmed</strong>" in output
     assert "</div></div></header>${fs.length?fs.map(f=>findingCard(f,fs.length===1))" in output
-    assert '<h1 class="wordmark">provtrail</h1>' in output
+    assert '<h1 class="wordmark">provtrail</h1><span class="report-label">\'s report</span>' in output
     assert ".wordmark{margin:0;color:var(--teal)" in output
     assert 'class="mark"' not in output
     assert "Request URL validation can be bypassed" in output
@@ -250,7 +250,7 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "Show more" in output
     assert "Show less" in output
     assert ".recommendation-summary.collapsed{max-height:10em;overflow:hidden}" in output
-    assert ".summary-toggle{border:0;background:transparent;color:var(--focus);padding:0;font-weight:inherit;text-decoration:underline;text-underline-offset:3px}" in output
+    assert ".summary-toggle{display:inline-flex;margin-top:16px;border:0;background:transparent;color:var(--focus);padding:0;font-weight:inherit;text-decoration:underline;text-underline-offset:3px}" in output
     assert ".summary-toggle:hover" not in output
     assert ".patch-line.removed{background:var(--red-bg);color:var(--red)}" in output
     assert ".patch-line.added{background:var(--teal-bg);color:var(--teal)}" in output
