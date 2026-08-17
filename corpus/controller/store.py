@@ -111,6 +111,37 @@ def save_entries(entries: list[CorpusEntry], db_path: Path | str = DEFAULT_DB_PA
     conn.close()
 
 
+def replace_entries_by_ghsa_prefix(
+    entries: list[CorpusEntry],
+    ghsa_prefix: str,
+    db_path: Path | str = DEFAULT_DB_PATH,
+) -> None:
+    """Atomically replace one source namespace while preserving other corpus rows."""
+    conn = get_connection(db_path)
+    with conn:
+        conn.execute(
+            "DELETE FROM corpus_entries WHERE substr(ghsa_id, 1, ?) = ?",
+            (len(ghsa_prefix), ghsa_prefix),
+        )
+        for e in entries:
+            conn.execute(
+                _UPSERT_SQL,
+                (
+                    e.ghsa_id, e.cve_id, e.osv_id, e.advisory_title,
+                    e.advisory_description, e.advisory_url,
+                    json.dumps(e.advisory_references),
+                    json.dumps([c.model_dump() for c in e.cwes]), e.severity,
+                    e.package_name, e.ecosystem, e.repo, e.fix_commit_sha,
+                    e.file_path, e.function_name, e.vulnerable_function,
+                    e.patched_function,
+                    json.dumps([d.model_dump() for d in e.diagnostic_lines]),
+                    json.dumps(e.affected_versions), json.dumps(e.fixed_versions),
+                    int(e.osv_confirmed),
+                ),
+            )
+    conn.close()
+
+
 def load_entries(db_path: Path | str = DEFAULT_DB_PATH) -> list[CorpusEntry]:
     conn = get_connection(db_path)
     cursor = conn.execute("SELECT * FROM corpus_entries")

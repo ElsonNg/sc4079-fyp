@@ -71,6 +71,27 @@ Corpus maintenance commands are:
 ```bash
 PYTHONPATH=. .venv/bin/python -m cli corpus stats
 PYTHONPATH=. .venv/bin/python -m cli corpus build
+PYTHONPATH=. .venv/bin/python -m cli corpus ingest-klaban
+PYTHONPATH=. .venv/bin/python -m cli corpus index
 ```
+
+`corpus ingest-klaban` reads the bundled manually confirmed Klaban dataset, replaces
+previously imported Klaban rows in `corpus/data/corpus.db`, and builds both the
+whole-function and AST-region FAISS embedding indexes. Pass `--skip-index` to perform
+only the SQLite import, or `--db-path` and the index-directory options to write isolated
+artifacts.
+Use `--device cpu` when the platform's MPS/CUDA backend is unavailable or unstable.
+Use `--skip-region-index` when only the whole-function FAISS index is required.
+
+Long functions are indexed with bounded, diagnostic-aware windows so code around the
+security fix remains retrievable even when it occurs far beyond the function prefix.
+Measure Klaban vulnerable and patched Recall@K with:
+
+```bash
+PYTHONPATH=. .venv/bin/python scripts/evaluate_klaban_retrieval.py --k 10
+```
+
+The evaluator prints running hit rates, elapsed time, and ETA every 10 queries. Use
+`--progress-every 1` for every query or `--progress-every 0` for quiet operation.
 
 Generated embedding indexes and local scan state are intentionally excluded from Git.

@@ -15,6 +15,9 @@ class _BufferLimitedModel:
             raise RuntimeError("Invalid buffer size: 8.00 GB")
         return np.zeros((len(texts), 3), dtype=np.float32)
 
+    def get_embedding_dimension(self):
+        return 3
+
 
 def test_default_embedding_batch_size_is_memory_conservative():
     assert embedding.DEFAULT_EMBEDDING_BATCH_SIZE == 4
@@ -33,3 +36,19 @@ def test_invalid_buffer_size_triggers_batch_backoff(monkeypatch):
 
 def test_unrelated_runtime_error_is_not_treated_as_memory_pressure():
     assert not embedding._is_oom_error(RuntimeError("model configuration is invalid"))
+
+
+def test_encode_caps_pathological_input_before_native_tokenizer(monkeypatch):
+    model = _BufferLimitedModel()
+    seen_lengths = []
+
+    def capture(_model, chunk, _batch_size):
+        seen_lengths.extend(map(len, chunk))
+        return np.zeros((len(chunk), 3), dtype=np.float32)
+
+    monkeypatch.setattr(embedding, "get_model", lambda _model_id: model)
+    monkeypatch.setattr(embedding, "_encode_chunk", capture)
+
+    embedding.encode("test", ["x" * (embedding.MAX_EMBEDDING_INPUT_CHARS + 100)])
+
+    assert seen_lengths == [embedding.MAX_EMBEDDING_INPUT_CHARS]

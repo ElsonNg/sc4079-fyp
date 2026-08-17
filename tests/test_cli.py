@@ -31,6 +31,11 @@ def test_scan_explanation_defaults_are_explicit_and_local():
     assert args.ollama_timeout == 180
 
 
+def test_corpus_index_accepts_explicit_embedding_device():
+    args = build_parser().parse_args(["corpus", "index", "--device", "cpu"])
+    assert args.device == "cpu"
+
+
 @pytest.mark.parametrize("timeout", ["0", "-1", "nan", "inf"])
 def test_scan_rejects_invalid_ollama_timeout(timeout):
     with pytest.raises(SystemExit):

@@ -91,3 +91,14 @@ def test_build_or_load_reuses_unchanged_corpus_and_rebuilds_on_change(tmp_path):
 
     rebuilt = build_or_load_index(changed_entries, model_id=DEFAULT_MODEL_ID, dir_path=tmp_path)
     assert len(rebuilt.entries) == 3
+
+
+def test_source_change_marks_saved_index_stale(tmp_path):
+    entries = _entries()
+    build_or_load_index(entries, model_id=DEFAULT_MODEL_ID, dir_path=tmp_path)
+
+    changed = [
+        entries[0].model_copy(update={"vulnerable_function": TRANSFER_RENAMED}),
+        entries[1],
+    ]
+    assert is_stale(DEFAULT_MODEL_ID, changed, dir_path=tmp_path)

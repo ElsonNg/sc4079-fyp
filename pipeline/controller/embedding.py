@@ -1,5 +1,7 @@
+import gc
+import os
 import threading
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 
@@ -32,11 +34,11 @@ DEFAULT_MODEL_ID = "qwen3-embedding-0.6b"
 # (e.g. axios's ~18-24k char dispatchHttpRequest, revised across 15 separate advisories)
 # share an identical opening at that length and become indistinguishable embeddings, a
 # false-negative risk for exactly the functions this stage most needs to discriminate.
-# Raised to 2048 to cover more of the body; encode()'s chunk-level OOM backoff (halving
+# 64 keeps full-corpus CPU indexing tractable; encode()'s chunk-level OOM backoff (halving
 # batch size down to 1 item) exists specifically to absorb the rare huge-outlier cost
 # this raises, rather than avoiding it by truncating harder.
 #
-# Known residual limitation (accepted, not fixed): 2048 tokens is ~8k characters, still
+# Known residual limitation (accepted, not fixed): 64 tokens covers only a function prefix and is
 # short of dispatchHttpRequest's 18-24k characters, so some of its 15 corpus revisions
 # still tie on identical similarity to each other. Verified via smoke test against the
 # real corpus -- doesn't cause a false negative (the correct entry is still retrieved,
@@ -46,9 +48,23 @@ DEFAULT_MODEL_ID = "qwen3-embedding-0.6b"
 # (embed multiple <=2048-token windows, combine via mean-pool or max-similarity-at-query)
 # to get full-body coverage without paying attention's O(n^2) cost on the whole body at
 # once -- not implemented; revisit if Stage 2 recall on large functions proves to be a
-# problem in the eval suite (module 11).
-DEFAULT_MAX_SEQ_LENGTH = 2048
+# problem in the eval suite (module 11). Klaban also contains generated functions up to
+# ~800 KB, making longer full-corpus CPU inference impractical in the supported local
+# environment. Windowed embeddings remain the proper future solution for those outliers.
+DEFAULT_MAX_SEQ_LENGTH = 64
 DEFAULT_EMBEDDING_BATCH_SIZE = 4
+# Hugging Face truncates to DEFAULT_MAX_SEQ_LENGTH tokens, but its native tokenizer
+# still has to scan the complete input first. Klaban includes generated/minified
+# functions approaching 800 KB; after whitespace normalization, a 605 KB single line
+# can segfault the tokenizer before token truncation runs. Typical JavaScript reaches
+# 2,048 tokens within roughly 8 KB, so this cap leaves a generous buffer while
+# keeping pathological inputs out of native code.
+MAX_EMBEDDING_INPUT_CHARS = 16 * 1024
+EMBEDDING_DEVICE_ENV = "PROVTRAIL_EMBEDDING_DEVICE"
+
+# PyTorch and faiss-cpu can bring separate OpenMP runtimes into the same macOS
+# process. Without this compatibility setting the second native import can segfault.
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 _loaded_models: dict[str, "SentenceTransformer"] = {}
 
@@ -66,10 +82,17 @@ def get_model(model_id: str) -> "SentenceTransformer":
     if model_id not in _loaded_models:
         from sentence_transformers import SentenceTransformer
 
-        model = SentenceTransformer(spec.hf_name)
+        configured_device = os.environ.get(EMBEDDING_DEVICE_ENV)
+        model = SentenceTransformer(spec.hf_name, device=configured_device)
         model.max_seq_length = DEFAULT_MAX_SEQ_LENGTH
         _loaded_models[model_id] = model
     return _loaded_models[model_id]
+
+
+def release_models() -> None:
+    """Release model weights before loading another large native runtime (FAISS)."""
+    _loaded_models.clear()
+    gc.collect()
 
 
 def _is_oom_error(exc: RuntimeError) -> bool:
@@ -119,6 +142,8 @@ def encode(
     model_id: str,
     texts: list[str],
     batch_size: int = DEFAULT_EMBEDDING_BATCH_SIZE,
+    *,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> np.ndarray:
     """Batch-encode `texts` with `model_id`, returning L2-normalized float32 vectors
     (so downstream FAISS inner-product search is equivalent to cosine similarity).
@@ -134,8 +159,9 @@ def encode(
         return np.empty((0, model.get_embedding_dimension()), dtype=np.float32)
 
     model = get_model(model_id)
-    order = sorted(range(len(texts)), key=lambda i: len(texts[i]), reverse=True)
-    sorted_texts = [texts[i] for i in order]
+    prepared_texts = [text[:MAX_EMBEDDING_INPUT_CHARS] for text in texts]
+    order = sorted(range(len(prepared_texts)), key=lambda i: len(prepared_texts[i]), reverse=True)
+    sorted_texts = [prepared_texts[i] for i in order]
 
     dim = model.get_embedding_dimension()
     result = np.empty((len(texts), dim), dtype=np.float32)
@@ -147,5 +173,7 @@ def encode(
         for offset, vector in enumerate(vectors):
             result[order[pos + offset]] = vector
         pos += len(chunk)
+        if progress_callback is not None:
+            progress_callback(pos, len(texts))
 
     return result

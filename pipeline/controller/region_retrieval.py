@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-import faiss
 import numpy as np
 
 from pipeline.controller import embedding
@@ -63,6 +62,11 @@ def build_region_index(
         dimension = vectors.shape[1]
     else:
         dimension = embedding.get_model(model_id).get_embedding_dimension()
+    embedding.release_models()
+    # See pipeline.controller.retrieval: embedding/PyTorch must initialize before
+    # FAISS on macOS to avoid an OpenMP-runtime native crash.
+    import faiss
+
     index = faiss.IndexHNSWFlat(dimension, m, faiss.METRIC_INNER_PRODUCT)
     index.hnsw.efConstruction = ef_construction
     index.hnsw.efSearch = ef_search
@@ -156,6 +160,8 @@ def save_region_index(
     retrieval_index: RegionRetrievalIndex,
     directory: Path = DEFAULT_REGION_EMBEDDINGS_DIR,
 ) -> None:
+    import faiss
+
     directory.mkdir(parents=True, exist_ok=True)
     stem = retrieval_index.model_id
     faiss.write_index(retrieval_index.index, str(directory / f"{stem}.faiss"))
@@ -172,6 +178,8 @@ def load_region_index(
     model_id: str = DEFAULT_MODEL_ID,
     directory: Path = DEFAULT_REGION_EMBEDDINGS_DIR,
 ) -> RegionRetrievalIndex | None:
+    import faiss
+
     index_path = directory / f"{model_id}.faiss"
     metadata_path = directory / f"{model_id}.meta.json"
     if not index_path.exists() or not metadata_path.exists():

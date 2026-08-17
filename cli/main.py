@@ -6,12 +6,36 @@ import argparse
 import json
 import math
 import os
+import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
 
+import numpy as np
+
 from corpus.controller.build import build_corpus, print_attrition_report
-from corpus.controller.store import load_entries, save_entries
+from corpus.controller.klaban import (
+    DEFAULT_KLABAN_PATH,
+    KLABAN_ID_PREFIX,
+    parse_klaban_corpus,
+    print_klaban_report,
+)
+from corpus.controller.store import load_entries, replace_entries_by_ghsa_prefix, save_entries
+from pipeline.controller import embedding
+from pipeline.controller.embedding import DEFAULT_MODEL_ID, EMBEDDING_DEVICE_ENV
+from pipeline.controller.region_extraction import extract_corpus_region_pairs
+from pipeline.controller.region_retrieval import (
+    DEFAULT_REGION_EMBEDDINGS_DIR,
+    _region_fingerprint,
+)
+from pipeline.controller.retrieval import (
+    DEFAULT_EMBEDDINGS_DIR,
+    INDEX_FORMAT_VERSION,
+    _corpus_fingerprint,
+    _corpus_windows,
+    _match_from_entry,
+    _normalized_text,
+)
 from pipeline.controller.region_detection import RegionDetectorConfig
 from pipeline.controller.region_verification import RegionVerifierConfig
 from pipeline.controller.review_explanation import (
@@ -107,6 +131,35 @@ def build_parser() -> argparse.ArgumentParser:
     _add_db_path(build)
     stats = corpus_commands.add_parser("stats", help="Show corpus size and metadata coverage")
     _add_db_path(stats)
+    ingest_klaban = corpus_commands.add_parser(
+        "ingest-klaban",
+        help="Import the manually confirmed Klaban corpus and build its indexes",
+    )
+    ingest_klaban.add_argument("path", nargs="?", type=Path, default=DEFAULT_KLABAN_PATH)
+    _add_db_path(ingest_klaban)
+    ingest_klaban.add_argument("--model", default=DEFAULT_MODEL_ID)
+    ingest_klaban.add_argument(
+        "--device", choices=("cpu", "mps", "cuda"), default=None,
+        help=f"Embedding device (also configurable with {EMBEDDING_DEVICE_ENV})",
+    )
+    ingest_klaban.add_argument("--embedding-batch-size", type=int, default=1)
+    ingest_klaban.add_argument("--skip-index", action="store_true")
+    ingest_klaban.add_argument("--skip-region-index", action="store_true")
+    ingest_klaban.add_argument("--embeddings-dir", type=Path, default=DEFAULT_EMBEDDINGS_DIR)
+    ingest_klaban.add_argument(
+        "--region-embeddings-dir", type=Path, default=DEFAULT_REGION_EMBEDDINGS_DIR
+    )
+    index = corpus_commands.add_parser("index", help="Build function and AST-region embedding indexes")
+    _add_db_path(index)
+    index.add_argument("--model", default=DEFAULT_MODEL_ID)
+    index.add_argument(
+        "--device", choices=("cpu", "mps", "cuda"), default=None,
+        help=f"Embedding device (also configurable with {EMBEDDING_DEVICE_ENV})",
+    )
+    index.add_argument("--embedding-batch-size", type=int, default=1)
+    index.add_argument("--skip-region-index", action="store_true")
+    index.add_argument("--embeddings-dir", type=Path, default=DEFAULT_EMBEDDINGS_DIR)
+    index.add_argument("--region-embeddings-dir", type=Path, default=DEFAULT_REGION_EMBEDDINGS_DIR)
     return parser
 
 
@@ -221,6 +274,94 @@ def _corpus_stats(args: argparse.Namespace) -> int:
     return 0
 
 
+def _corpus_index(args: argparse.Namespace) -> int:
+    os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+    if args.device:
+        os.environ[EMBEDDING_DEVICE_ENV] = args.device
+    entries = load_entries(args.db_path) if args.db_path else load_entries()
+    print(f"Building function index for {len(entries)} corpus entries...")
+    function_texts = []
+    function_matches = []
+    for entry in entries:
+        windows = _corpus_windows(entry)
+        function_texts.extend(_normalized_text(window) for window in windows)
+        function_matches.extend(_match_from_entry(entry) for _ in windows)
+    function_vectors = embedding.encode(
+        args.model,
+        function_texts,
+        batch_size=args.embedding_batch_size,
+        progress_callback=lambda done, total: print(f"  embedded {done}/{total} functions")
+        if done == total or done % 320 == 0 else None,
+    )
+    args.embeddings_dir.mkdir(parents=True, exist_ok=True)
+    function_index_path = args.embeddings_dir / f"{args.model}.faiss"
+    function_vector_path = args.embeddings_dir / f".{args.model}.vectors.npy"
+    np.save(function_vector_path, function_vectors)
+    del function_vectors
+    embedding.release_models()
+    subprocess.run(
+        [sys.executable, "-m", "cli.faiss_builder", str(function_vector_path), str(function_index_path)],
+        check=True,
+    )
+    function_vector_path.unlink()
+    function_meta = {
+        "model_id": args.model,
+        "max_seq_length": embedding.DEFAULT_MAX_SEQ_LENGTH,
+        "corpus_fingerprint": _corpus_fingerprint(entries),
+        "index_format_version": INDEX_FORMAT_VERSION,
+        "entries": [match.model_dump() for match in function_matches],
+    }
+    (args.embeddings_dir / f"{args.model}.meta.json").write_text(json.dumps(function_meta), encoding="utf-8")
+    if args.skip_region_index:
+        print(f"Indexed {len(function_matches)} windows from {len(entries)} functions with {args.model}")
+        return 0
+
+    pairs = extract_corpus_region_pairs(entries)
+    print(f"Building AST-region index for {len(pairs)} vulnerable region pairs...")
+    region_vectors = embedding.encode(
+        args.model,
+        [pair.vulnerable_region.embedding_text for pair in pairs],
+        batch_size=args.embedding_batch_size,
+        progress_callback=lambda done, total: print(f"  embedded {done}/{total} regions")
+        if done == total or done % 320 == 0 else None,
+    )
+    args.region_embeddings_dir.mkdir(parents=True, exist_ok=True)
+    region_index_path = args.region_embeddings_dir / f"{args.model}.faiss"
+    region_vector_path = args.region_embeddings_dir / f".{args.model}.vectors.npy"
+    np.save(region_vector_path, region_vectors)
+    del region_vectors
+    embedding.release_models()
+    subprocess.run(
+        [sys.executable, "-m", "cli.faiss_builder", str(region_vector_path), str(region_index_path)],
+        check=True,
+    )
+    region_vector_path.unlink()
+    region_meta = {
+        "model_id": args.model,
+        "max_seq_length": embedding.DEFAULT_MAX_SEQ_LENGTH,
+        "fingerprint": _region_fingerprint(pairs, args.model),
+        "pairs": [pair.model_dump() for pair in pairs],
+    }
+    (args.region_embeddings_dir / f"{args.model}.meta.json").write_text(json.dumps(region_meta), encoding="utf-8")
+    print(
+        f"Indexed {len(entries)} functions and {len(pairs)} AST regions with {args.model}"
+    )
+    return 0
+
+
+def _corpus_ingest_klaban(args: argparse.Namespace) -> int:
+    entries, report = parse_klaban_corpus(args.path)
+    if args.db_path:
+        replace_entries_by_ghsa_prefix(entries, KLABAN_ID_PREFIX, args.db_path)
+    else:
+        replace_entries_by_ghsa_prefix(entries, KLABAN_ID_PREFIX)
+    print_klaban_report(report)
+    print(f"Saved {len(entries)} Klaban entries")
+    if not args.skip_index:
+        return _corpus_index(args)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "scan":
@@ -229,7 +370,11 @@ def main(argv: list[str] | None = None) -> int:
         return _report(args)
     if args.corpus_command == "build":
         return _corpus_build(args)
-    return _corpus_stats(args)
+    if args.corpus_command == "stats":
+        return _corpus_stats(args)
+    if args.corpus_command == "index":
+        return _corpus_index(args)
+    return _corpus_ingest_klaban(args)
 
 
 if __name__ == "__main__":

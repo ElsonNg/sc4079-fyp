@@ -10,6 +10,7 @@ AGENTS.md
 docs/*
 
 # Generated embedding indexes and local incremental-scan state
+corpus/data/corpus.db
 corpus/data/embeddings/*
 corpus/data/region_embeddings/*
 .provtrail/
