@@ -20,7 +20,7 @@ from pipeline.controller.scanning import ScanConfig, ScanSummary
 from pipeline.models.explanations import ReviewBrief, ReviewExplanation
 
 EXPLANATION_CACHE_SCHEMA_VERSION = 1
-EXPLANATION_PROMPT_VERSION = "advisory-relevance-v3"
+EXPLANATION_PROMPT_VERSION = "advisory-relevance-v4"
 DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434"
 DEFAULT_OLLAMA_MODEL = "qwen3:8b"
 DEFAULT_OLLAMA_TIMEOUT = 180.0
@@ -213,12 +213,11 @@ class OllamaReviewExplainer:
             "shape resembles an Axios utility. Do not invent missing callers or behavior.\n\n"
             "This is an independent second opinion. Do not discuss, infer, justify, or repeat detector scores, "
             "similarity values, confidence labels, severity, or the deterministic scan status. Do not claim "
-            "exploitability, claim a dependency is installed, or certify that tier-1 code is secure. Make "
-            "verdict_rationale specific: name the required mechanism and the concrete evidence that is present "
-            "or absent. Keep every field concise. For tier 1, make verdict_rationale a self-contained short "
-            "paragraph, leave both evidence arrays, review_steps, and limitations empty, and keep "
-            "security_mechanism to one short sentence. For tiers 2 and 3, give concrete verification steps, "
-            "with extra focus on resolving missing context for tier 2."
+            "exploitability, claim a dependency is installed, or certify that tier-1 code is secure. Keep "
+            "security_mechanism to one short sentence. Make verdict_rationale a concise, self-contained "
+            "paragraph naming the required mechanism and the concrete evidence that is present, absent, or "
+            "unresolved. Do not provide separate evidence lists, review checklists, limitations, or repeated "
+            "conclusions."
         )
         user_prompt = (
             "Return a review brief matching this JSON schema:\n"
@@ -236,7 +235,7 @@ class OllamaReviewExplainer:
             "think": False,
             "format": schema,
             "keep_alive": "10m",
-            "options": {"temperature": 0, "num_predict": 700},
+            "options": {"temperature": 0, "num_predict": 350},
         }
         last_error: OllamaExplanationError | None = None
         for _attempt in range(2):

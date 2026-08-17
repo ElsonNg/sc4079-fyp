@@ -14,3 +14,4 @@ corpus/data/embeddings/*
 corpus/data/region_embeddings/*
 .provtrail/
 corpus/data/cache/
+corpus/data/raw/

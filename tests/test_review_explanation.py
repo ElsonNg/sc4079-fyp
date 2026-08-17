@@ -18,10 +18,6 @@ BRIEF = {
     "relevance_tier": 2,
     "verdict_rationale": "A request sink is present, but redirect validation is outside the region.",
     "security_mechanism": "Caller-controlled redirect destinations must be validated before requests.",
-    "supporting_evidence": ["The request path accepts a caller-controlled URL."],
-    "contradicting_evidence": ["A hostname check is present near the request."],
-    "review_steps": ["Trace redirects and confirm validation is repeated for each destination."],
-    "limitations": ["Static evidence does not include runtime configuration."],
 }
 
 
@@ -137,7 +133,7 @@ def test_ollama_request_uses_structured_non_streaming_chat():
 
     brief = explainer.explain({"source_evidence": {"project": "untrusted code"}})
 
-    assert brief.review_steps == BRIEF["review_steps"]
+    assert brief.verdict_rationale == BRIEF["verdict_rationale"]
     url, body, timeout = session.post_calls[0]
     assert url == "http://localhost:11434/api/chat"
     assert timeout == 12

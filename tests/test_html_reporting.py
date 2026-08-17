@@ -149,6 +149,7 @@ def test_html_report_is_self_contained_and_includes_core_views():
 
     assert "Project Directory" in output
     assert ">Findings<" in output
+    assert "${rows.length} result${rows.length===1?'':'s'}" in output
     assert "<th>Severity</th><th>LLM Decision</th><th>Location</th>" in output
     assert ">Recommendations<" in output
     assert "folder-closed" in output
@@ -185,7 +186,7 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert ".badge.llm_dismissed{color:var(--muted);background:var(--surface-2)}" in output
     assert ".badge.llm_escalate{color:var(--amber);background:var(--amber-bg)}" in output
     assert ".tree-file.llm_dismissed,.tree summary.llm_dismissed{color:var(--muted)}" in output
-    assert ".tree-file.flagged{color:var(--red)}" not in output
+    assert ".tree-file.flagged>.icon,.tree-file.flagged>.file-name{color:var(--red)}" in output
     assert ".tree-file.llm_escalate,.tree summary.llm_escalate{color:var(--amber)}" in output
     assert "attentionStatus(findings)" in output
     assert "if(findings.some(f=>f.status==='flagged'))return'flagged'" in output
@@ -211,7 +212,20 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "LLM Escalate" in output
     assert "function llmDecision(finding)" in output
     assert "if(finding.status!=='manual_review')return'<span class=\"muted\">—</span>'" in output
-    assert "${llmDecision(f)}</td><td><strong>${esc(f.path)}" in output
+    assert "${llmDecision(f)}</td><td>${esc(f.path)}:${f.start_line}" in output
+    assert "${llmDecision(f)}</td><td><strong>${esc(f.path)}" not in output
+    assert '<dt>Confidence</dt><dd><strong>${esc(label(f.confidence))}</strong></dd>' in output
+    assert "Similarity signals are not exploit probability." not in output
+    assert ".toolbar select.control{padding-right:34px}" in output
+    assert ".wordmark{margin:0;color:var(--teal);font-size:24px;line-height:1.1;font-weight:700" in output
+    assert ".outcome h2{font-size:29px;letter-spacing:-.04em;margin:0 0 8px;font-weight:650" in output
+    assert "function markdown(value)" in output
+    assert '${markdown(description)}' in output
+    assert ".recommendation>.badge-row{padding-bottom:14px}" in output
+    assert '<span class="muted">Affected package</span>' in output
+    assert "const packageLabel=ecosystem?`${packageName} (${ecosystem})`:packageName" in output
+    assert data["recommendations"][0]["ecosystem"] == "npm"
+    assert "add a regression test for" not in output
     assert 'colspan="7"' in output
     assert "<dt>Potential impact</dt>" in output
     assert "if confirmed</strong>" in output
@@ -235,7 +249,7 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "description.length>240" in output
     assert "Show more" in output
     assert "Show less" in output
-    assert "-webkit-line-clamp:3" in output
+    assert ".recommendation-summary.collapsed{max-height:10em;overflow:hidden}" in output
     assert ".summary-toggle{border:0;background:transparent;color:var(--focus);padding:0;font-weight:inherit;text-decoration:underline;text-underline-offset:3px}" in output
     assert ".summary-toggle:hover" not in output
     assert ".patch-line.removed{background:var(--red-bg);color:var(--red)}" in output
@@ -360,13 +374,18 @@ def test_manual_review_explanation_is_embedded_in_its_finding():
     assert "LLM verdict: ${verdictText}" not in output
     assert "Tier ${tier} of 3" not in output
     assert "Totally irrelevant" not in output
-    assert "Independent advisory-relevance opinion" in output
+    assert "Use this guidance to support your review of the main scan result." in output
+    assert "Independent advisory-relevance opinion" not in output
     assert "if(verdict==='dismissed')return" in output
     assert 'class="review-explanation dismissed"' in output
     assert ".review-explanation.dismissed .verdict-rationale" in output
+    assert ".review-explanation{background:var(--surface);border:1px solid var(--line)" in output
+    assert ".review-explanation{background:var(--focus-bg)" not in output
     assert "reviews.some(f=>llmVerdict(f)==='flagged')" in output
     assert "reviews.some(f=>llmVerdict(f)!=='dismissed')" in output
-    assert "Trace validation across every redirect." in output
+    assert "Trace validation across every redirect." not in output
+    assert "Evidence for relevance" not in output
+    assert "What to check next" not in output
     assert "Review explanation model" in output
     assert "Explanations unavailable" in output
 

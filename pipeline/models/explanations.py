@@ -13,10 +13,6 @@ class ReviewBrief(BaseModel):
     relevance_tier: Literal[1, 2, 3]
     verdict_rationale: str = Field(min_length=1, max_length=600)
     security_mechanism: str = Field(min_length=1, max_length=600)
-    supporting_evidence: list[str] = Field(default_factory=list, max_length=4)
-    contradicting_evidence: list[str] = Field(default_factory=list, max_length=4)
-    review_steps: list[str] = Field(default_factory=list, max_length=5)
-    limitations: list[str] = Field(default_factory=list, max_length=3)
 
 
 class ReviewExplanation(BaseModel):
