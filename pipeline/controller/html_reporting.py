@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from corpus.models.corpus import CorpusEntry
 from pipeline.controller.region_extraction import enumerate_candidate_regions
@@ -24,6 +24,12 @@ SEVERITY_RANK = {
     "low": 3,
     "info": 4,
     "unknown": 5,
+}
+DEPENDENCY_SECTIONS = {
+    "dependencies": "runtime",
+    "devDependencies": "development",
+    "peerDependencies": "peer",
+    "optionalDependencies": "optional",
 }
 
 
@@ -54,6 +60,122 @@ def _version_values(values: Any) -> list[str]:
     if not isinstance(values, list):
         return []
     return [html.unescape(str(value)).replace("\xa0", " ") for value in values]
+
+
+def _advisory_summary(value: Any) -> str:
+    """Keep a complete leading Summary section, or the first Markdown block."""
+    source = str(value or "").strip()
+    if not source:
+        return ""
+    summary = re.match(
+        r"\A(#{1,6}[ \t]+summary[^\n]*\r?\n[\s\S]*?)(?=\r?\n#{1,6}[ \t]+|\Z)",
+        source,
+        flags=re.IGNORECASE,
+    )
+    if summary:
+        return summary.group(1).strip()
+    blocks = [block.strip() for block in re.split(r"\r?\n\s*\r?\n", source) if block.strip()]
+    if not blocks:
+        return ""
+    excerpt = blocks[0]
+    if re.fullmatch(r"#{1,6}[ \t]+[^\n]+", excerpt) and len(blocks) > 1:
+        excerpt = f"{excerpt}\n\n{blocks[1]}"
+    return excerpt
+
+
+def _project_dependencies(target_root: str) -> dict[str, Any]:
+    """Read direct dependency declarations from the scanned project's root manifest."""
+    manifest_path = Path(target_root) / "package.json"
+    manifest_status = "missing"
+    declared: dict[str, list[dict[str, str]]] = {}
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if not isinstance(manifest, dict):
+                raise ValueError("package.json must contain an object")
+            manifest_status = "loaded"
+            for section, scope in DEPENDENCY_SECTIONS.items():
+                values = manifest.get(section)
+                if not isinstance(values, dict):
+                    continue
+                for name, version in values.items():
+                    declared.setdefault(str(name), []).append(
+                        {"scope": scope, "version": str(version)}
+                    )
+            bundled = manifest.get("bundledDependencies", manifest.get("bundleDependencies", []))
+            if isinstance(bundled, list):
+                for name in bundled:
+                    declared.setdefault(str(name), []).append(
+                        {"scope": "bundled", "version": "declared"}
+                    )
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            manifest_status = "invalid"
+    return {
+        "manifest": "package.json" if manifest_status != "missing" else None,
+        "manifest_status": manifest_status,
+        "declared": declared,
+    }
+
+
+def _dependency_report(findings: list[dict[str, Any]], target_root: str) -> dict[str, Any]:
+    """Compare library provenance in active findings with direct manifest declarations."""
+    project = _project_dependencies(target_root)
+    libraries: dict[str, dict[str, Any]] = {}
+    for finding in findings:
+        seen_in_finding: set[str] = set()
+        matches = finding.get("advisories") or [finding.get("primary") or {}]
+        for match in matches:
+            name = str(match.get("package_name") or "").strip()
+            if not name:
+                continue
+            ecosystem = str(match.get("ecosystem") or "unknown").strip() or "unknown"
+            key = f"{ecosystem.lower()}:{name}"
+            library = libraries.setdefault(
+                key,
+                {
+                    "name": name,
+                    "ecosystem": ecosystem,
+                    "declarations": project["declared"].get(name, []),
+                    "locations": set(),
+                    "advisories": set(),
+                    "finding_ids": set(),
+                },
+            )
+            library["locations"].add(f"{finding['path']}:{finding['start_line']}")
+            identifier = str(match.get("identifier") or _identifier(match)).strip()
+            if identifier and identifier != "Unknown advisory":
+                library["advisories"].add(identifier)
+            if key not in seen_in_finding:
+                library["finding_ids"].add(finding["id"])
+                seen_in_finding.add(key)
+
+    output = []
+    for library in libraries.values():
+        declarations = library["declarations"]
+        output.append(
+            {
+                "name": library["name"],
+                "ecosystem": library["ecosystem"],
+                "package_url": (
+                    f"https://www.npmjs.com/package/{quote(library['name'], safe='@/')}"
+                    if library["ecosystem"].lower() == "npm"
+                    else ""
+                ),
+                "status": "declared" if declarations else "undeclared",
+                "declarations": declarations,
+                "evidence_count": len(library["finding_ids"]),
+                "locations": sorted(library["locations"]),
+                "advisories": sorted(library["advisories"]),
+            }
+        )
+    output.sort(key=lambda item: (item["status"] == "declared", item["name"].lower()))
+    return {
+        "manifest": project["manifest"],
+        "manifest_status": project["manifest_status"],
+        "detected_count": len(output),
+        "ghost_count": sum(item["status"] == "undeclared" for item in output),
+        "libraries": output,
+    }
 
 
 def _reference_lines(entry: CorpusEntry, patched: bool) -> set[int]:
@@ -134,6 +256,7 @@ def _enrich_match(match: dict[str, Any], entry: CorpusEntry | None) -> dict[str,
         output["fixed_versions"] = output.get("fixed_versions") or entry.fixed_versions
     output["affected_versions"] = _version_values(output.get("affected_versions"))
     output["fixed_versions"] = _version_values(output.get("fixed_versions"))
+    output["advisory_summary"] = _advisory_summary(output.get("advisory_description"))
     output["patch_changes"] = _patch_changes(entry)
     output["advisory_url"] = _safe_url(output.get("advisory_url"))
     ghsa_id = str(output.get("ghsa_id") or "")
@@ -261,6 +384,7 @@ def build_html_report_data(
         )
     )
     active = [item for item in findings if item["status"] in ACTIVE_STATUSES]
+    dependencies = _dependency_report(active, summary.target_root)
     recommendations: dict[str, dict[str, Any]] = {}
     for finding in active:
         primary = finding["primary"]
@@ -313,6 +437,7 @@ def build_html_report_data(
         "audit": audit,
         "results": {"final_metrics": metrics},
         "findings": findings,
+        "dependencies": dependencies,
         "recommendations": recommendation_list,
         "explanation_run": summary.explanation_run,
         "config": {
@@ -361,24 +486,30 @@ _TEMPLATE = r'''<!doctype html>
 .outcome .top-details{margin:8px 0 0}
 .outcome .top-details summary{color:var(--focus);background:transparent;border-radius:0;padding:0}.report-label{margin-left:8px;color:#111820;font-size:24px;line-height:1.1;font-weight:700;letter-spacing:-.04em}[data-theme="dark"] .report-label{color:var(--ink)}.recommendation>.badge-row{padding-bottom:14px}.recommendation-summary{line-height:1.6}.recommendation-summary.collapsed{max-height:10em;overflow:hidden}.summary-toggle{display:inline-flex;margin-top:16px;border:0;background:transparent;color:var(--focus);padding:0;font-weight:inherit;text-decoration:underline;text-underline-offset:3px}.markdown-body{font-size:14px;overflow-wrap:anywhere}.markdown-body>:first-child{margin-top:0}.markdown-body>:last-child{margin-bottom:0}.markdown-body p{margin:0 0 10px}.markdown-body h4,.markdown-body h5,.markdown-body h6{margin:16px 0 7px;line-height:1.3}.markdown-body h4{font-size:15px}.markdown-body h5,.markdown-body h6{font-size:14px}.markdown-body ul,.markdown-body ol{margin:0 0 11px;padding-inline-start:22px}.markdown-body li+li{margin-top:4px}.markdown-body code{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--surface-2);border-radius:3px;padding:2px 4px}.markdown-body pre{margin:0 0 12px;padding:12px;overflow:auto;background:#111820;color:#e8edf5;border-radius:5px}.markdown-body pre code{padding:0;background:transparent;color:inherit;white-space:pre}.markdown-body blockquote{margin:0 0 12px;padding:10px 12px;background:var(--surface-2);color:var(--muted);border-radius:5px}.markdown-table-wrap{overflow:auto;margin:0 0 12px}.markdown-table{min-width:480px;border:1px solid var(--line)}.markdown-table th,.markdown-table td{padding:8px 10px}.markdown-table th{background:var(--surface-2)}
 .report-label{margin-left:0}.badge.manual_review{color:var(--focus);background:var(--focus-bg)}.badge.llm_dismissed{color:var(--muted);background:var(--surface-2)}.badge.llm_escalate{color:var(--amber);background:var(--amber-bg)}.metric.manual_review strong{color:var(--focus)}.tree-file.flagged>.icon,.tree-file.flagged>.file-name{color:var(--red)}.tree-file.llm_dismissed,.tree summary.llm_dismissed{color:var(--muted)}.tree-file.llm_escalate,.tree summary.llm_escalate{color:var(--amber)}.finding-card>summary{list-style:none;cursor:pointer}.finding-card>summary::-webkit-details-marker{display:none}.finding-chevron{display:inline-flex;color:var(--muted);transition:transform .16s ease}.finding-card[open] .finding-chevron{transform:rotate(180deg)}
-.overview-file{font-weight:550}.overview-file.llm_escalate .file-name{color:var(--amber)}
+.overview-file{font-weight:400}.overview-file.llm_escalate .file-name{color:var(--amber)}
+.advisory-intro{margin-bottom:16px}.advisory-intro .advisory-heading{margin:0}.advisory-summary{max-width:920px;margin:7px 0 0;color:var(--muted);font-size:13px;line-height:1.55}
+.advisory-id-link{text-decoration:none}.advisory-id-link:hover{text-decoration:underline;text-underline-offset:3px}
 .review-explanation{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:15px;margin:0 0 14px}.review-explanation h4{margin:0;font-size:14px}.review-explanation p{line-height:1.5}.review-explanation-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.llm-verdict{display:flex;align-items:center;gap:14px;margin:0 0 8px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}.llm-verdict strong{display:inline-flex;align-items:center;gap:6px;font-size:15px}.llm-verdict.flagged strong{color:var(--red)}.llm-verdict.needs_review strong{color:var(--focus)}.llm-verdict.dismissed strong{color:var(--teal)}.verdict-rationale{margin:10px 0}.review-explanation.dismissed .verdict-rationale{margin-bottom:0;color:var(--muted);font-size:12px}.review-explanation-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}.review-explanation h5{margin:0 0 6px;font-size:12px}.review-explanation ul,.review-explanation ol{margin:0;padding-inline-start:20px;font-size:13px;line-height:1.5}.review-explanation-meta{color:var(--muted);font-size:11px}.review-explanation.unavailable p{margin:8px 0 0;color:var(--muted);font-size:13px}
 .results-board{background:var(--surface);border:1px solid var(--line);border-radius:0 0 8px 8px;padding:28px}.results-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:22px}.results-heading h2{margin:3px 0 5px;font-size:27px;letter-spacing:-.035em}.eyebrow{margin:0;color:var(--muted);font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.attention-ledger{display:grid;grid-template-columns:1.25fr repeat(3,1fr);border:1px solid var(--line);background:var(--line);gap:1px}.attention-cell{background:var(--surface);padding:18px;min-height:108px;display:flex;flex-direction:column;justify-content:space-between}.attention-cell strong{font-size:31px;letter-spacing:-.045em;line-height:1}.attention-cell span{font-size:12px;font-weight:850;color:var(--muted)}.attention-total{background:var(--focus-bg);color:var(--ink)}.attention-total span{color:var(--muted)}.attention-high strong{color:var(--red)}.attention-medium strong{color:var(--amber)}.attention-low strong{color:var(--teal)}.result-ledgers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}.result-ledger{border:1px solid var(--line);border-radius:6px;padding:17px}.result-ledger h3{margin:0 0 5px;font-size:15px}.result-ledger-note{margin:0 0 14px;font-size:12px;color:var(--muted);line-height:1.45;min-height:35px}.result-list{margin:0}.result-row{display:flex;align-items:baseline;justify-content:space-between;gap:18px;padding:9px 0;border-top:1px solid var(--line)}.result-row dt{color:var(--muted);font-size:12px}.result-row dd{margin:0;font-size:17px;font-weight:850}.result-row.flagged dd{color:var(--red)}.result-row.review dd{color:var(--focus)}.result-row.escalated dd{color:var(--amber)}.result-row.dismissed dd{color:var(--muted)}
+.dependencies-board{background:var(--surface);border:1px solid var(--line);border-radius:0 0 8px 8px;padding:28px;min-height:420px}.dependencies-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:20px}.dependencies-heading h2{margin:0 0 6px;font-size:27px;letter-spacing:-.035em}.dependencies-heading p{margin:0;max-width:760px;line-height:1.55}.dependency-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:16px}.dependency-total{background:var(--surface);padding:15px}.dependency-total span{display:block;color:var(--muted);font-size:11px;font-weight:800;margin-bottom:5px}.dependency-total strong{font-size:22px;letter-spacing:-.03em}.dependency-total.ghost strong{color:var(--amber)}.dependency-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:6px}.dependency-table{min-width:700px}.dependency-table th{background:var(--surface-2)}.dependency-name{font-weight:850}.dependency-meta{display:block;color:var(--muted);font-size:11px;margin-top:3px}.dependency-locations{display:grid;gap:4px}.dependency-location{font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.dependency-footnote{margin:13px 0 0;color:var(--muted);font-size:12px;line-height:1.55}
 .evidence-breakdown-trigger{display:inline-flex;margin-top:13px;border:0;background:transparent;color:var(--focus);padding:0;font-size:13px;font-weight:650;text-decoration:underline;text-underline-offset:3px}.evidence-dialog{width:min(960px,calc(100vw - 32px));max-height:min(88vh,900px);padding:0;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);box-shadow:0 24px 80px rgba(10,20,34,.32)}.evidence-dialog::backdrop{background:rgba(10,20,34,.58)}.evidence-dialog-shell{display:flex;flex-direction:column;min-width:0;max-height:min(88vh,900px)}.evidence-dialog-head{flex:0 0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:20px 22px;border-bottom:1px solid var(--line);background:var(--surface)}.evidence-dialog-head h2{margin:3px 0 3px;font-size:22px;letter-spacing:-.025em}.dialog-close{border:1px solid var(--line);background:var(--surface);border-radius:5px;padding:8px 11px;font-weight:750}.dialog-close:hover{background:var(--surface-2)}.evidence-dialog-body{flex:1;min-height:0;padding:22px;overflow:auto}.breakdown-score-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;border:1px solid var(--line);background:var(--line);margin-bottom:18px}.breakdown-score{background:var(--surface);padding:14px}.breakdown-score span{display:block;color:var(--muted);font-size:11px;font-weight:800;margin-bottom:5px}.breakdown-score strong{font-size:22px;letter-spacing:-.03em}.breakdown-score.vulnerable strong{color:var(--red)}.breakdown-score.patched strong{color:var(--teal)}.breakdown-score.margin strong{color:var(--amber)}.calculation-section{margin-top:20px}.calculation-section h3{margin:0 0 5px;font-size:15px}.calculation-section>p{margin:0 0 12px;line-height:1.5;font-size:13px}.calculation-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:6px}.calculation-table{min-width:720px}.calculation-table th{background:var(--surface-2)}.calculation-table td:nth-child(n+2){font-variant-numeric:tabular-nums}.calculation-table th:nth-child(4),.calculation-table th:nth-child(6),.calculation-table td:nth-child(4),.calculation-table td:nth-child(6){background:var(--focus-bg);color:var(--ink);font-weight:850}.weight-note{display:block;color:var(--muted);font-size:11px;margin-top:2px}.breakdown-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.formula-card{border:1px solid var(--line);border-radius:6px;padding:15px}.formula-card h3{margin:0 0 7px;font-size:14px}.formula-card p{margin:0 0 8px;font-size:12px;line-height:1.5}.formula-card code{display:block;padding:9px;background:var(--surface-2);border-radius:4px;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}.decision-gate{margin-top:18px;padding:15px;border:1px solid var(--line);border-radius:6px;background:var(--focus-bg)}.decision-gate h3{margin:0 0 8px;font-size:14px}.decision-gate ul{margin:0;padding-inline-start:20px;font-size:12px;line-height:1.65}.breakdown-empty{padding:20px;background:var(--surface-2);border-radius:6px;line-height:1.55}
 @media(max-width:1000px){.explorer{height:280px;min-height:0}.code-compare,.reference-stack,.detected-panel{height:auto}.code-panel .code{max-height:380px}.review-explanation-grid{grid-template-columns:1fr}}
 @media(max-width:1000px){.result-ledgers{grid-template-columns:1fr 1fr}.attention-ledger{grid-template-columns:1fr 1fr}}
 @media(max-width:650px){.results-board{padding:18px}.results-heading{align-items:flex-start}.result-ledgers{grid-template-columns:1fr}.attention-ledger{grid-template-columns:1fr 1fr}.attention-cell{min-height:92px;padding:14px}}
+@media(max-width:650px){.dependencies-board{padding:18px}.dependencies-heading{display:block}.dependency-totals{grid-template-columns:1fr}.dependency-total{padding:13px}}
 @media(max-width:700px){.evidence-dialog-head,.evidence-dialog-body{padding:16px}.breakdown-score-strip{grid-template-columns:1fr 1fr}.breakdown-grid{grid-template-columns:1fr}.equation{grid-template-columns:1fr;gap:4px}}
+ .dependency-name{text-decoration:none}.dependency-name:hover{text-decoration:underline;text-underline-offset:3px}
 </style>
 </head>
 <body>
 <main class="shell">
   <header class="topbar"><div class="brand"><h1 class="wordmark">provtrail</h1><span class="report-label">'s report</span></div><div class="actions"><button class="icon-btn" id="theme-toggle" aria-label="Switch color theme">Dark theme</button></div></header>
   <section class="outcome" aria-labelledby="outcome-title"><h2 id="outcome-title"></h2><p class="muted report-date" id="generated"></p><details class="top-details"><summary>Details</summary><div class="scan-grid" id="scan-details"></div></details></section>
-  <nav class="tabs" aria-label="Report views"><button class="tab" data-tab="files" aria-selected="true">Files</button><button class="tab" data-tab="findings" aria-selected="false">Findings</button><button class="tab" data-tab="recommendations" aria-selected="false">Recommendations</button><button class="tab" data-tab="results" aria-selected="false">Results</button></nav>
+  <nav class="tabs" aria-label="Report views"><button class="tab" data-tab="files" aria-selected="true">Files</button><button class="tab" data-tab="findings" aria-selected="false">Findings</button><button class="tab" data-tab="recommendations" aria-selected="false">Recommendations</button><button class="tab" data-tab="dependencies" aria-selected="false">Dependencies</button><button class="tab" data-tab="results" aria-selected="false">Results</button></nav>
   <section id="files" class="panel active"><div class="workspace"><aside class="explorer"><p class="section-title">Project Directory</p><div class="tree" id="tree"></div></aside><article class="pane" id="file-pane"></article></div></section>
   <section id="findings" class="panel"><div class="toolbar"><label class="sr-only" for="search">Search findings</label><input id="search" class="control search" type="search" placeholder="Search path, function, advisory, or title"><select id="status-filter" class="control" aria-label="Filter by status"><option value="active">Needs attention</option><option value="flagged">Flagged</option><option value="manual_review">Manual review</option><option value="all">All analyzed</option></select><select id="severity-filter" class="control" aria-label="Filter by severity"><option value="all">All severities</option><option>critical</option><option>high</option><option>moderate</option><option>medium</option><option>low</option><option>unknown</option></select><span class="muted" id="result-count"></span></div><div class="table-wrap"><table><thead><tr><th>Status</th><th>Severity</th><th>LLM Decision</th><th>Location</th><th>Function</th><th>Advisory</th><th>Confidence</th></tr></thead><tbody id="finding-rows"></tbody></table></div></section>
   <section id="recommendations" class="panel"><div id="recommendation-list" class="recommendations"></div></section>
+  <section id="dependencies" class="panel"><div class="dependencies-board"><header class="dependencies-heading"><div><h2>Shallow Dependencies</h2><p class="muted">Library code signals found by provenance matching, compared with direct declarations in the root package.json.</p></div></header><div id="dependency-content"></div></div></section>
   <section id="results" class="panel"><div class="results-board"><header class="results-heading"><h2>Scan Summary</h2></header><div id="results-content"></div></div></section>
 </main>
 <dialog id="evidence-dialog" class="evidence-dialog" aria-labelledby="evidence-dialog-title"><div class="evidence-dialog-shell"><header class="evidence-dialog-head"><div><p class="eyebrow">Detection evidence</p><h2 id="evidence-dialog-title">Score breakdown</h2><p class="muted" id="evidence-dialog-location"></p></div><form method="dialog"><button class="dialog-close" type="submit">Close</button></form></header><div class="evidence-dialog-body" id="evidence-dialog-body"></div></div></dialog>
@@ -460,7 +591,22 @@ function initSummary(){
 function renderResults(){
   const a=report.audit,m=report.results.final_metrics,attention=m.attention;
   const rows=items=>`<dl class="result-list">${items.map(([name,value,tone=''])=>`<div class="result-row ${esc(tone)}"><dt>${esc(name)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>`;
-  $('#results-content').innerHTML=`<section class="attention-ledger" aria-label="Findings requiring attention by priority"><div class="attention-cell attention-total"><span>Total requiring attention</span><strong>${esc(m.final_findings)}</strong></div><div class="attention-cell attention-high"><span>High</span><strong>${esc(attention.high)}</strong></div><div class="attention-cell attention-medium"><span>Medium</span><strong>${esc(attention.medium)}</strong></div><div class="attention-cell attention-low"><span>Low</span><strong>${esc(attention.low)}</strong></div></section><div class="result-ledgers"><section class="result-ledger"><h3>Scan coverage</h3><p class="result-ledger-note">Work completed in this run, including incremental reuse.</p>${rows([['Functions analyzed',a.total_functions],['Functions recomputed',a.scanned_functions],['Functions reused',a.reused_functions],['Changed files',a.changed_files]])}</section><section class="result-ledger"><h3>Initial Results</h3><p class="result-ledger-note">Detector outcomes across every analyzed function.</p>${rows([['Flagged',a.flagged,'flagged'],['Manual review',a.manual_review,'review'],['Passed screening',a.cleared],['Advisories',a.unique_advisories]])}</section><section class="result-ledger"><h3>Final Review Decisions</h3><p class="result-ledger-note">How deterministic findings and optional LLM reviews resolved.</p>${rows([['Deterministic flagged',m.deterministic_flagged,'flagged'],['LLM escalated',m.llm_escalated,'escalated'],['LLM dismissed',m.llm_dismissed,'dismissed'],['LLM needs review',m.llm_needs_review,'review']])}</section></div>`;
+  $('#results-content').innerHTML=`<section class="attention-ledger" aria-label="Findings requiring attention by priority"><div class="attention-cell attention-total"><span>Total requiring attention</span><strong>${esc(m.final_findings)}</strong></div><div class="attention-cell attention-high"><span>High</span><strong>${esc(attention.high)}</strong></div><div class="attention-cell attention-medium"><span>Medium</span><strong>${esc(attention.medium)}</strong></div><div class="attention-cell attention-low"><span>Low</span><strong>${esc(attention.low)}</strong></div></section><div class="result-ledgers"><section class="result-ledger"><h3>Scan Coverage</h3><p class="result-ledger-note">Work completed in this run, including incremental reuse.</p>${rows([['Functions analyzed',a.total_functions],['Functions recomputed',a.scanned_functions],['Functions reused',a.reused_functions],['Changed files',a.changed_files]])}</section><section class="result-ledger"><h3>Initial Results</h3><p class="result-ledger-note">Detector outcomes across every analyzed function.</p>${rows([['Flagged',a.flagged,'flagged'],['Manual review',a.manual_review,'review'],['Passed screening',a.cleared],['Advisories',a.unique_advisories]])}</section><section class="result-ledger"><h3>Final Review Decisions</h3><p class="result-ledger-note">How deterministic findings and optional LLM reviews resolved.</p>${rows([['Deterministic flagged',m.deterministic_flagged,'flagged'],['LLM escalated',m.llm_escalated,'escalated'],['LLM dismissed',m.llm_dismissed,'dismissed'],['LLM needs review',m.llm_needs_review,'review']])}</section></div>`;
+}
+function renderDependencies(){
+  const d=report.dependencies||{manifest:null,manifest_status:'missing',detected_count:0,ghost_count:0,libraries:[]};
+  const ghosts=d.libraries.filter(item=>item.status==='undeclared');
+  const manifest=d.manifest_status==='loaded'?d.manifest:d.manifest_status==='invalid'?'Invalid package.json':'No package.json found';
+  const totals=`<div class="dependency-totals"><div class="dependency-total ghost"><span>Potential ghost dependencies</span><strong>${esc(d.ghost_count)}</strong></div><div class="dependency-total"><span>Libraries detected</span><strong>${esc(d.detected_count)}</strong></div><div class="dependency-total"><span>Declaration source</span><strong>${esc(manifest)}</strong></div></div>`;
+  if(!ghosts.length){$('#dependency-content').innerHTML=`${totals}<div class="empty"><div><strong>No shallow dependencies detected</strong><p class="muted">Every named library signal is directly declared, or no named library was identified.</p></div></div><p class="dependency-footnote">This view reports code-provenance signals, not installed-package inventory.</p>`;return}
+  const rows=ghosts.map(item=>{
+    const locations=item.locations.slice(0,3).map(value=>`<span class="dependency-location">${esc(value)}</span>`).join('');
+    const remainder=item.locations.length>3?`<span class="dependency-meta">+${esc(item.locations.length-3)} more</span>`:'';
+    const advisories=item.advisories.length?item.advisories.join(', '):'Not recorded';
+    const packageName=item.package_url?`<a class="dependency-name" href="${esc(item.package_url)}" target="_blank" rel="noopener noreferrer">${esc(item.name)}</a>`:`<span class="dependency-name">${esc(item.name)}</span>`;
+    return `<tr><td>${packageName}<span class="dependency-meta">${esc(item.ecosystem)}</span></td><td>${esc(item.evidence_count)} finding${item.evidence_count===1?'':'s'}</td><td><div class="dependency-locations">${locations}${remainder}</div></td><td>${esc(advisories)}</td></tr>`
+  }).join('');
+  $('#dependency-content').innerHTML=`${totals}<div class="dependency-table-wrap"><table class="dependency-table"><thead><tr><th>Library</th><th>Evidence</th><th>Detected locations</th><th>Advisories</th></tr></thead><tbody>${rows}</tbody></table></div><p class="dependency-footnote">* Double-check and verify provenance before changing project manifests</p>`;
 }
 function updateGeneratedTime(){
   const element=$('#generated'),generated=new Date(report.generated_at),elapsed=Date.now()-generated.getTime();
@@ -558,6 +704,10 @@ function openEvidenceBreakdown(findingId){
 function bindEvidenceBreakdowns(root=document){$$('.evidence-breakdown-trigger',root).forEach(button=>button.addEventListener('click',()=>openEvidenceBreakdown(button.dataset.findingId)))}
 function externalLink(url,text){return url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(text)} ↗</a>`:''}
 function advisoryIdentifierLink(url,identifier){return url?`<a class="advisory-id-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(identifier)}</a>`:`<span class="advisory-heading-id">${esc(identifier)}</span>`}
+function advisorySummary(value){
+  const source=String(value||'').trim();
+  return source?`<div class="advisory-summary markdown-body">${markdown(source)}</div>`:''
+}
 function reviewExplanationPanel(explanation){
   if(!explanation)return'';
   const model=esc(String(explanation.model||'local model').replace(/^qwen3(?=:|$)/i,'Qwen3'));
@@ -567,7 +717,7 @@ function reviewExplanationPanel(explanation){
   const verdictRow=`<div class="llm-verdict ${esc(verdict)}" aria-label="LLM verdict"><strong>${verdictIcon}Verdict: ${verdictText}</strong></div>`;
   const head=`<div class="review-explanation-head"><h4>LLM Explanation</h4><span class="review-explanation-meta">By ${model}</span></div>`;
   if(verdict==='dismissed')return `${verdictRow}<section class="review-explanation dismissed" aria-label="LLM explanation">${head}<p class="verdict-rationale">${esc(explanation.verdict_rationale)}</p></section>`;
-  return `${verdictRow}<section class="review-explanation" aria-label="LLM explanation">${head}<p class="verdict-rationale">${esc(explanation.verdict_rationale)}</p><p><strong>Advisory mechanism:</strong> ${esc(explanation.security_mechanism)}</p><p class="review-explanation-meta">Use this guidance to support your review of the main scan result.</p></section>`;
+  return `${verdictRow}<section class="review-explanation" aria-label="LLM explanation">${head}<p class="verdict-rationale">${esc(explanation.verdict_rationale)}</p><p><strong>Advisory mechanism:</strong> ${esc(explanation.security_mechanism)}</p></section>`;
 }
 function findingCard(f,openByDefault=false){
   const p=f.primary,e=f.evidence||{};
@@ -581,7 +731,8 @@ function findingCard(f,openByDefault=false){
   const heading=title&&title.toLocaleLowerCase()!==identifier.toLocaleLowerCase()?`${linkedIdentifier}: ${esc(title)}`:linkedIdentifier;
   const affected=(p.affected_versions||[]).join(', ')||'Not recorded';
   const versions=(p.fixed_versions||[]).join(', ')||'Not recorded';
-  return `<details class="finding-card"${openByDefault?' open':''}><summary class="finding-head"><div><h3>${esc(f.name)}</h3><span class="muted">${esc(f.path)}:${f.start_line}–${f.end_line}</span></div><div class="badge-row">${headerBadges}<span class="finding-chevron">${icons.chevron}</span></div></summary><div class="finding-body"><div class="advisory-heading"><h3><span class="advisory-heading-id">${heading}</span></h3></div>${needsReview?reviewExplanationPanel(f.review_explanation):''}<div class="code-compare">${codePanel('Project code',f.reference.candidate,'detected-panel')}<div class="reference-stack">${codePanel('Matched vulnerable reference',f.reference.vulnerable)}${codePanel('Known patched reference',f.reference.patched)}</div></div><div class="detail-grid"><section class="detail-box"><h4>Advisory</h4><dl class="facts">${potentialImpact}<dt>Identifiers</dt><dd>${esc(ids)}</dd><dt>Affected versions</dt><dd>${esc(affected)}</dd><dt>Known fixed versions</dt><dd>${esc(versions)}</dd><dt>Historical package</dt><dd>${esc(p.package_name||'Not recorded')} ${p.ecosystem?`(${esc(p.ecosystem)})`:''}</dd><dt>CWE</dt><dd>${esc((p.cwes||[]).join(', ')||'Not recorded')}</dd><dt>Reference</dt><dd>${esc(p.repo||'Not recorded')} · ${esc(p.file_path||'')}</dd></dl><p class="link-row">${externalLink(p.advisory_url,'Open advisory')} ${externalLink(p.fix_url,'Open fix commit')}</p></section><section class="detail-box"><h4>Detection evidence</h4>${scoreRow('Vulnerable',e.vulnerable_score,'vulnerable')}${scoreRow('Patched',e.patched_score,'patched')}${scoreRow('Retrieval',e.retrieval_similarity,'retrieval')}<dl class="facts"><dt>Confidence</dt><dd><strong>${esc(label(f.confidence))}</strong></dd><dt>Score margin</dt><dd>${Number.isFinite(Number(e.vulnerable_minus_patched))?Number(e.vulnerable_minus_patched).toFixed(3):'Not recorded'}</dd><dt>AST coverage</dt><dd>${Number.isFinite(Number(e.ast_coverage))?Number(e.ast_coverage).toFixed(3):'Not recorded'}</dd><dt>Match type</dt><dd>${esc(f.hash_match_types.join(', ')||'Region similarity')}</dd></dl><button class="evidence-breakdown-trigger" type="button" aria-haspopup="dialog" data-finding-id="${esc(f.id)}">View breakdown</button></section></div></div></details>`;
+  const summary=advisorySummary(p.advisory_summary);
+  return `<details class="finding-card"${openByDefault?' open':''}><summary class="finding-head"><div><h3>${esc(f.name)}</h3><span class="muted">${esc(f.path)}:${f.start_line}–${f.end_line}</span></div><div class="badge-row">${headerBadges}<span class="finding-chevron">${icons.chevron}</span></div></summary><div class="finding-body"><div class="advisory-intro"><div class="advisory-heading"><h3><span class="advisory-heading-id">${heading}</span></h3></div>${summary}</div>${needsReview?reviewExplanationPanel(f.review_explanation):''}<div class="code-compare">${codePanel('Project code',f.reference.candidate,'detected-panel')}<div class="reference-stack">${codePanel('Matched vulnerable reference',f.reference.vulnerable)}${codePanel('Known patched reference',f.reference.patched)}</div></div><div class="detail-grid"><section class="detail-box"><h4>Advisory</h4><dl class="facts">${potentialImpact}<dt>Identifiers</dt><dd>${esc(ids)}</dd><dt>Affected versions</dt><dd>${esc(affected)}</dd><dt>Known fixed versions</dt><dd>${esc(versions)}</dd><dt>Historical package</dt><dd>${esc(p.package_name||'Not recorded')} ${p.ecosystem?`(${esc(p.ecosystem)})`:''}</dd><dt>CWE</dt><dd>${esc((p.cwes||[]).join(', ')||'Not recorded')}</dd><dt>Reference</dt><dd>${esc(p.repo||'Not recorded')} · ${esc(p.file_path||'')}</dd></dl><p class="link-row">${externalLink(p.advisory_url,'Open advisory')} ${externalLink(p.fix_url,'Open fix commit')}</p></section><section class="detail-box"><h4>Detection evidence</h4>${scoreRow('Vulnerable',e.vulnerable_score,'vulnerable')}${scoreRow('Patched',e.patched_score,'patched')}${scoreRow('Retrieval',e.retrieval_similarity,'retrieval')}<dl class="facts"><dt>Confidence</dt><dd><strong>${esc(label(f.confidence))}</strong></dd><dt>Score margin</dt><dd>${Number.isFinite(Number(e.vulnerable_minus_patched))?Number(e.vulnerable_minus_patched).toFixed(3):'Not recorded'}</dd><dt>AST coverage</dt><dd>${Number.isFinite(Number(e.ast_coverage))?Number(e.ast_coverage).toFixed(3):'Not recorded'}</dd><dt>Match type</dt><dd>${esc(f.hash_match_types.join(', ')||'Region similarity')}</dd></dl><button class="evidence-breakdown-trigger" type="button" aria-haspopup="dialog" data-finding-id="${esc(f.id)}">View breakdown</button></section></div></div></details>`;
 }
 function selectFile(path){selectedFile=path;$$('.tree-file').forEach(button=>button.classList.toggle('selected',button.dataset.path===path));renderFile()}
 function renderFile(){
@@ -622,7 +773,7 @@ function renderRecommendations(){
     const summaryControl=expandable?`<button class="summary-toggle" type="button" aria-expanded="false" aria-controls="${summaryId}">Show more</button>`:'';
     const packageName=String(r.package_name||'Not recorded'),ecosystem=String(r.ecosystem||'').trim();
     const packageLabel=ecosystem?`${packageName} (${ecosystem})`:packageName;
-    const versionGuidance=r.package_name?`Version ranges apply to upstream ${packageName} releases. For copied or adapted code, follow the code change shown here instead of changing a dependency version.`:'Version ranges apply to the referenced upstream releases. For copied or adapted code, follow the code change shown here instead of changing a dependency version.';
+    const versionGuidance='For copied or adapted code, follow the code change shown here instead of changing a dependency version.';
     return `<article class="recommendation"><h3>${titleMarkup}</h3><div class="badge-row">${badge(r.severity,r.severity)}</div><div class="recommendation-summary markdown-body ${expandable?'collapsed':''}" id="${summaryId}">${markdown(description)}</div>${summaryControl}<div class="recommendation-grid"><div><div class="version-box"><span class="muted">Affected package</span><strong>${esc(packageLabel)}</strong></div><div class="version-box"><span class="muted">Historical affected versions</span><strong>${esc(affected)}</strong></div><div class="version-box"><span class="muted">Known fixed versions</span><strong>${esc(fixed)}</strong></div><p class="muted">${esc(versionGuidance)}</p><section class="affected-locations"><h4>Affected locations</h4><div class="locations">${r.locations.map(l=>`<span class="location">${esc(l)}</span>`).join('')}</div></section></div><div><h4>Recommended code change</h4><p>${esc(changeText)}</p>${changes.length?`<div class="patch-lines">${changes.map(([kind,line])=>{const tone=kind.toLowerCase(),marker=kind==='Removed'?'−':'+';return `<div class="patch-line ${tone}"><strong><span aria-hidden="true">${marker}</span> ${kind}</strong><code>${esc(line)}</code></div>`}).join('')}</div>`:`<p class="muted">No diagnostic patch lines were recorded. Inspect the linked fix commit before modifying code.</p>`}</div></div><p class="link-row">${externalLink(r.advisory_url,'Read advisory')} ${externalLink(r.fix_url,'Inspect fix commit')}</p></article>`
   }).join('');
   $$('.summary-toggle',root).forEach(button=>button.addEventListener('click',()=>{const summary=document.getElementById(button.getAttribute('aria-controls')),expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));button.textContent=expanded?'Show more':'Show less';summary.classList.toggle('collapsed',expanded)}))
@@ -637,7 +788,7 @@ $$('.tab').forEach(tab=>tab.addEventListener('click',()=>switchTab(tab.dataset.t
 ['search','status-filter','severity-filter'].forEach(id=>$('#'+id).addEventListener(id==='search'?'input':'change',renderRows));
 $('#theme-toggle').addEventListener('click',()=>{const dark=document.documentElement.dataset.theme!=='dark';document.documentElement.dataset.theme=dark?'dark':'light';$('#theme-toggle').textContent=dark?'Light theme':'Dark theme'});
 $('#evidence-dialog').addEventListener('click',event=>{if(event.target===$('#evidence-dialog'))$('#evidence-dialog').close()});
-initSummary();renderResults();buildTree();renderFile();renderRows();renderRecommendations();initDetails();
+initSummary();renderDependencies();renderResults();buildTree();renderFile();renderRows();renderRecommendations();initDetails();
 </script>
 </body>
 </html>'''

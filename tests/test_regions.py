@@ -82,6 +82,16 @@ def test_pure_patch_insertion_still_produces_a_paired_vulnerable_region():
     assert all(pair.patched_region.source for pair in pairs)
 
 
+def test_patchless_entry_is_not_used_for_paired_region_verification():
+    entry = _entry(
+        "function vulnerable(value) { return value; }",
+        "",
+        [DiagnosticLine(kind="removed", vulnerable_line=0, text="return value;")],
+    )
+
+    assert extract_vulnerability_regions(entry) == []
+
+
 def test_method_snippets_are_wrapped_without_leaking_wrapper_coordinates():
     source = """constructor(message) {
   this.message = message;

@@ -347,6 +347,13 @@ def _change_kind(entry: CorpusEntry) -> str:
 
 def extract_vulnerability_regions(entry: CorpusEntry) -> list[VulnerableRegionPair]:
     """Extract paired multi-resolution regions from one vulnerable/patched entry."""
+    # A missing patched snapshot cannot provide a meaningful contrast.  Parsing an
+    # empty string produces a synthetic ``program`` region, which then receives
+    # zero structural/token similarity and can create an artificial vulnerable
+    # margin.  Keep such records available to the vulnerable-side hash index, but
+    # exclude them from paired region retrieval/verification.
+    if not entry.vulnerable_function.strip() or not entry.patched_function.strip():
+        return []
     vulnerable_lines = [line.vulnerable_line for line in entry.diagnostic_lines if line.vulnerable_line is not None]
     patched_lines = [line.patched_line for line in entry.diagnostic_lines if line.patched_line is not None]
     vulnerable = _regions_for_anchor(entry.vulnerable_function, vulnerable_lines, f"{entry.ghsa_id}:v")

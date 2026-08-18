@@ -9,6 +9,7 @@ from cli.main import main
 from corpus.controller.store import get_connection, load_entries, save_entries
 from corpus.models.corpus import CorpusEntry, DiagnosticLine
 from pipeline.controller.html_reporting import (
+    _advisory_summary,
     _candidate_lines,
     build_html_report_data,
     render_html_report,
@@ -150,8 +151,27 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "<title>provtrail - demo</title>" in output
     assert ">Results<" in output
     assert 'id="files" class="panel active"' in output
+    assert 'id="dependencies" class="panel"' in output
     assert 'id="results" class="panel"' in output
-    assert output.index('data-tab="recommendations"') < output.index('data-tab="results"')
+    assert output.index('data-tab="recommendations"') < output.index('data-tab="dependencies"')
+    assert output.index('data-tab="dependencies"') < output.index('data-tab="results"')
+    assert '>Dependencies</button>' in output
+    assert "<h2>Shallow Dependencies</h2>" in output
+    assert "Potential ghost dependencies" in output
+    assert "function renderDependencies()" in output
+    assert "initSummary();renderDependencies();renderResults()" in output
+    assert data["dependencies"]["ghost_count"] == 1
+    assert data["dependencies"]["libraries"][0]["name"] == "demo-http"
+    assert data["dependencies"]["libraries"][0]["status"] == "undeclared"
+    assert data["dependencies"]["libraries"][0]["package_url"] == (
+        "https://www.npmjs.com/package/demo-http"
+    )
+    assert '<th>Library</th><th>Evidence</th><th>Detected locations</th><th>Advisories</th>' in output
+    assert "Manifest status" not in output
+    assert "Not declared" not in output
+    assert "https://www.npmjs.com/package/demo-http" in output
+    assert 'href="${esc(item.package_url)}"' in output
+    assert "* Double-check and verify provenance before changing project manifests" in output
     assert "<h2>Scan Summary</h2>" in output
     assert "Results requiring attention" not in output
     assert "Prioritized findings after deterministic detection and optional LLM review." not in output
@@ -160,11 +180,11 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "Final Review Decisions" in output
     assert "Passed screening" in output
     assert "No vulnerable clone detected" not in output
-    assert "Scan coverage" in output
-    assert output.index("<h3>Scan coverage</h3>") < output.index("<h3>Initial Results</h3>")
+    assert "Scan Coverage" in output
+    assert output.index("<h3>Scan Coverage</h3>") < output.index("<h3>Initial Results</h3>")
     assert output.index("<h3>Initial Results</h3>") < output.index("<h3>Final Review Decisions</h3>")
     assert "function renderResults()" in output
-    assert "initSummary();renderResults();buildTree()" in output
+    assert "renderDependencies();renderResults();buildTree()" in output
     assert ".attention-total{background:var(--focus-bg);color:var(--ink)}" in output
     assert ".result-row.escalated dd{color:var(--amber)}" in output
     assert ".result-row.dismissed dd{color:var(--muted)}" in output
@@ -241,7 +261,7 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "const statusRank={flagged:0,llm_escalate:1,manual_review:2,llm_dismissed:3,cleared:4}" in output
     assert "statusRank[fileStatus(a)]-statusRank[fileStatus(b)]||a.localeCompare(b)" in output
     assert 'affectedFiles.map(path=>{const status=fileStatus(path),findings=byFile.get(path)||[];return `<button class="overview-file ${esc(status)}"' in output
-    assert ".overview-file{font-weight:550}" in output
+    assert ".overview-file{font-weight:400}" in output
     assert ".overview-file.flagged .file-name{color:var(--red)}" not in output
     assert ".overview-file.llm_escalate .file-name{color:var(--amber)}" in output
     assert "function findingCard(f,openByDefault=false)" in output
@@ -282,16 +302,24 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert ".wordmark{margin:0;color:var(--teal)" in output
     assert 'class="mark"' not in output
     assert "Request URL validation can be bypassed" in output
+    assert "function advisorySummary(value)" in output
+    assert 'class="advisory-summary markdown-body"' in output
+    assert "const summary=advisorySummary(p.advisory_summary)" in output
+    assert '${summary}</div>${needsReview?reviewExplanationPanel(f.review_explanation):\'\'}<div class="code-compare">' in output
+    assert ".advisory-summary{max-width:920px" in output
     assert "title.toLocaleLowerCase()!==identifier.toLocaleLowerCase()" in output
     assert "p.cve_id||p.ghsa_id||p.osv_id||p.identifier" in output
     assert 'class="advisory-action"' not in output
     assert "icons.external" not in output
     assert 'class="advisory-id-link"' in output
+    assert ".advisory-id-link{text-decoration:none}" in output
+    assert ".advisory-id-link:hover{text-decoration:underline;text-underline-offset:3px}" in output
     assert "const linkedIdentifier=advisoryIdentifierLink(p.advisory_url,identifier)" in output
     assert "`${linkedIdentifier}: ${esc(title)}`" in output
     assert 'class="affected-locations"' in output
     assert "background:var(--location-bg)" in output
-    assert "Version ranges apply to upstream" in output
+    assert "Version ranges apply to upstream" not in output
+    assert "Version ranges apply to the referenced upstream releases" not in output
     assert "For copied or adapted code" in output
     assert "These ranges describe the source advisory" not in output
     assert "description.length>240" in output
@@ -356,6 +384,46 @@ def test_html_report_normalizes_entities_in_version_ranges():
     assert data["findings"][0]["primary"]["affected_versions"] == [">0.0.1 <2.0.0"]
     assert data["recommendations"][0]["affected_versions"] == [">0.0.1 <2.0.0"]
     assert "&nbsp;" not in render_html_report(data)
+
+
+def test_advisory_excerpt_keeps_an_entire_leading_markdown_summary_section():
+    description = """## Summary
+An **important** issue affects `request()`.
+
+- First condition
+- Second condition
+
+## Details
+This longer section should not appear in the file-view excerpt.
+"""
+
+    excerpt = _advisory_summary(description)
+
+    assert excerpt == """## Summary
+An **important** issue affects `request()`.
+
+- First condition
+- Second condition"""
+    assert "## Details" not in excerpt
+
+
+def test_dependencies_tab_recognizes_a_direct_package_declaration(tmp_path):
+    (tmp_path / "package.json").write_text(
+        json.dumps({"dependencies": {"demo-http": "^2.0.0"}}),
+        encoding="utf-8",
+    )
+    summary = _summary()
+    summary.target_root = str(tmp_path)
+
+    data = build_html_report_data(summary, entries=[_entry()], config=ScanConfig())
+
+    assert data["dependencies"]["manifest_status"] == "loaded"
+    assert data["dependencies"]["ghost_count"] == 0
+    assert data["dependencies"]["libraries"][0]["status"] == "declared"
+    assert data["dependencies"]["libraries"][0]["declarations"] == [
+        {"scope": "runtime", "version": "^2.0.0"}
+    ]
+    assert "No shallow dependencies detected" in render_html_report(data)
 
 
 def test_candidate_highlight_uses_local_verified_region_when_available():
@@ -475,7 +543,7 @@ def test_manual_review_explanation_is_embedded_in_its_finding():
     assert "LLM verdict: ${verdictText}" not in output
     assert "Tier ${tier} of 3" not in output
     assert "Totally irrelevant" not in output
-    assert "Use this guidance to support your review of the main scan result." in output
+    assert "Use this guidance to support your review of the main scan result." not in output
     assert "Independent advisory-relevance opinion" not in output
     assert "if(verdict==='dismissed')return" in output
     assert 'class="review-explanation dismissed"' in output
