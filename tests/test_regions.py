@@ -4,16 +4,17 @@ import pytest
 
 from corpus.models.corpus import CorpusEntry, DiagnosticLine
 from pipeline.controller.region_extraction import (
+    candidate_region_is_informative,
     enumerate_candidate_regions,
     extract_vulnerability_regions,
     source_is_supported,
 )
 from pipeline.controller.region_retrieval import aggregate_region_hits
-from pipeline.controller.hashing import HashIndex
+from pipeline.controller.hashing import HashIndex, build_hash_index
 from pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig
 from pipeline.controller.region_retrieval import RegionRetrievalIndex
-from pipeline.controller.region_verification import verify_region_pair
-from pipeline.models.regions import RegionRetrievalMatch
+from pipeline.controller.region_verification import classify_evidence, verify_region_pair
+from pipeline.models.regions import RegionAggregate, RegionRetrievalMatch, RegionVerificationEvidence
 
 
 def _entry(vulnerable: str, patched: str, diagnostics: list[DiagnosticLine]) -> CorpusEntry:
@@ -121,6 +122,43 @@ def test_candidate_generation_has_prioritized_granularities_and_unique_spans():
     assert regions[-1].region.granularity == "function"
 
 
+def test_candidate_generation_rejects_tiny_syntax_only_regions():
+    source = """function passthrough(value) {
+  var temporary;
+  if (value) return value;
+  return;
+}"""
+
+    regions = enumerate_candidate_regions(source, candidate_id="C-noise")
+    changed_sources = {
+        item.region.source.strip()
+        for item in regions
+        if item.region.granularity == "changed"
+    }
+
+    assert "var temporary;" not in changed_sources
+    assert "return value;" not in changed_sources
+    assert "return;" not in changed_sources
+    assert all(candidate_region_is_informative(item.region) for item in regions)
+
+
+def test_candidate_generation_keeps_short_regions_with_concrete_affiliation():
+    source = """function render(value, stream) {
+  stream.destroy();
+  return escapeHtml(value);
+}"""
+
+    regions = enumerate_candidate_regions(source, candidate_id="C-anchors")
+    changed_sources = {
+        item.region.source.strip()
+        for item in regions
+        if item.region.granularity == "changed"
+    }
+
+    assert "stream.destroy();" in changed_sources
+    assert "return escapeHtml(value);" in changed_sources
+
+
 def test_region_verification_prefers_vulnerable_shape_over_patched_shape():
     vulnerable = """function checkValue(value) {
   if (value) {
@@ -155,13 +193,61 @@ def test_region_verification_prefers_vulnerable_shape_over_patched_shape():
     assert evidence.local_alignment_vulnerable is None
     assert evidence.local_alignment_patched is None
     assert evidence.fallback_used is False
-    assert evidence.vulnerable_score == pytest.approx(
-        (
-            evidence.structural_vulnerable
-            + evidence.token_vulnerable
-            + evidence.semantic_vulnerable
-        ) / 3
+    available = [evidence.structural_vulnerable, evidence.token_vulnerable]
+    if evidence.semantic_vulnerable is not None:
+        available.append(evidence.semantic_vulnerable)
+    assert evidence.vulnerable_score == pytest.approx(sum(available) / len(available))
+
+
+def test_empty_semantic_features_are_unavailable_instead_of_perfect_similarity():
+    vulnerable = "function checkValue(value) { if (value) return value; return null; }"
+    patched = "function checkValue(value) { if (value === true) return value; return null; }"
+    entry = _entry(
+        vulnerable,
+        patched,
+        [DiagnosticLine(kind="replacement", vulnerable_line=0, patched_line=0, text="guard")],
     )
+    pair = next(pair for pair in extract_vulnerability_regions(entry) if pair.vulnerable_region.granularity == "changed")
+    candidate = pair.vulnerable_region.model_copy(update={"region_id": "C-empty-semantics"})
+
+    evidence = verify_region_pair(candidate, pair, retrieval_similarity=0.9)
+
+    assert evidence.semantic_vulnerable is None
+    assert evidence.semantic_patched is None
+    assert evidence.vulnerable_score == pytest.approx(
+        (evidence.structural_vulnerable + evidence.token_vulnerable) / 2
+    )
+
+
+def _evidence(pair_id: str, vulnerable_score: float, margin: float) -> RegionVerificationEvidence:
+    return RegionVerificationEvidence(
+        pair_id=pair_id,
+        candidate_region_id=f"candidate:{pair_id}",
+        vulnerable_region_id=f"{pair_id}:vulnerable",
+        patched_region_id=f"{pair_id}:patched",
+        retrieval_similarity=0.9,
+        structural_vulnerable=vulnerable_score,
+        structural_patched=vulnerable_score - margin,
+        token_vulnerable=vulnerable_score,
+        token_patched=vulnerable_score - margin,
+        vulnerable_score=vulnerable_score,
+        patched_score=vulnerable_score - margin,
+        vulnerable_minus_patched=margin,
+        ast_coverage=1.0,
+    )
+
+
+def test_classification_does_not_let_a_low_score_large_margin_hide_passing_evidence():
+    low_score = _evidence("pair-low", vulnerable_score=0.72, margin=0.60)
+    passing = _evidence("pair-pass", vulnerable_score=0.90, margin=0.20)
+    aggregates = [
+        RegionAggregate(pair_id="pair-low", best_similarity=0.9, support_count=1),
+        RegionAggregate(pair_id="pair-pass", best_similarity=0.9, support_count=1),
+    ]
+
+    status, _ = classify_evidence([low_score, passing], aggregates)
+
+    assert status == "flagged"
 
 
 def test_region_hit_aggregation_counts_supporting_candidate_regions():
@@ -226,6 +312,65 @@ def test_region_detector_uses_region_path_when_hash_path_is_empty(monkeypatch):
     assert result.candidate_region_count > 0
     assert result.retrieval_match_count > 0
     assert result.evidence
+    assert len(result.advisory_verdicts) == 1
+    assert result.advisory_verdicts[0].ghsa_id == entry.ghsa_id
+
+
+def test_hash_verdicts_are_scoped_and_exact_patch_beats_same_identity_region_path():
+    patched_snapshot = """
+function transfer(sender, receiver, amount) {
+    if (amount <= 0) { throw new Error('invalid'); }
+    sender.balance = sender.balance - amount;
+    receiver.balance = receiver.balance + amount;
+    return receiver.balance;
+}
+"""
+    earlier = CorpusEntry(
+        ghsa_id="GHSA-earlier",
+        cve_id="CVE-EARLIER",
+        package_name="pkg",
+        ecosystem="npm",
+        repo="owner/pkg",
+        fix_commit_sha="fix-earlier",
+        file_path="index.js",
+        function_name="transfer",
+        vulnerable_function=patched_snapshot.replace("amount <= 0", "amount < 0"),
+        patched_function=patched_snapshot,
+    )
+    later = CorpusEntry(
+        ghsa_id="GHSA-later",
+        cve_id="CVE-LATER",
+        package_name="pkg",
+        ecosystem="npm",
+        repo="owner/pkg",
+        fix_commit_sha="fix-later",
+        file_path="index.js",
+        function_name="transfer",
+        vulnerable_function=patched_snapshot,
+        patched_function=patched_snapshot.replace(
+            "return receiver.balance;",
+            "auditTransfer(sender, receiver, amount);\n    return receiver.balance;",
+        ),
+    )
+    detector = RegionDetector(
+        [earlier, later],
+        RegionRetrievalIndex(
+            model_id="unused",
+            index=faiss.IndexFlatIP(1),
+            pairs=[],
+            fingerprint="test",
+        ),
+        build_hash_index([earlier, later]),
+    )
+
+    result = detector.detect(patched_snapshot, candidate_id="mixed-history")
+
+    assert result.status == "flagged"
+    assert result.candidate_region_count == 0
+    assert {(item.ghsa_id, item.status) for item in result.advisory_verdicts} == {
+        ("GHSA-earlier", "cleared"),
+        ("GHSA-later", "flagged"),
+    }
 
 
 def test_unsupported_syntax_is_explicitly_reported():

@@ -47,10 +47,10 @@ def _ratio(left: list[str], right: list[str]) -> float:
     return difflib.SequenceMatcher(a=left, b=right, autojunk=False).ratio()
 
 
-def _jaccard(left: list[str], right: list[str]) -> float:
+def _jaccard(left: list[str], right: list[str]) -> float | None:
     a, b = set(left), set(right)
     if not a and not b:
-        return 1.0
+        return None
     if not a or not b:
         return 0.0
     return len(a & b) / len(a | b)
@@ -80,10 +80,11 @@ def _token_score(candidate: AstRegion, reference: AstRegion) -> float:
     return role_score
 
 
-def _semantic_score(candidate: AstRegion, reference: AstRegion) -> float:
+def _semantic_score(candidate: AstRegion, reference: AstRegion) -> float | None:
     calls = _jaccard(candidate.calls, reference.calls)
     members = _jaccard(candidate.member_accesses, reference.member_accesses)
-    return 0.50 * calls + 0.50 * members
+    available = [score for score in (calls, members) if score is not None]
+    return sum(available) / len(available) if available else None
 
 
 def _local_line_score(candidate: AstRegion, reference: AstRegion) -> float:
@@ -108,7 +109,7 @@ def _side_score(
     config: RegionVerifierConfig,
     model_id: str | None,
     use_embedding_alignment: bool,
-) -> tuple[float, float, float, float, float | None, bool]:
+) -> tuple[float, float, float, float | None, float | None, bool]:
     structural = _structural_score(candidate, reference)
     token = _token_score(candidate, reference)
     semantic = _semantic_score(candidate, reference)
@@ -122,9 +123,15 @@ def _side_score(
                 fallback = True
             except Exception:
                 fallback = True
-        score = 0.40 * structural + 0.30 * token + 0.20 * semantic + 0.10 * local
+        weighted = [(structural, 0.40), (token, 0.30), (local, 0.10)]
+        if semantic is not None:
+            weighted.append((semantic, 0.20))
+        score = sum(value * weight for value, weight in weighted) / sum(weight for _, weight in weighted)
     else:
-        score = (structural + token + semantic) / 3.0
+        available = [structural, token]
+        if semantic is not None:
+            available.append(semantic)
+        score = sum(available) / len(available)
     return score, structural, token, semantic, local, fallback
 
 
@@ -186,12 +193,19 @@ def classify_evidence(
     config = config or RegionVerifierConfig()
     if not evidence:
         return "cleared", "none"
-    best = max(evidence, key=lambda item: (item.vulnerable_minus_patched, item.vulnerable_score))
-    if best.vulnerable_score >= config.minimum_vulnerable_score and best.vulnerable_minus_patched >= config.minimum_margin:
+    passing = [
+        item for item in evidence
+        if item.vulnerable_score >= config.minimum_vulnerable_score
+        and item.vulnerable_minus_patched >= config.minimum_margin
+    ]
+    if passing:
+        best = max(passing, key=lambda item: (item.vulnerable_minus_patched, item.vulnerable_score))
         status = "flagged"
-    elif best.vulnerable_minus_patched <= -config.minimum_margin:
-        status = "cleared"
     else:
+        best = max(evidence, key=lambda item: (item.vulnerable_minus_patched, item.vulnerable_score))
+    if not passing and best.vulnerable_minus_patched <= -config.minimum_margin:
+        status = "cleared"
+    elif not passing:
         status = "manual_review"
 
     aggregate = next((item for item in aggregates if item.pair_id == best.pair_id), None)

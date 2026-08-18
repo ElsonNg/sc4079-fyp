@@ -115,8 +115,8 @@ class RegionVerificationEvidence(BaseModel):
     structural_patched: float
     token_vulnerable: float
     token_patched: float
-    semantic_vulnerable: float
-    semantic_patched: float
+    semantic_vulnerable: float | None = None
+    semantic_patched: float | None = None
     local_alignment_vulnerable: float | None = None
     local_alignment_patched: float | None = None
     vulnerable_score: float
@@ -125,6 +125,21 @@ class RegionVerificationEvidence(BaseModel):
     ast_coverage: float
     provenance_confidence: ProvenanceConfidence = "none"
     fallback_used: bool = False
+
+
+class RegionAdvisoryVerdict(BaseModel):
+    """Verdict for one concrete advisory/fix/function corpus identity."""
+
+    ghsa_id: str
+    cve_id: str | None = None
+    fix_commit_sha: str
+    file_path: str
+    function_name: str | None = None
+    status: RegionStatus
+    provenance_confidence: ProvenanceConfidence = "none"
+    hash_match_types: list[str] = Field(default_factory=list)
+    evidence_pair_ids: list[str] = Field(default_factory=list)
+    message: str | None = None
 
 
 class RegionDetectionResult(BaseModel):
@@ -137,5 +152,6 @@ class RegionDetectionResult(BaseModel):
     retrieval_match_count: int
     aggregates: list[RegionAggregate] = Field(default_factory=list)
     evidence: list[RegionVerificationEvidence] = Field(default_factory=list)
+    advisory_verdicts: list[RegionAdvisoryVerdict] = Field(default_factory=list)
     parser_supported: bool = True
     message: str | None = None

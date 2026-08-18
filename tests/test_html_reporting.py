@@ -614,7 +614,7 @@ def test_cli_scan_writes_json_and_html_artifacts(monkeypatch, tmp_path):
     html_path = tmp_path / ".provtrail" / "latest-scan.html"
     assert json_path.exists()
     assert html_path.exists()
-    assert json.loads(json_path.read_text(encoding="utf-8"))["schema"] == "provtrail_scan_v3"
+    assert json.loads(json_path.read_text(encoding="utf-8"))["schema"] == "provtrail_scan_v4"
     assert "source" not in json_path.read_text(encoding="utf-8")
     assert "Project Directory" in html_path.read_text(encoding="utf-8")
 

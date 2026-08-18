@@ -30,7 +30,7 @@ DEFAULT_CORPUS_VERSION = "unknown"
 # Bump this whenever the persisted RegionDetectionResult shape or its serialized
 # metadata contract changes. This prevents old cache entries from being treated as
 # complete results after adding fields such as CVE/version provenance.
-RESULT_CACHE_SCHEMA_VERSION = 3
+RESULT_CACHE_SCHEMA_VERSION = 5
 
 
 class Detector(Protocol):
@@ -78,7 +78,7 @@ class ScanSummary:
             for finding in self.findings
         ]
         return {
-            "schema": "provtrail_scan_v3",
+            "schema": "provtrail_scan_v4",
             "target_root": self.target_root,
             "root_hash": self.root_hash,
             "previous_root_hash": self.previous_root_hash,

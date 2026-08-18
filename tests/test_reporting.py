@@ -219,6 +219,44 @@ def test_report_view_excludes_cleared_by_default_and_can_include_them():
     assert report_view(report)["findings"][1]["review_explanation"]["model"] == "qwen3:8b"
 
 
+def test_report_primary_match_follows_the_overall_advisory_verdict():
+    report = _report()
+    result = report["findings"][0]["result"]
+    earlier = result["hash_matches"][0]
+    earlier["side"] = "patched"
+    later = {
+        **earlier,
+        "ghsa_id": "GHSA-later",
+        "cve_id": "CVE-LATER",
+        "fix_commit_sha": "later-fix",
+        "side": "vulnerable",
+    }
+    result["hash_matches"].append(later)
+    result["advisory_verdicts"] = [
+        {
+            "ghsa_id": "GHSA-test",
+            "cve_id": "CVE-2026-1234",
+            "fix_commit_sha": "abc123",
+            "file_path": "lib/http.js",
+            "function_name": "request",
+            "status": "cleared",
+        },
+        {
+            "ghsa_id": "GHSA-later",
+            "cve_id": "CVE-LATER",
+            "fix_commit_sha": "later-fix",
+            "file_path": "lib/http.js",
+            "function_name": "request",
+            "status": "flagged",
+        },
+    ]
+
+    detail = report_view(report)["findings"][0]
+
+    assert detail["primary_match"]["ghsa_id"] == "GHSA-later"
+    assert detail["advisory_verdicts"] == result["advisory_verdicts"]
+
+
 def test_cli_report_reads_saved_json_without_detector(tmp_path, capsys):
     path = tmp_path / "scan.json"
     path.write_text(json.dumps(_report()), encoding="utf-8")

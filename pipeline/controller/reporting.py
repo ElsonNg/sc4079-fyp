@@ -62,10 +62,27 @@ def _matches_for_result(result: dict[str, Any]) -> list[dict[str, Any]]:
     return list(unique.values())
 
 
+def _primary_advisory_verdict(result: dict[str, Any]) -> dict[str, Any] | None:
+    verdicts = result.get("advisory_verdicts", [])
+    if not verdicts:
+        return None
+    overall_status = result.get("status")
+    return next(
+        (verdict for verdict in verdicts if verdict.get("status") == overall_status),
+        verdicts[0],
+    )
+
+
 def _best_evidence(result: dict[str, Any]) -> dict[str, Any] | None:
     evidence = result.get("evidence", [])
     if not evidence:
         return None
+    verdict = _primary_advisory_verdict(result)
+    if verdict:
+        pair_ids = set(verdict.get("evidence_pair_ids", []))
+        scoped = [item for item in evidence if item.get("pair_id") in pair_ids]
+        if scoped:
+            evidence = scoped
     return max(
         evidence,
         key=lambda item: (
@@ -78,6 +95,17 @@ def _best_evidence(result: dict[str, Any]) -> dict[str, Any] | None:
 def _primary_match(result: dict[str, Any], matches: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not matches:
         return None
+    verdict = _primary_advisory_verdict(result)
+    if verdict:
+        scoped = [
+            match for match in matches
+            if match.get("ghsa_id") == verdict.get("ghsa_id")
+            and match.get("fix_commit_sha") == verdict.get("fix_commit_sha")
+            and match.get("file_path") == verdict.get("file_path")
+            and match.get("function_name") == verdict.get("function_name")
+        ]
+        if scoped:
+            matches = scoped
     evidence = _best_evidence(result)
     if evidence is not None:
         pair_id = evidence.get("pair_id")
@@ -103,6 +131,7 @@ def finding_detail(finding: dict[str, Any]) -> dict[str, Any]:
         "severity": (primary or {}).get("severity", "unknown"),
         "primary_match": primary,
         "advisories": matches,
+        "advisory_verdicts": result.get("advisory_verdicts", []),
         "evidence": _best_evidence(result),
         "hash_match_types": result.get("hash_match_types", []),
         "message": result.get("message"),

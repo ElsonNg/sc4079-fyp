@@ -200,6 +200,32 @@ def _make_region(
     )
 
 
+_GENERIC_LITERALS = {"true", "false", "null", "undefined", "0", "1", "''", '""'}
+MIN_INFORMATIVE_REGION_TOKENS = 6
+MIN_INFORMATIVE_REGION_AST_NODES = 4
+MIN_INFORMATIVE_CONTEXT_TOKENS = 12
+
+
+def candidate_region_is_informative(region: AstRegion) -> bool:
+    """Reject tiny syntax-only fragments that cannot identify vulnerable behavior.
+
+    Concrete calls, member accesses, and non-trivial literals are meaningful anchors
+    even in a short region.  Otherwise a statement/block must carry enough token and
+    AST structure to distinguish it from ubiquitous fragments such as ``return x;``,
+    ``return;``, ``throw x;``, or ``var x;``.  Context and function regions use their
+    wider source span, so they are retained once that span contains enough tokens.
+    """
+    meaningful_literals = set(region.literals) - _GENERIC_LITERALS
+    if region.calls or region.member_accesses or meaningful_literals:
+        return True
+    if region.granularity in {"context", "function"}:
+        return len(region.normalized_tokens) >= MIN_INFORMATIVE_CONTEXT_TOKENS
+    return (
+        len(region.normalized_tokens) >= MIN_INFORMATIVE_REGION_TOKENS
+        and len(region.ast_shape) >= MIN_INFORMATIVE_REGION_AST_NODES
+    )
+
+
 def _all_named_nodes(root: tree_sitter.Node) -> list[tree_sitter.Node]:
     nodes: list[tree_sitter.Node] = []
 
@@ -283,6 +309,8 @@ def enumerate_candidate_regions(
         seen.add(key)
         region_id = f"candidate:{candidate_id or 'anonymous'}:{len(regions):04d}"
         region = _make_region(source, parsed, node, granularity, region_id, span=actual_span, node_type=label)
+        if not candidate_region_is_informative(region):
+            return
         regions.append(CandidateRegion(candidate_id=candidate_id, function_name=function_name, region=region))
 
     for target in targets:

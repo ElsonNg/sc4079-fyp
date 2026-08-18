@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from corpus.models.corpus import CorpusEntry
 from pipeline.controller.hashing import HashIndex, build_hash_index, lookup
 from pipeline.controller.region_extraction import (
+    candidate_region_is_informative,
     enumerate_candidate_regions,
     extract_corpus_region_pairs,
     source_is_supported,
@@ -29,9 +30,87 @@ from pipeline.controller.region_verification import (
 )
 from pipeline.controller.embedding import DEFAULT_MODEL_ID
 from pipeline.models.regions import (
+    ProvenanceConfidence,
+    RegionAdvisoryVerdict,
     RegionAggregate,
     RegionDetectionResult,
 )
+
+AdvisoryIdentity = tuple[str, str, str, str | None]
+
+
+def _hash_identity(match) -> AdvisoryIdentity:
+    return match.ghsa_id, match.fix_commit_sha, match.file_path, match.function_name
+
+
+def _pair_identity(pair) -> AdvisoryIdentity:
+    return pair.ghsa_id, pair.fix_commit_sha, pair.file_path, pair.function_name
+
+
+def _hash_advisory_verdicts(hash_matches) -> list[RegionAdvisoryVerdict]:
+    grouped = {}
+    for match in hash_matches:
+        grouped.setdefault(_hash_identity(match), []).append(match)
+
+    verdicts = []
+    for identity in sorted(grouped, key=lambda item: tuple(value or "" for value in item)):
+        matches = grouped[identity]
+        exact_vulnerable = any(match.side == "vulnerable" and match.match_type == "exact" for match in matches)
+        exact_patched = any(match.side == "patched" and match.match_type == "exact" for match in matches)
+        vulnerable = any(match.side == "vulnerable" for match in matches)
+        patched = any(match.side == "patched" for match in matches)
+
+        if exact_vulnerable and exact_patched:
+            status = "manual_review"
+            confidence: ProvenanceConfidence = "ambiguous"
+            message = "Conflicting exact vulnerable-side and patched-side hash matches"
+        elif exact_patched:
+            status = "cleared"
+            confidence = "none"
+            message = "Exact patched-side hash match for this advisory identity"
+        elif exact_vulnerable:
+            status = "flagged"
+            confidence = "high"
+            message = "Exact vulnerable-side hash match for this advisory identity"
+        elif vulnerable and patched:
+            status = "manual_review"
+            confidence = "ambiguous"
+            message = "Conflicting abstracted vulnerable-side and patched-side hash matches"
+        elif patched:
+            status = "cleared"
+            confidence = "none"
+            message = "Abstracted patched-side hash match for this advisory identity"
+        else:
+            status = "flagged"
+            confidence = "high"
+            message = "Abstracted vulnerable-side hash match for this advisory identity"
+
+        first = matches[0]
+        verdicts.append(
+            RegionAdvisoryVerdict(
+                ghsa_id=first.ghsa_id,
+                cve_id=first.cve_id,
+                fix_commit_sha=first.fix_commit_sha,
+                file_path=first.file_path,
+                function_name=first.function_name,
+                status=status,
+                provenance_confidence=confidence,
+                hash_match_types=sorted({match.match_type for match in matches}),
+                message=message,
+            )
+        )
+    return verdicts
+
+
+def _overall_verdict(verdicts: list[RegionAdvisoryVerdict]) -> tuple[str, ProvenanceConfidence]:
+    flagged = [verdict for verdict in verdicts if verdict.status == "flagged"]
+    if flagged:
+        confidence_order = {"none": 0, "ambiguous": 1, "low": 2, "medium": 3, "high": 4}
+        confidence = max(flagged, key=lambda verdict: confidence_order[verdict.provenance_confidence]).provenance_confidence
+        return "flagged", confidence
+    if any(verdict.status == "manual_review" for verdict in verdicts):
+        return "manual_review", "ambiguous"
+    return "cleared", "none"
 
 
 @dataclass(frozen=True)
@@ -81,29 +160,19 @@ class RegionDetector:
             )
         hash_matches = lookup(candidate_source, self.hash_index)
         hash_types = sorted({match.match_type for match in hash_matches})
-        vulnerable_hashes = [match for match in hash_matches if match.side == "vulnerable"]
-        patched_hashes = [match for match in hash_matches if match.side == "patched"]
-        if vulnerable_hashes and not patched_hashes:
+        if hash_matches:
+            advisory_verdicts = _hash_advisory_verdicts(hash_matches)
+            status, provenance = _overall_verdict(advisory_verdicts)
             return RegionDetectionResult(
-                status="flagged",
+                status=status,
                 candidate_id=candidate_id,
-                provenance_confidence="high",
+                provenance_confidence=provenance,
                 hash_match_types=hash_types,
                 hash_matches=hash_matches,
                 candidate_region_count=0,
                 retrieval_match_count=0,
-                message="High-confidence vulnerable-side hash match",
-            )
-        if patched_hashes and not vulnerable_hashes:
-            return RegionDetectionResult(
-                status="cleared",
-                candidate_id=candidate_id,
-                provenance_confidence="none",
-                hash_match_types=hash_types,
-                hash_matches=hash_matches,
-                candidate_region_count=0,
-                retrieval_match_count=0,
-                message="Patched-side hash match without a vulnerable-side match",
+                advisory_verdicts=advisory_verdicts,
+                message="Resolved deterministic hash matches per advisory identity",
             )
 
         candidate_regions = _candidate_regions or enumerate_candidate_regions(
@@ -139,6 +208,8 @@ class RegionDetector:
         for aggregate in aggregates:
             best_match = max(aggregate.top_matches, key=lambda item: item.similarity)
             candidate_region = regions_by_id[best_match.candidate_region_id]
+            if not candidate_region_is_informative(candidate_region):
+                continue
             pair = self.pairs[aggregate.pair_id]
             evidence.append(
                 verify_region_pair(
@@ -150,7 +221,38 @@ class RegionDetector:
                     use_embedding_alignment=self.config.use_embedding_alignment_fallback,
                 )
             )
-        status, provenance = classify_evidence(evidence, aggregates, self.config.verifier)
+        evidence_by_identity = {}
+        for item in evidence:
+            identity = _pair_identity(self.pairs[item.pair_id])
+            evidence_by_identity.setdefault(identity, []).append(item)
+        aggregates_by_pair = {aggregate.pair_id: aggregate for aggregate in aggregates}
+        advisory_verdicts = []
+        for identity in sorted(evidence_by_identity, key=lambda item: tuple(value or "" for value in item)):
+            scoped_evidence = evidence_by_identity[identity]
+            scoped_aggregates = [
+                aggregates_by_pair[item.pair_id]
+                for item in scoped_evidence
+                if item.pair_id in aggregates_by_pair
+            ]
+            scoped_status, scoped_provenance = classify_evidence(
+                scoped_evidence,
+                scoped_aggregates,
+                self.config.verifier,
+            )
+            pair = self.pairs[scoped_evidence[0].pair_id]
+            advisory_verdicts.append(
+                RegionAdvisoryVerdict(
+                    ghsa_id=pair.ghsa_id,
+                    cve_id=pair.cve_id,
+                    fix_commit_sha=pair.fix_commit_sha,
+                    file_path=pair.file_path,
+                    function_name=pair.function_name,
+                    status=scoped_status,
+                    provenance_confidence=scoped_provenance,
+                    evidence_pair_ids=[item.pair_id for item in scoped_evidence],
+                )
+            )
+        status, provenance = _overall_verdict(advisory_verdicts)
         return RegionDetectionResult(
             status=status,
             candidate_id=candidate_id,
@@ -161,6 +263,7 @@ class RegionDetector:
             retrieval_match_count=len(matches),
             aggregates=aggregates,
             evidence=evidence,
+            advisory_verdicts=advisory_verdicts,
             message=None if evidence else "No vulnerable AST-region evidence retrieved",
         )
 
