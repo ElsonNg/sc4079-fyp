@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from corpus.models.github import CWE
 from pipeline.models.hashing import HashMatch
+from pipeline.models.provenance import AdvisoryAlias
 
 RegionGranularity = Literal["changed", "block", "context", "function"]
 RegionChangeKind = Literal["insertion", "deletion", "replacement", "movement", "mixed", "unknown"]
@@ -40,6 +41,8 @@ class AstRegion(BaseModel):
 
 class VulnerableRegionPair(BaseModel):
     pair_id: str
+    lineage_id: str | None = None
+    advisories: list[AdvisoryAlias] = Field(default_factory=list)
     ghsa_id: str
     cve_id: str | None = None
     advisory_title: str = ""
@@ -73,6 +76,8 @@ class CandidateRegion(BaseModel):
 
 class RegionRetrievalMatch(BaseModel):
     pair_id: str
+    lineage_id: str | None = None
+    advisories: list[AdvisoryAlias] = Field(default_factory=list)
     similarity: float
     rank: int
     candidate_region_id: str
@@ -131,6 +136,8 @@ class RegionAdvisoryVerdict(BaseModel):
     """Verdict for one concrete advisory/fix/function corpus identity."""
 
     ghsa_id: str
+    lineage_id: str | None = None
+    advisories: list[AdvisoryAlias] = Field(default_factory=list)
     cve_id: str | None = None
     fix_commit_sha: str
     file_path: str

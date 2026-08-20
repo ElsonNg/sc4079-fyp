@@ -88,12 +88,16 @@ def _project_dependencies(target_root: str) -> dict[str, Any]:
     manifest_path = Path(target_root) / "package.json"
     manifest_status = "missing"
     declared: dict[str, list[dict[str, str]]] = {}
+    project_name: str | None = None
+    project_version: str | None = None
     if manifest_path.is_file():
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             if not isinstance(manifest, dict):
                 raise ValueError("package.json must contain an object")
             manifest_status = "loaded"
+            project_name = str(manifest.get("name") or "").strip() or None
+            project_version = str(manifest.get("version") or "").strip() or None
             for section, scope in DEPENDENCY_SECTIONS.items():
                 values = manifest.get(section)
                 if not isinstance(values, dict):
@@ -114,40 +118,83 @@ def _project_dependencies(target_root: str) -> dict[str, Any]:
         "manifest": "package.json" if manifest_status != "missing" else None,
         "manifest_status": manifest_status,
         "declared": declared,
+        "project_name": project_name,
+        "project_version": project_version,
     }
 
 
+def _target_package_context(
+    target_root: str,
+    relative_path: str,
+    project: dict[str, Any],
+) -> dict[str, Any]:
+    """Resolve ownership of the scanned file independently from corpus provenance."""
+
+    parts = Path(relative_path).parts
+    if "node_modules" in parts:
+        index = len(parts) - 1 - list(reversed(parts)).index("node_modules")
+        package_parts = list(parts[index + 1 : index + 3])
+        if package_parts:
+            count = 2 if package_parts[0].startswith("@") and len(package_parts) > 1 else 1
+            name = "/".join(package_parts[:count])
+            manifest = Path(target_root) / Path(*parts[: index + 1 + count]) / "package.json"
+            version = None
+            try:
+                payload = json.loads(manifest.read_text(encoding="utf-8"))
+                if isinstance(payload, dict):
+                    version = str(payload.get("version") or "").strip() or None
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                pass
+            return {
+                "name": name,
+                "version": version,
+                "source": str(manifest.relative_to(target_root)),
+                "status": "resolved",
+            }
+    if project.get("project_name"):
+        return {
+            "name": project["project_name"],
+            "version": project.get("project_version"),
+            "source": project.get("manifest"),
+            "status": "resolved",
+        }
+    return {"name": None, "version": None, "source": None, "status": "unresolved"}
+
+
 def _dependency_report(findings: list[dict[str, Any]], target_root: str) -> dict[str, Any]:
-    """Compare library provenance in active findings with direct manifest declarations."""
+    """Compare verified reference-package signals with target declarations."""
     project = _project_dependencies(target_root)
     libraries: dict[str, dict[str, Any]] = {}
     for finding in findings:
         seen_in_finding: set[str] = set()
-        matches = finding.get("advisories") or [finding.get("primary") or {}]
-        for match in matches:
-            name = str(match.get("package_name") or "").strip()
-            if not name:
-                continue
-            ecosystem = str(match.get("ecosystem") or "unknown").strip() or "unknown"
-            key = f"{ecosystem.lower()}:{name}"
-            library = libraries.setdefault(
-                key,
-                {
-                    "name": name,
-                    "ecosystem": ecosystem,
-                    "declarations": project["declared"].get(name, []),
-                    "locations": set(),
-                    "advisories": set(),
-                    "finding_ids": set(),
-                },
-            )
-            library["locations"].add(f"{finding['path']}:{finding['start_line']}")
-            identifier = str(match.get("identifier") or _identifier(match)).strip()
-            if identifier and identifier != "Unknown advisory":
-                library["advisories"].add(identifier)
-            if key not in seen_in_finding:
-                library["finding_ids"].add(finding["id"])
-                seen_in_finding.add(key)
+        for lineage in finding.get("lineages", []):
+            for reference in lineage.get("reference_packages", []):
+                name = str(reference.get("name") or "").strip()
+                if not name:
+                    continue
+                ecosystem = str(reference.get("ecosystem") or "unknown").strip() or "unknown"
+                key = f"{ecosystem.lower()}:{name}"
+                library = libraries.setdefault(
+                    key,
+                    {
+                        "name": name,
+                        "ecosystem": ecosystem,
+                        "declarations": project["declared"].get(name, []),
+                        "locations": set(),
+                        "advisories": set(),
+                        "lineages": set(),
+                        "finding_ids": set(),
+                    },
+                )
+                library["locations"].add(f"{finding['path']}:{finding['start_line']}")
+                library["lineages"].add(lineage["lineage_id"])
+                for advisory in lineage.get("advisories", []):
+                    identifier = str(advisory.get("identifier") or _identifier(advisory)).strip()
+                    if identifier and identifier != "Unknown advisory":
+                        library["advisories"].add(identifier)
+                if key not in seen_in_finding:
+                    library["finding_ids"].add(finding["id"])
+                    seen_in_finding.add(key)
 
     output = []
     for library in libraries.values():
@@ -161,19 +208,23 @@ def _dependency_report(findings: list[dict[str, Any]], target_root: str) -> dict
                     if library["ecosystem"].lower() == "npm"
                     else ""
                 ),
-                "status": "declared" if declarations else "undeclared",
+                "status": "declared_reference" if declarations else "unresolved_reference",
                 "declarations": declarations,
                 "evidence_count": len(library["finding_ids"]),
                 "locations": sorted(library["locations"]),
                 "advisories": sorted(library["advisories"]),
+                "lineage_count": len(library["lineages"]),
             }
         )
-    output.sort(key=lambda item: (item["status"] == "declared", item["name"].lower()))
+    output.sort(key=lambda item: (item["status"] == "declared_reference", item["name"].lower()))
     return {
         "manifest": project["manifest"],
         "manifest_status": project["manifest_status"],
         "detected_count": len(output),
-        "ghost_count": sum(item["status"] == "undeclared" for item in output),
+        "unresolved_count": sum(item["status"] == "unresolved_reference" for item in output),
+        # Compatibility for existing report consumers; this now means an
+        # undeclared reference signal, never a proven installed dependency.
+        "ghost_count": sum(item["status"] == "unresolved_reference" for item in output),
         "libraries": output,
     }
 
@@ -277,15 +328,64 @@ def _enrich_match(match: dict[str, Any], entry: CorpusEntry | None) -> dict[str,
     return output
 
 
+def _enrich_lineage(
+    lineage: dict[str, Any],
+    entries_by_key: dict[tuple[Any, ...], CorpusEntry],
+    target_package: dict[str, Any],
+) -> dict[str, Any]:
+    output = dict(lineage)
+    representative_raw = lineage.get("representative") or {}
+    representative_entry = entries_by_key.get(_entry_key(representative_raw)) if representative_raw else None
+    representative = _enrich_match(representative_raw, representative_entry) if representative_raw else {}
+    output["representative"] = representative
+
+    advisories = []
+    for value in lineage.get("advisories", []):
+        combined = {
+            **representative_raw,
+            **value,
+            "lineage_id": lineage.get("lineage_id"),
+            "repo": lineage.get("repo") or representative_raw.get("repo"),
+            "fix_commit_sha": lineage.get("fix_commit_sha") or representative_raw.get("fix_commit_sha"),
+            "file_path": lineage.get("file_path") or representative_raw.get("file_path"),
+            "function_name": lineage.get("function_name") or representative_raw.get("function_name"),
+        }
+        entry = entries_by_key.get(_entry_key(combined))
+        advisories.append(_enrich_match(combined, entry))
+    output["advisories"] = advisories
+    output["reference_packages"] = lineage.get("reference_packages", [])
+    target_name = str(target_package.get("name") or "")
+    reference_names = {
+        str(value.get("name") or "") for value in output["reference_packages"]
+    }
+    if not target_name:
+        applicability = "unresolved"
+    elif target_name in reference_names:
+        applicability = "confirmed"
+    else:
+        applicability = "not_attributed"
+    output["package_applicability"] = applicability
+    output["target_package"] = target_package
+    return output
+
+
 def _build_finding(
     finding: dict[str, Any],
     entries_by_key: dict[tuple[Any, ...], CorpusEntry],
+    target_root: str,
+    project: dict[str, Any],
 ) -> dict[str, Any]:
     detail = finding_detail(finding)
-    matches: list[dict[str, Any]] = []
-    for match in detail.get("advisories", []):
-        entry = entries_by_key.get(_entry_key(match))
-        matches.append(_enrich_match(match, entry))
+    target_package = _target_package_context(
+        target_root,
+        str(finding.get("path") or ""),
+        project,
+    )
+    lineages = [
+        _enrich_lineage(lineage, entries_by_key, target_package)
+        for lineage in detail.get("lineages", [])
+    ]
+    matches = [advisory for lineage in lineages for advisory in lineage["advisories"]]
     primary_raw = detail.get("primary_match") or {}
     primary_entry = entries_by_key.get(_entry_key(primary_raw)) if primary_raw else None
     primary = _enrich_match(primary_raw, primary_entry) if primary_raw else {
@@ -337,6 +437,13 @@ def _build_finding(
         "message": detail.get("message") or "",
         "primary": primary,
         "advisories": matches,
+        "lineages": lineages,
+        "target_package": target_package,
+        "attribution_status": (
+            "single_lineage" if len(lineages) == 1
+            else "multiple_lineages" if len(lineages) > 1
+            else "unresolved"
+        ),
         "evidence": evidence,
         "hash_match_types": detail.get("hash_match_types", []),
         "reference": reference,
@@ -374,7 +481,11 @@ def build_html_report_data(
 
     generated_at = generated_at or datetime.now().astimezone()
     entries_by_key = {_entry_key(entry): entry for entry in entries}
-    findings = [_build_finding(finding, entries_by_key) for finding in summary.findings]
+    project = _project_dependencies(summary.target_root)
+    findings = [
+        _build_finding(finding, entries_by_key, summary.target_root, project)
+        for finding in summary.findings
+    ]
     findings.sort(
         key=lambda item: (
             0 if item["status"] == "flagged" else 1 if item["status"] == "manual_review" else 2,
@@ -387,34 +498,40 @@ def build_html_report_data(
     dependencies = _dependency_report(active, summary.target_root)
     recommendations: dict[str, dict[str, Any]] = {}
     for finding in active:
-        primary = finding["primary"]
-        key = str(primary.get("ghsa_id") or primary.get("cve_id") or primary.get("identifier"))
-        group = recommendations.setdefault(
-            key,
-            {
-                "key": key,
-                "identifier": primary.get("identifier"),
-                "title": primary.get("title"),
-                "description": primary.get("advisory_description") or "No advisory description was recorded.",
-                "severity": str(primary.get("severity") or finding["severity"]).lower(),
-                "advisory_url": primary.get("advisory_url") or "",
-                "fix_url": primary.get("fix_url") or "",
-                "affected_versions": primary.get("affected_versions") or [],
-                "fixed_versions": primary.get("fixed_versions") or [],
-                "package_name": primary.get("package_name") or "",
-                "ecosystem": primary.get("ecosystem") or "",
-                "reference_file": primary.get("file_path") or "",
-                "reference_function": primary.get("function_name") or "",
-                "patch_changes": primary.get("patch_changes") or {"removed": [], "added": []},
-                "locations": [],
-            },
-        )
-        location = f"{finding['path']}:{finding['start_line']}"
-        if location not in group["locations"]:
-            group["locations"].append(location)
+        for lineage in finding.get("lineages", []):
+            primary = lineage.get("representative") or {}
+            key = str(lineage["lineage_id"])
+            aliases = lineage.get("advisories", [])
+            group = recommendations.setdefault(
+                key,
+                {
+                    "key": key,
+                    "lineage_id": key,
+                    "identifier": primary.get("identifier"),
+                    "title": primary.get("title"),
+                    "description": primary.get("advisory_description") or "No advisory description was recorded.",
+                    "severity": str(primary.get("severity") or finding["severity"]).lower(),
+                    "advisory_url": primary.get("advisory_url") or "",
+                    "fix_url": primary.get("fix_url") or "",
+                    "affected_versions": primary.get("affected_versions") or [],
+                    "fixed_versions": primary.get("fixed_versions") or [],
+                    "reference_packages": lineage.get("reference_packages", []),
+                    "target_package": finding.get("target_package", {}),
+                    "package_applicability": lineage.get("package_applicability", "unresolved"),
+                    "advisories": aliases,
+                    "advisory_count": len(aliases),
+                    "reference_file": primary.get("file_path") or "",
+                    "reference_function": primary.get("function_name") or "",
+                    "patch_changes": primary.get("patch_changes") or {"removed": [], "added": []},
+                    "locations": [],
+                },
+            )
+            location = f"{finding['path']}:{finding['start_line']}"
+            if location not in group["locations"]:
+                group["locations"].append(location)
     recommendation_list = sorted(
         recommendations.values(),
-        key=lambda item: (SEVERITY_RANK.get(item["severity"], 5), item["identifier"]),
+        key=lambda item: (SEVERITY_RANK.get(item["severity"], 5), str(item["identifier"] or "")),
     )
     public_payload = summary.to_dict()
     audit = audit_summary(public_payload)
@@ -424,7 +541,7 @@ def build_html_report_data(
     audit.pop("target_root", None)
     audit.pop("state_path", None)
     return {
-        "schema": "provtrail_html_report_v2",
+        "schema": "provtrail_html_report_v3",
         "project": Path(summary.target_root).name or "project",
         "generated_at": generated_at.isoformat(timespec="seconds"),
         "tool_version": tool_version,
@@ -499,6 +616,8 @@ _TEMPLATE = r'''<!doctype html>
 @media(max-width:650px){.dependencies-board{padding:18px}.dependencies-heading{display:block}.dependency-totals{grid-template-columns:1fr}.dependency-total{padding:13px}}
 @media(max-width:700px){.evidence-dialog-head,.evidence-dialog-body{padding:16px}.breakdown-score-strip{grid-template-columns:1fr 1fr}.breakdown-grid{grid-template-columns:1fr}.equation{grid-template-columns:1fr;gap:4px}}
  .dependency-name{text-decoration:none}.dependency-name:hover{text-decoration:underline;text-underline-offset:3px}
+.provenance-map{margin:0 0 18px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}.provenance-root{display:flex;align-items:center;gap:11px;padding:13px 15px;background:var(--surface-2)}.provenance-root-node,.lineage-node{width:13px;height:13px;border:3px solid var(--surface);border-radius:50%;box-shadow:0 0 0 2px var(--navy);flex:0 0 auto}.provenance-root strong{display:block;font-size:13px}.provenance-root span{display:block;color:var(--muted);font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.lineage-list{padding:0 15px 11px 37px}.lineage-branch{position:relative;border-left:2px solid var(--line);padding:10px 0 0 46px}.lineage-branch:last-child{padding-bottom:3px}.lineage-branch::before{content:"";position:absolute;left:0;top:25px;width:22px;border-top:2px solid var(--line)}.lineage-branch>summary{list-style:none;display:flex;align-items:flex-start;gap:10px;cursor:pointer}.lineage-branch>summary::-webkit-details-marker{display:none}.lineage-node{position:absolute;left:20px;top:19px;background:var(--surface);box-shadow:0 0 0 2px var(--focus)}.lineage-branch.flagged .lineage-node{box-shadow:0 0 0 2px var(--red)}.lineage-branch.manual_review .lineage-node{box-shadow:0 0 0 2px var(--amber)}.lineage-head{min-width:0;flex:1}.lineage-head strong{display:block;font-size:13px;overflow-wrap:anywhere}.lineage-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:3px;color:var(--muted);font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.lineage-toggle{color:var(--muted);transition:transform .16s ease}.lineage-branch[open] .lineage-toggle{transform:rotate(180deg)}.lineage-body{margin:9px 0 0;padding:10px 12px;border-left:2px solid var(--surface-2);background:var(--surface-2);font-size:12px}.lineage-facts{display:grid;grid-template-columns:max-content 1fr;gap:5px 11px;margin:0}.lineage-facts dt{color:var(--muted)}.lineage-facts dd{margin:0;overflow-wrap:anywhere}.alias-list{display:grid;gap:5px;margin-top:9px}.alias-row{display:grid;grid-template-columns:minmax(130px,.65fr) minmax(0,1fr) max-content;align-items:start;gap:10px;padding-top:6px;border-top:1px solid var(--line)}.alias-row span{overflow-wrap:anywhere}.most-likely-badge{display:inline-flex;align-items:center;border:1px solid var(--focus);border-radius:999px;padding:2px 7px;color:var(--focus);background:var(--focus-bg);font-size:10px;font-weight:900;letter-spacing:.02em;white-space:nowrap}.applicability{font-weight:800}.applicability.confirmed{color:var(--teal)}.applicability.not_attributed{color:var(--muted)}.applicability.unresolved{color:var(--amber)}.ranked-reference-note{margin:5px 0 0;color:var(--muted);font-size:12px}.association-count{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--muted)}
+@media(max-width:650px){.lineage-list{padding-left:28px}.alias-row{grid-template-columns:1fr}.most-likely-badge{justify-self:start}.lineage-facts{grid-template-columns:1fr}.lineage-facts dt{margin-top:4px}}
 </style>
 </head>
 <body>
@@ -507,9 +626,9 @@ _TEMPLATE = r'''<!doctype html>
   <section class="outcome" aria-labelledby="outcome-title"><h2 id="outcome-title"></h2><p class="muted report-date" id="generated"></p><details class="top-details"><summary>Details</summary><div class="scan-grid" id="scan-details"></div></details></section>
   <nav class="tabs" aria-label="Report views"><button class="tab" data-tab="files" aria-selected="true">Files</button><button class="tab" data-tab="findings" aria-selected="false">Findings</button><button class="tab" data-tab="recommendations" aria-selected="false">Recommendations</button><button class="tab" data-tab="dependencies" aria-selected="false">Dependencies</button><button class="tab" data-tab="results" aria-selected="false">Results</button></nav>
   <section id="files" class="panel active"><div class="workspace"><aside class="explorer"><p class="section-title">Project Directory</p><div class="tree" id="tree"></div></aside><article class="pane" id="file-pane"></article></div></section>
-  <section id="findings" class="panel"><div class="toolbar"><label class="sr-only" for="search">Search findings</label><input id="search" class="control search" type="search" placeholder="Search path, function, advisory, or title"><select id="status-filter" class="control" aria-label="Filter by status"><option value="active">Needs attention</option><option value="flagged">Flagged</option><option value="manual_review">Manual review</option><option value="all">All analyzed</option></select><select id="severity-filter" class="control" aria-label="Filter by severity"><option value="all">All severities</option><option>critical</option><option>high</option><option>moderate</option><option>medium</option><option>low</option><option>unknown</option></select><span class="muted" id="result-count"></span></div><div class="table-wrap"><table><thead><tr><th>Status</th><th>Severity</th><th>LLM Decision</th><th>Location</th><th>Function</th><th>Advisory</th><th>Confidence</th></tr></thead><tbody id="finding-rows"></tbody></table></div></section>
+  <section id="findings" class="panel"><div class="toolbar"><label class="sr-only" for="search">Search findings</label><input id="search" class="control search" type="search" placeholder="Search path, function, lineage, advisory, or package"><select id="status-filter" class="control" aria-label="Filter by status"><option value="active">Needs attention</option><option value="flagged">Flagged</option><option value="manual_review">Manual review</option><option value="all">All analyzed</option></select><select id="severity-filter" class="control" aria-label="Filter by severity"><option value="all">All severities</option><option>critical</option><option>high</option><option>moderate</option><option>medium</option><option>low</option><option>unknown</option></select><span class="muted" id="result-count"></span></div><div class="table-wrap"><table><thead><tr><th>Status</th><th>Severity</th><th>LLM Decision</th><th>Location</th><th>Function</th><th>Verified associations</th><th>Confidence</th></tr></thead><tbody id="finding-rows"></tbody></table></div></section>
   <section id="recommendations" class="panel"><div id="recommendation-list" class="recommendations"></div></section>
-  <section id="dependencies" class="panel"><div class="dependencies-board"><header class="dependencies-heading"><div><h2>Shallow Dependencies</h2><p class="muted">Library code signals found by provenance matching, compared with direct declarations in the root package.json.</p></div></header><div id="dependency-content"></div></div></section>
+  <section id="dependencies" class="panel"><div class="dependencies-board"><header class="dependencies-heading"><div><h2>Reference Package Signals</h2><p class="muted">Packages attached to verified provenance lineages, compared with direct declarations. These are source references, not installed-package claims.</p></div></header><div id="dependency-content"></div></div></section>
   <section id="results" class="panel"><div class="results-board"><header class="results-heading"><h2>Scan Summary</h2></header><div id="results-content"></div></div></section>
 </main>
 <dialog id="evidence-dialog" class="evidence-dialog" aria-labelledby="evidence-dialog-title"><div class="evidence-dialog-shell"><header class="evidence-dialog-head"><div><p class="eyebrow">Detection evidence</p><h2 id="evidence-dialog-title">Score breakdown</h2><p class="muted" id="evidence-dialog-location"></p></div><form method="dialog"><button class="dialog-close" type="submit">Close</button></form></header><div class="evidence-dialog-body" id="evidence-dialog-body"></div></div></dialog>
@@ -595,18 +714,18 @@ function renderResults(){
 }
 function renderDependencies(){
   const d=report.dependencies||{manifest:null,manifest_status:'missing',detected_count:0,ghost_count:0,libraries:[]};
-  const ghosts=d.libraries.filter(item=>item.status==='undeclared');
+  const unresolved=d.libraries.filter(item=>item.status==='unresolved_reference');
   const manifest=d.manifest_status==='loaded'?d.manifest:d.manifest_status==='invalid'?'Invalid package.json':'No package.json found';
-  const totals=`<div class="dependency-totals"><div class="dependency-total ghost"><span>Potential ghost dependencies</span><strong>${esc(d.ghost_count)}</strong></div><div class="dependency-total"><span>Libraries detected</span><strong>${esc(d.detected_count)}</strong></div><div class="dependency-total"><span>Declaration source</span><strong>${esc(manifest)}</strong></div></div>`;
-  if(!ghosts.length){$('#dependency-content').innerHTML=`${totals}<div class="empty"><div><strong>No shallow dependencies detected</strong><p class="muted">Every named library signal is directly declared, or no named library was identified.</p></div></div><p class="dependency-footnote">This view reports code-provenance signals, not installed-package inventory.</p>`;return}
-  const rows=ghosts.map(item=>{
+  const totals=`<div class="dependency-totals"><div class="dependency-total ghost"><span>Unresolved reference packages</span><strong>${esc(d.unresolved_count??d.ghost_count??0)}</strong></div><div class="dependency-total"><span>Verified package signals</span><strong>${esc(d.detected_count)}</strong></div><div class="dependency-total"><span>Declaration source</span><strong>${esc(manifest)}</strong></div></div>`;
+  if(!unresolved.length){$('#dependency-content').innerHTML=`${totals}<div class="empty"><div><strong>No unresolved reference packages</strong><p class="muted">Every verified reference package is directly declared, or no package attribution was available.</p></div></div><p class="dependency-footnote">A reference package identifies corpus provenance. It does not prove ownership of the scanned file.</p>`;return}
+  const rows=unresolved.map(item=>{
     const locations=item.locations.slice(0,3).map(value=>`<span class="dependency-location">${esc(value)}</span>`).join('');
     const remainder=item.locations.length>3?`<span class="dependency-meta">+${esc(item.locations.length-3)} more</span>`:'';
     const advisories=item.advisories.length?item.advisories.join(', '):'Not recorded';
     const packageName=item.package_url?`<a class="dependency-name" href="${esc(item.package_url)}" target="_blank" rel="noopener noreferrer">${esc(item.name)}</a>`:`<span class="dependency-name">${esc(item.name)}</span>`;
     return `<tr><td>${packageName}<span class="dependency-meta">${esc(item.ecosystem)}</span></td><td>${esc(item.evidence_count)} finding${item.evidence_count===1?'':'s'}</td><td><div class="dependency-locations">${locations}${remainder}</div></td><td>${esc(advisories)}</td></tr>`
   }).join('');
-  $('#dependency-content').innerHTML=`${totals}<div class="dependency-table-wrap"><table class="dependency-table"><thead><tr><th>Library</th><th>Evidence</th><th>Detected locations</th><th>Advisories</th></tr></thead><tbody>${rows}</tbody></table></div><p class="dependency-footnote">* Double-check and verify provenance before changing project manifests</p>`;
+  $('#dependency-content').innerHTML=`${totals}<div class="dependency-table-wrap"><table class="dependency-table"><thead><tr><th>Reference package</th><th>Verified findings</th><th>Scanned locations</th><th>Advisory aliases</th></tr></thead><tbody>${rows}</tbody></table></div><p class="dependency-footnote">* Resolve the target file's owning package and version before treating a reference package as affected.</p>`;
 }
 function updateGeneratedTime(){
   const element=$('#generated'),generated=new Date(report.generated_at),elapsed=Date.now()-generated.getTime();
@@ -723,6 +842,29 @@ function reviewExplanationPanel(explanation){
   if(verdict==='dismissed')return `${verdictRow}<section class="review-explanation dismissed" aria-label="LLM explanation">${head}<p class="verdict-rationale">${esc(explanation.verdict_rationale)}</p></section>`;
   return `${verdictRow}<section class="review-explanation" aria-label="LLM explanation">${head}<p class="verdict-rationale">${esc(explanation.verdict_rationale)}</p><p><strong>Advisory mechanism:</strong> ${esc(explanation.security_mechanism)}</p></section>`;
 }
+function packageNames(lineage){return(lineage.reference_packages||[]).map(item=>item.ecosystem?`${item.name} (${item.ecosystem})`:item.name).join(', ')||'Not recorded'}
+function targetPackageLabel(target){if(!target?.name)return'Unresolved';return target.version?`${target.name} @ ${target.version}`:target.name}
+function lineageTitle(lineage,index){const rep=lineage.representative||{};return rep.repo||packageNames(lineage)||`Lineage ${index+1}`}
+function advisoryKeys(value){return[value?.cve_id,value?.ghsa_id,value?.osv_id,value?.identifier].filter(Boolean).map(item=>String(item).toLocaleLowerCase())}
+function isMostLikelyAdvisory(alias,lineage,primary){
+  if(!primary)return false;
+  if(primary.lineage_id&&lineage.lineage_id&&primary.lineage_id!==lineage.lineage_id)return false;
+  const aliasKeys=advisoryKeys(alias),primaryKeys=advisoryKeys(primary);
+  if(aliasKeys.length&&primaryKeys.length)return aliasKeys.some(key=>primaryKeys.includes(key));
+  return Boolean(alias.advisory_url&&primary.advisory_url&&alias.advisory_url===primary.advisory_url)
+}
+function provenanceTree(f){
+  const lineages=f.lineages||[],advisoryCount=lineages.reduce((total,lineage)=>total+(lineage.advisories||[]).length,0);
+  const branches=lineages.map((lineage,index)=>{
+    const aliases=lineage.advisories||[],rep=lineage.representative||{},confidence=label(lineage.provenance_confidence||'none');
+    const aliasRows=aliases.map(alias=>{const identifier=alias.cve_id||alias.ghsa_id||alias.osv_id||'Unknown advisory';const linked=advisoryIdentifierLink(alias.advisory_url,identifier);const mostLikely=isMostLikelyAdvisory(alias,lineage,f.primary);return `<div class="alias-row${mostLikely?' most-likely':''}"><span>${linked}</span><span>${esc(alias.title||alias.advisory_title||identifier)}</span>${mostLikely?'<span class="most-likely-badge" title="Highest evidence score; other verified associations remain possible.">Most Likely</span>':''}</div>`}).join('');
+    const commit=String(lineage.fix_commit_sha||'Not recorded'),shortCommit=commit.length>12?commit.slice(0,12)+'…':commit;
+    const applicability=lineage.package_applicability||'unresolved';
+    return `<details class="lineage-branch ${esc(lineage.status)}"${index===0?' open':''}><summary><span class="lineage-node" aria-hidden="true"></span><span class="lineage-head"><strong>${esc(lineageTitle(lineage,index))}</strong><span class="lineage-meta"><span>${esc(shortCommit)}</span><span>${esc(aliases.length)} advisory alias${aliases.length===1?'':'es'}</span><span>${esc(confidence)} confidence</span></span></span><span class="lineage-toggle">${icons.chevron}</span></summary><div class="lineage-body"><dl class="lineage-facts"><dt>Reference package</dt><dd>${esc(packageNames(lineage))}</dd><dt>Target package</dt><dd>${esc(targetPackageLabel(f.target_package))}</dd><dt>Applicability</dt><dd><span class="applicability ${esc(applicability)}">${esc(label(applicability))}</span></dd><dt>Reference</dt><dd>${esc(rep.repo||'Not recorded')} · ${esc(lineage.file_path||rep.file_path||'')}</dd><dt>Fix commit</dt><dd>${esc(commit)}</dd></dl>${aliasRows?`<div class="alias-list">${aliasRows}</div>`:''}</div></details>`;
+  }).join('');
+  const attribution=lineages.length===1?'One verified lineage':lineages.length?`${lineages.length} verified lineages`:'No verified lineage';
+  return `<section class="provenance-map" aria-label="Finding provenance tree"><div class="provenance-root"><span class="provenance-root-node" aria-hidden="true"></span><span><strong>${esc(f.name)}</strong><span>${esc(f.path)}:${esc(f.start_line)}–${esc(f.end_line)} · ${esc(attribution)} · ${esc(advisoryCount)} advisory alias${advisoryCount===1?'':'es'}</span></span></div><div class="lineage-list">${branches||'<p class="muted">No verified advisory lineage was retained.</p>'}</div></section>`
+}
 function findingCard(f,openByDefault=false){
   const p=f.primary,e=f.evidence||{};
   const needsReview=f.status==='manual_review';
@@ -736,7 +878,8 @@ function findingCard(f,openByDefault=false){
   const affected=(p.affected_versions||[]).join(', ')||'Not recorded';
   const versions=(p.fixed_versions||[]).join(', ')||'Not recorded';
   const summary=advisorySummary(p.advisory_summary);
-  return `<details class="finding-card"${openByDefault?' open':''}><summary class="finding-head"><div><h3>${esc(f.name)}</h3><span class="muted">${esc(f.path)}:${f.start_line}–${f.end_line}</span></div><div class="badge-row">${headerBadges}<span class="finding-chevron">${icons.chevron}</span></div></summary><div class="finding-body"><div class="advisory-intro"><div class="advisory-heading"><h3><span class="advisory-heading-id">${heading}</span></h3></div>${summary}</div>${needsReview?reviewExplanationPanel(f.review_explanation):''}<div class="code-compare">${codePanel('Project code',f.reference.candidate,'detected-panel')}<div class="reference-stack">${codePanel('Matched vulnerable reference',f.reference.vulnerable)}${codePanel('Known patched reference',f.reference.patched)}</div></div><div class="detail-grid"><section class="detail-box"><h4>Advisory</h4><dl class="facts">${potentialImpact}<dt>Identifiers</dt><dd>${esc(ids)}</dd><dt>Affected versions</dt><dd>${esc(affected)}</dd><dt>Known fixed versions</dt><dd>${esc(versions)}</dd><dt>Historical package</dt><dd>${esc(p.package_name||'Not recorded')} ${p.ecosystem?`(${esc(p.ecosystem)})`:''}</dd><dt>CWE</dt><dd>${esc((p.cwes||[]).join(', ')||'Not recorded')}</dd><dt>Reference</dt><dd>${esc(p.repo||'Not recorded')} · ${esc(p.file_path||'')}</dd></dl><p class="link-row">${externalLink(p.advisory_url,'Open advisory')} ${externalLink(p.fix_url,'Open fix commit')}</p></section><section class="detail-box"><h4>Detection evidence</h4>${scoreRow('Vulnerable',e.vulnerable_score,'vulnerable')}${scoreRow('Patched',e.patched_score,'patched')}${scoreRow('Retrieval',e.retrieval_similarity,'retrieval')}<dl class="facts"><dt>Confidence</dt><dd><strong>${esc(label(f.confidence))}</strong></dd><dt>Score margin</dt><dd>${Number.isFinite(Number(e.vulnerable_minus_patched))?Number(e.vulnerable_minus_patched).toFixed(3):'Not recorded'}</dd><dt>AST coverage</dt><dd>${Number.isFinite(Number(e.ast_coverage))?Number(e.ast_coverage).toFixed(3):'Not recorded'}</dd><dt>Match type</dt><dd>${esc(f.hash_match_types.join(', ')||'Region similarity')}</dd></dl><button class="evidence-breakdown-trigger" type="button" aria-haspopup="dialog" data-finding-id="${esc(f.id)}">View breakdown</button></section></div></div></details>`;
+  const lineageCount=(f.lineages||[]).length,advisoryCount=(f.lineages||[]).reduce((total,lineage)=>total+(lineage.advisories||[]).length,0);
+  return `<details class="finding-card"${openByDefault?' open':''}><summary class="finding-head"><div><h3>${esc(f.name)}</h3><span class="muted">${esc(f.path)}:${f.start_line}–${f.end_line}</span></div><div class="badge-row"><span class="association-count">${esc(lineageCount)} lineage${lineageCount===1?'':'s'} · ${esc(advisoryCount)} ${advisoryCount===1?'advisory':'advisories'}</span>${headerBadges}<span class="finding-chevron">${icons.chevron}</span></div></summary><div class="finding-body">${provenanceTree(f)}<div class="advisory-intro"><div class="advisory-heading"><h3><span class="advisory-heading-id">Most Likely: ${heading}</span></h3></div><p class="ranked-reference-note">Selected by evidence strength for code comparison; other verified associations remain represented in the lineage tree.</p>${summary}</div>${needsReview?reviewExplanationPanel(f.review_explanation):''}<div class="code-compare">${codePanel('Project code',f.reference.candidate,'detected-panel')}<div class="reference-stack">${codePanel('Most Likely vulnerable reference',f.reference.vulnerable)}${codePanel('Known patched reference',f.reference.patched)}</div></div><div class="detail-grid"><section class="detail-box"><h4>Most Likely reference lineage</h4><dl class="facts">${potentialImpact}<dt>Representative IDs</dt><dd>${esc(ids)}</dd><dt>Advisory aliases</dt><dd>${esc(advisoryCount)}</dd><dt>Affected versions</dt><dd>${esc(affected)}</dd><dt>Known fixed versions</dt><dd>${esc(versions)}</dd><dt>Reference package</dt><dd>${esc(p.package_name||'Not recorded')} ${p.ecosystem?`(${esc(p.ecosystem)})`:''}</dd><dt>Target package</dt><dd>${esc(targetPackageLabel(f.target_package))}</dd><dt>CWE</dt><dd>${esc((p.cwes||[]).join(', ')||'Not recorded')}</dd><dt>Reference</dt><dd>${esc(p.repo||'Not recorded')} · ${esc(p.file_path||'')}</dd></dl><p class="link-row">${externalLink(p.advisory_url,'Open representative advisory')} ${externalLink(p.fix_url,'Open fix commit')}</p></section><section class="detail-box"><h4>Detection evidence</h4>${scoreRow('Vulnerable',e.vulnerable_score,'vulnerable')}${scoreRow('Patched',e.patched_score,'patched')}${scoreRow('Retrieval',e.retrieval_similarity,'retrieval')}<dl class="facts"><dt>Confidence</dt><dd><strong>${esc(label(f.confidence))}</strong></dd><dt>Score margin</dt><dd>${Number.isFinite(Number(e.vulnerable_minus_patched))?Number(e.vulnerable_minus_patched).toFixed(3):'Not recorded'}</dd><dt>AST coverage</dt><dd>${Number.isFinite(Number(e.ast_coverage))?Number(e.ast_coverage).toFixed(3):'Not recorded'}</dd><dt>Match type</dt><dd>${esc(f.hash_match_types.join(', ')||'Region similarity')}</dd></dl><button class="evidence-breakdown-trigger" type="button" aria-haspopup="dialog" data-finding-id="${esc(f.id)}">View breakdown</button></section></div></div></details>`;
 }
 function selectFile(path){selectedFile=path;$$('.tree-file').forEach(button=>button.classList.toggle('selected',button.dataset.path===path));renderFile()}
 function renderFile(){
@@ -755,9 +898,9 @@ function renderFile(){
 function switchTab(id){$$('.tab').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===id)));$$('.panel').forEach(p=>p.classList.toggle('active',p.id===id))}
 function renderRows(){
   const query=$('#search').value.trim().toLowerCase(),status=$('#status-filter').value,severity=$('#severity-filter').value;
-  const rows=report.findings.filter(f=>{const statusOk=status==='all'||status==='active'&&activeStatuses.has(f.status)||f.status===status;const sevOk=severity==='all'||f.severity===severity;const hay=[f.path,f.name,f.primary.identifier,f.primary.title].join(' ').toLowerCase();return statusOk&&sevOk&&(!query||hay.includes(query))});
+  const rows=report.findings.filter(f=>{const statusOk=status==='all'||status==='active'&&activeStatuses.has(f.status)||f.status===status;const sevOk=severity==='all'||f.severity===severity;const associations=(f.lineages||[]).flatMap(lineage=>[lineage.lineage_id,lineage.repo,...(lineage.reference_packages||[]).map(item=>item.name),...(lineage.advisories||[]).flatMap(item=>[item.identifier,item.title])]);const hay=[f.path,f.name,...associations].join(' ').toLowerCase();return statusOk&&sevOk&&(!query||hay.includes(query))});
   $('#result-count').textContent=`${rows.length} result${rows.length===1?'':'s'}`;
-  $('#finding-rows').innerHTML=rows.length?rows.map(f=>`<tr data-file="${esc(f.path)}" tabindex="0"><td>${badge(f.status)}</td><td>${badge(f.severity,f.severity)}</td><td>${llmDecision(f)}</td><td>${esc(f.path)}:${f.start_line}</td><td>${esc(f.name)}</td><td>${esc(f.primary.title)}</td><td>${esc(label(f.confidence))}</td></tr>`).join(''):`<tr><td colspan="7"><div class="empty"><span class="muted">No findings match these filters.</span></div></td></tr>`;
+  $('#finding-rows').innerHTML=rows.length?rows.map(f=>{const lineages=f.lineages||[],advisories=lineages.reduce((total,lineage)=>total+(lineage.advisories||[]).length,0);return `<tr data-file="${esc(f.path)}" tabindex="0"><td>${badge(f.status)}</td><td>${badge(f.severity,f.severity)}</td><td>${llmDecision(f)}</td><td>${esc(f.path)}:${f.start_line}</td><td>${esc(f.name)}</td><td>${esc(lineages.length)} lineage${lineages.length===1?'':'s'} · ${esc(advisories)} ${advisories===1?'advisory':'advisories'}</td><td>${esc(label(f.confidence))}</td></tr>`}).join(''):`<tr><td colspan="7"><div class="empty"><span class="muted">No findings match these filters.</span></div></td></tr>`;
   $$('tr[data-file]').forEach(row=>{const open=()=>{selectFile(row.dataset.file);switchTab('files')};row.addEventListener('click',open);row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open()}})})
 }
 function renderRecommendations(){
@@ -775,10 +918,11 @@ function renderRecommendations(){
     const titleMarkup=identifier?(sameTitle?linkedIdentifier:`${linkedIdentifier}: ${esc(title)}`):esc(title);
     const description=String(r.description||'No advisory summary was recorded.').trim(),expandable=description.length>240,summaryId=`recommendation-summary-${index}`;
     const summaryControl=expandable?`<button class="summary-toggle" type="button" aria-expanded="false" aria-controls="${summaryId}">Show more</button>`:'';
-    const packageName=String(r.package_name||'Not recorded'),ecosystem=String(r.ecosystem||'').trim();
-    const packageLabel=ecosystem?`${packageName} (${ecosystem})`:packageName;
+    const packageLabel=(r.reference_packages||[]).map(item=>item.ecosystem?`${item.name} (${item.ecosystem})`:item.name).join(', ')||'Not recorded';
+    const targetLabel=targetPackageLabel(r.target_package),applicability=label(r.package_applicability||'unresolved');
     const versionGuidance='For copied or adapted code, follow the code change shown here instead of changing a dependency version.';
-    return `<article class="recommendation"><h3>${titleMarkup}</h3><div class="badge-row">${badge(r.severity,r.severity)}</div><div class="recommendation-summary markdown-body ${expandable?'collapsed':''}" id="${summaryId}">${markdown(description)}</div>${summaryControl}<div class="recommendation-grid"><div><div class="version-box"><span class="muted">Affected package</span><strong>${esc(packageLabel)}</strong></div><div class="version-box"><span class="muted">Historical affected versions</span><strong>${esc(affected)}</strong></div><div class="version-box"><span class="muted">Known fixed versions</span><strong>${esc(fixed)}</strong></div><p class="muted">${esc(versionGuidance)}</p><section class="affected-locations"><h4>Affected locations</h4><div class="locations">${r.locations.map(l=>`<span class="location">${esc(l)}</span>`).join('')}</div></section></div><div><h4>Recommended code change</h4><p>${esc(changeText)}</p>${changes.length?`<div class="patch-lines">${changes.map(([kind,line])=>{const tone=kind.toLowerCase(),marker=kind==='Removed'?'−':'+';return `<div class="patch-line ${tone}"><strong><span aria-hidden="true">${marker}</span> ${kind}</strong><code>${esc(line)}</code></div>`}).join('')}</div>`:`<p class="muted">No diagnostic patch lines were recorded. Inspect the linked fix commit before modifying code.</p>`}</div></div><p class="link-row">${externalLink(r.advisory_url,'Read advisory')} ${externalLink(r.fix_url,'Inspect fix commit')}</p></article>`
+    const lineageNote=r.advisory_count===1?'1 advisory alias':`${r.advisory_count} advisory aliases`;
+    return `<article class="recommendation"><h3>${titleMarkup}</h3><div class="badge-row">${badge(r.severity,r.severity)}<span class="association-count">${esc(lineageNote)}</span></div><div class="recommendation-summary markdown-body ${expandable?'collapsed':''}" id="${summaryId}">${markdown(description)}</div>${summaryControl}<div class="recommendation-grid"><div><div class="version-box"><span class="muted">Reference package</span><strong>${esc(packageLabel)}</strong></div><div class="version-box"><span class="muted">Target package</span><strong>${esc(targetLabel)}</strong><span class="applicability ${esc(r.package_applicability)}">${esc(applicability)}</span></div><div class="version-box"><span class="muted">Historical affected versions</span><strong>${esc(affected)}</strong></div><div class="version-box"><span class="muted">Known fixed versions</span><strong>${esc(fixed)}</strong></div><p class="muted">${esc(versionGuidance)}</p><section class="affected-locations"><h4>Affected locations</h4><div class="locations">${r.locations.map(l=>`<span class="location">${esc(l)}</span>`).join('')}</div></section></div><div><h4>Recommended code change</h4><p>${esc(changeText)}</p>${changes.length?`<div class="patch-lines">${changes.map(([kind,line])=>{const tone=kind.toLowerCase(),marker=kind==='Removed'?'−':'+';return `<div class="patch-line ${tone}"><strong><span aria-hidden="true">${marker}</span> ${kind}</strong><code>${esc(line)}</code></div>`}).join('')}</div>`:`<p class="muted">No diagnostic patch lines were recorded. Inspect the linked fix commit before modifying code.</p>`}</div></div><p class="link-row">${externalLink(r.advisory_url,'Read representative advisory')} ${externalLink(r.fix_url,'Inspect fix commit')}</p></article>`
   }).join('');
   $$('.summary-toggle',root).forEach(button=>button.addEventListener('click',()=>{const summary=document.getElementById(button.getAttribute('aria-controls')),expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));button.textContent=expanded?'Show more':'Show less';summary.classList.toggle('collapsed',expanded)}))
 }

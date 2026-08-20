@@ -1,8 +1,9 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from corpus.models.github import CWE
+from pipeline.models.provenance import AdvisoryAlias
 
 
 class FunctionFingerprint(BaseModel):
@@ -14,6 +15,8 @@ class FunctionFingerprint(BaseModel):
 
 
 class HashMatch(BaseModel):
+    lineage_id: str | None = None
+    advisories: list[AdvisoryAlias] = Field(default_factory=list)
     ghsa_id: str
     cve_id: str | None = None
     osv_id: str | None = None

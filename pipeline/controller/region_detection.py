@@ -36,14 +36,18 @@ from pipeline.models.regions import (
     RegionDetectionResult,
 )
 
-AdvisoryIdentity = tuple[str, str, str, str | None]
+AdvisoryIdentity = tuple[str, ...]
 
 
 def _hash_identity(match) -> AdvisoryIdentity:
+    if match.lineage_id:
+        return "lineage", match.lineage_id
     return match.ghsa_id, match.fix_commit_sha, match.file_path, match.function_name
 
 
 def _pair_identity(pair) -> AdvisoryIdentity:
+    if pair.lineage_id:
+        return "lineage", pair.lineage_id
     return pair.ghsa_id, pair.fix_commit_sha, pair.file_path, pair.function_name
 
 
@@ -89,6 +93,8 @@ def _hash_advisory_verdicts(hash_matches) -> list[RegionAdvisoryVerdict]:
         verdicts.append(
             RegionAdvisoryVerdict(
                 ghsa_id=first.ghsa_id,
+                lineage_id=first.lineage_id,
+                advisories=first.advisories,
                 cve_id=first.cve_id,
                 fix_commit_sha=first.fix_commit_sha,
                 file_path=first.file_path,
@@ -243,6 +249,8 @@ class RegionDetector:
             advisory_verdicts.append(
                 RegionAdvisoryVerdict(
                     ghsa_id=pair.ghsa_id,
+                    lineage_id=pair.lineage_id,
+                    advisories=pair.advisories,
                     cve_id=pair.cve_id,
                     fix_commit_sha=pair.fix_commit_sha,
                     file_path=pair.file_path,

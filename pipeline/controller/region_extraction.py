@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import tree_sitter
 
 from corpus.models.corpus import CorpusEntry
+from pipeline.controller.provenance import advisory_alias, cluster_corpus_entries, provenance_lineage_id
 from pipeline.controller.parsing import FUNCTION_NODE_TYPES, normalize_source, parse_source
 from pipeline.models.regions import (
     AstRegion,
@@ -17,6 +18,7 @@ from pipeline.models.regions import (
     SourceSpan,
     VulnerableRegionPair,
 )
+from pipeline.models.provenance import AdvisoryAlias
 
 _SYNTHETIC_PREFIX = "class __CodexRegionWrapper {\n"
 _SYNTHETIC_SUFFIX = "\n}\n"
@@ -373,7 +375,12 @@ def _change_kind(entry: CorpusEntry) -> str:
     return "unknown"
 
 
-def extract_vulnerability_regions(entry: CorpusEntry) -> list[VulnerableRegionPair]:
+def extract_vulnerability_regions(
+    entry: CorpusEntry,
+    *,
+    lineage_id: str | None = None,
+    advisories: list[AdvisoryAlias] | None = None,
+) -> list[VulnerableRegionPair]:
     """Extract paired multi-resolution regions from one vulnerable/patched entry."""
     # A missing patched snapshot cannot provide a meaningful contrast.  Parsing an
     # empty string produces a synthetic ``program`` region, which then receives
@@ -390,6 +397,8 @@ def extract_vulnerability_regions(entry: CorpusEntry) -> list[VulnerableRegionPa
     patched_digest = hashlib.sha256(entry.patched_function.encode("utf-8")).hexdigest()
 
     pairs: list[VulnerableRegionPair] = []
+    actual_lineage_id = lineage_id or provenance_lineage_id(entry)
+    actual_advisories = advisories if advisories is not None else [advisory_alias(entry)]
     for granularity in ("changed", "block", "context", "function"):
         pair_id = (
             f"{entry.ghsa_id}:{entry.fix_commit_sha}:{entry.file_path}:"
@@ -398,6 +407,8 @@ def extract_vulnerability_regions(entry: CorpusEntry) -> list[VulnerableRegionPa
         pairs.append(
             VulnerableRegionPair(
                 pair_id=pair_id,
+                lineage_id=actual_lineage_id,
+                advisories=actual_advisories,
                 ghsa_id=entry.ghsa_id,
                 cve_id=entry.cve_id,
                 advisory_title=entry.advisory_title,
@@ -428,6 +439,12 @@ def extract_vulnerability_regions(entry: CorpusEntry) -> list[VulnerableRegionPa
 
 def extract_corpus_region_pairs(entries: list[CorpusEntry]) -> list[VulnerableRegionPair]:
     pairs: list[VulnerableRegionPair] = []
-    for entry in entries:
-        pairs.extend(extract_vulnerability_regions(entry))
+    for lineage in cluster_corpus_entries(entries):
+        pairs.extend(
+            extract_vulnerability_regions(
+                lineage.representative,
+                lineage_id=lineage.lineage_id,
+                advisories=list(lineage.advisories),
+            )
+        )
     return pairs

@@ -156,22 +156,27 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert output.index('data-tab="recommendations"') < output.index('data-tab="dependencies"')
     assert output.index('data-tab="dependencies"') < output.index('data-tab="results"')
     assert '>Dependencies</button>' in output
-    assert "<h2>Shallow Dependencies</h2>" in output
-    assert "Potential ghost dependencies" in output
+    assert "<h2>Reference Package Signals</h2>" in output
+    assert "Unresolved reference packages" in output
     assert "function renderDependencies()" in output
     assert "initSummary();renderDependencies();renderResults()" in output
     assert data["dependencies"]["ghost_count"] == 1
     assert data["dependencies"]["libraries"][0]["name"] == "demo-http"
-    assert data["dependencies"]["libraries"][0]["status"] == "undeclared"
+    assert data["dependencies"]["libraries"][0]["status"] == "unresolved_reference"
     assert data["dependencies"]["libraries"][0]["package_url"] == (
         "https://www.npmjs.com/package/demo-http"
     )
-    assert '<th>Library</th><th>Evidence</th><th>Detected locations</th><th>Advisories</th>' in output
+    assert '<th>Reference package</th><th>Verified findings</th><th>Scanned locations</th><th>Advisory aliases</th>' in output
     assert "Manifest status" not in output
     assert "Not declared" not in output
     assert "https://www.npmjs.com/package/demo-http" in output
     assert 'href="${esc(item.package_url)}"' in output
-    assert "* Double-check and verify provenance before changing project manifests" in output
+    assert "Resolve the target file's owning package and version" in output
+    assert "function provenanceTree(f)" in output
+    assert 'class="provenance-map"' in output
+    assert "Most Likely: ${heading}" in output
+    assert 'class="most-likely-badge"' in output
+    assert "Highest evidence score; other verified associations remain possible." in output
     assert "<h2>Scan Summary</h2>" in output
     assert "Results requiring attention" not in output
     assert "Prioritized findings after deterministic detection and optional LLM review." not in output
@@ -290,9 +295,12 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "function markdown(value)" in output
     assert '${markdown(description)}' in output
     assert ".recommendation>.badge-row{padding-bottom:14px}" in output
-    assert '<span class="muted">Affected package</span>' in output
-    assert "const packageLabel=ecosystem?`${packageName} (${ecosystem})`:packageName" in output
-    assert data["recommendations"][0]["ecosystem"] == "npm"
+    assert '<span class="muted">Reference package</span>' in output
+    assert '<span class="muted">Target package</span>' in output
+    assert data["recommendations"][0]["reference_packages"] == [
+        {"name": "demo-http", "ecosystem": "npm"}
+    ]
+    assert data["recommendations"][0]["package_applicability"] == "unresolved"
     assert "add a regression test for" not in output
     assert 'colspan="7"' in output
     assert "<dt>Potential impact</dt>" in output
@@ -341,10 +349,15 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "<span>JavaScript</span>" not in output
     assert "linear-gradient" not in output
     assert "radial-gradient" not in output
-    assert "border-left" not in output
+    assert ".lineage-branch{position:relative;border-left:2px solid var(--line)" in output
+    assert "padding:10px 0 0 46px" in output
+    assert ".lineage-node{position:absolute;left:20px" in output
     assert "<link " not in output
     assert "<script src=" not in output
     assert "/private/work/demo" not in output
+    assert data["findings"][0]["attribution_status"] == "single_lineage"
+    assert len(data["findings"][0]["lineages"]) == 1
+    assert data["findings"][0]["target_package"]["status"] == "unresolved"
     assert data["findings"][1]["reference"]["candidate"] is None
     assert all(
         line["marker"] == "detected"
@@ -419,11 +432,34 @@ def test_dependencies_tab_recognizes_a_direct_package_declaration(tmp_path):
 
     assert data["dependencies"]["manifest_status"] == "loaded"
     assert data["dependencies"]["ghost_count"] == 0
-    assert data["dependencies"]["libraries"][0]["status"] == "declared"
+    assert data["dependencies"]["libraries"][0]["status"] == "declared_reference"
     assert data["dependencies"]["libraries"][0]["declarations"] == [
         {"scope": "runtime", "version": "^2.0.0"}
     ]
-    assert "No shallow dependencies detected" in render_html_report(data)
+    assert "No unresolved reference packages" in render_html_report(data)
+
+
+def test_target_package_is_resolved_separately_from_reference_package(tmp_path):
+    (tmp_path / "package.json").write_text(
+        json.dumps({"name": "demo-http", "version": "1.5.0"}),
+        encoding="utf-8",
+    )
+    summary = _summary()
+    summary.target_root = str(tmp_path)
+
+    data = build_html_report_data(summary, entries=[_entry()], config=ScanConfig())
+    finding = data["findings"][0]
+
+    assert finding["target_package"] == {
+        "name": "demo-http",
+        "version": "1.5.0",
+        "source": "package.json",
+        "status": "resolved",
+    }
+    assert finding["lineages"][0]["reference_packages"] == [
+        {"name": "demo-http", "ecosystem": "npm"}
+    ]
+    assert finding["lineages"][0]["package_applicability"] == "confirmed"
 
 
 def test_candidate_highlight_uses_local_verified_region_when_available():
@@ -534,7 +570,7 @@ def test_manual_review_explanation_is_embedded_in_its_finding():
     data = build_html_report_data(summary, entries=[_entry()], config=ScanConfig())
     output = render_html_report(data)
 
-    assert data["schema"] == "provtrail_html_report_v2"
+    assert data["schema"] == "provtrail_html_report_v3"
     assert data["explanation_run"]["model"] == "qwen3:8b"
     assert data["findings"][0]["review_explanation"]["status"] == "generated"
     assert "LLM Explanation" in output

@@ -26,6 +26,7 @@ def _result(finding: dict[str, Any]) -> dict[str, Any]:
 
 def _match_key(match: dict[str, Any]) -> tuple[Any, ...]:
     return (
+        match.get("lineage_id"),
         match.get("ghsa_id"),
         match.get("cve_id"),
         match.get("fix_commit_sha"),
@@ -44,6 +45,28 @@ def _normalise_match(match: dict[str, Any], source: str) -> dict[str, Any]:
     return output
 
 
+def _active_advisory_verdicts(result: dict[str, Any]) -> list[dict[str, Any]]:
+    verdicts = result.get("advisory_verdicts", []) or []
+    if not verdicts:
+        return []
+    overall_status = result.get("status")
+    scoped = [verdict for verdict in verdicts if verdict.get("status") == overall_status]
+    return scoped or [verdict for verdict in verdicts if verdict.get("status") in ACTIVE_STATUSES]
+
+
+def _verdict_matches(verdict: dict[str, Any], match: dict[str, Any]) -> bool:
+    lineage_id = verdict.get("lineage_id")
+    if lineage_id and match.get("lineage_id") == lineage_id:
+        return True
+    pair_ids = set(verdict.get("evidence_pair_ids", []) or [])
+    if pair_ids and match.get("pair_id") in pair_ids:
+        return True
+    return all(
+        match.get(key) == verdict.get(key)
+        for key in ("ghsa_id", "fix_commit_sha", "file_path", "function_name")
+    )
+
+
 def _matches_for_result(result: dict[str, Any]) -> list[dict[str, Any]]:
     matches: list[dict[str, Any]] = []
     for match in result.get("hash_matches", []):
@@ -51,6 +74,17 @@ def _matches_for_result(result: dict[str, Any]) -> list[dict[str, Any]]:
     for aggregate in result.get("aggregates", []):
         for match in aggregate.get("top_matches", []):
             matches.append(_normalise_match(match, "region"))
+
+    # Retrieval is candidate generation, not reportable attribution. Once the
+    # detector emits advisory-scoped verdicts, retain only matches connected to
+    # an active verdict; legacy saved reports without verdicts keep their prior
+    # behavior so they remain readable.
+    verdicts = _active_advisory_verdicts(result)
+    if verdicts:
+        matches = [
+            match for match in matches
+            if any(_verdict_matches(verdict, match) for verdict in verdicts)
+        ]
 
     unique: dict[tuple[Any, ...], dict[str, Any]] = {}
     for match in matches:
@@ -62,14 +96,50 @@ def _matches_for_result(result: dict[str, Any]) -> list[dict[str, Any]]:
     return list(unique.values())
 
 
+def _verdict_evidence_score(result: dict[str, Any], verdict: dict[str, Any]) -> tuple[float, ...]:
+    hash_matches = [
+        match for match in result.get("hash_matches", []) or []
+        if _verdict_matches(verdict, match) and match.get("side") == "vulnerable"
+    ]
+    if hash_matches:
+        exact = any(match.get("match_type") == "exact" for match in hash_matches)
+        return (3.0 if exact else 2.0, 1.0, 1.0, 1.0)
+
+    pair_ids = set(verdict.get("evidence_pair_ids", []) or [])
+    evidence = [
+        item for item in result.get("evidence", []) or []
+        if not pair_ids or item.get("pair_id") in pair_ids
+    ]
+    if not evidence:
+        return (0.0, 0.0, 0.0, 0.0)
+    best = max(
+        evidence,
+        key=lambda item: (
+            float(item.get("vulnerable_minus_patched", 0.0)),
+            float(item.get("vulnerable_score", 0.0)),
+            float(item.get("ast_coverage", 0.0)),
+            float(item.get("retrieval_similarity", 0.0)),
+        ),
+    )
+    return (
+        1.0,
+        float(best.get("vulnerable_minus_patched", 0.0)),
+        float(best.get("vulnerable_score", 0.0)),
+        float(best.get("ast_coverage", 0.0)),
+    )
+
+
 def _primary_advisory_verdict(result: dict[str, Any]) -> dict[str, Any] | None:
-    verdicts = result.get("advisory_verdicts", [])
+    verdicts = _active_advisory_verdicts(result)
     if not verdicts:
         return None
-    overall_status = result.get("status")
-    return next(
-        (verdict for verdict in verdicts if verdict.get("status") == overall_status),
-        verdicts[0],
+    return max(
+        verdicts,
+        key=lambda verdict: (
+            _verdict_evidence_score(result, verdict),
+            str(verdict.get("lineage_id") or ""),
+            str(verdict.get("ghsa_id") or ""),
+        ),
     )
 
 
@@ -97,13 +167,7 @@ def _primary_match(result: dict[str, Any], matches: list[dict[str, Any]]) -> dic
         return None
     verdict = _primary_advisory_verdict(result)
     if verdict:
-        scoped = [
-            match for match in matches
-            if match.get("ghsa_id") == verdict.get("ghsa_id")
-            and match.get("fix_commit_sha") == verdict.get("fix_commit_sha")
-            and match.get("file_path") == verdict.get("file_path")
-            and match.get("function_name") == verdict.get("function_name")
-        ]
+        scoped = [match for match in matches if _verdict_matches(verdict, match)]
         if scoped:
             matches = scoped
     evidence = _best_evidence(result)
@@ -115,10 +179,105 @@ def _primary_match(result: dict[str, Any], matches: list[dict[str, Any]]) -> dic
     return max(matches, key=lambda item: float(item.get("similarity", -1.0)))
 
 
+def _fallback_advisory(match: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: match.get(key)
+        for key in (
+            "ghsa_id", "cve_id", "osv_id", "advisory_title",
+            "advisory_description", "advisory_url", "advisory_references",
+            "cwes", "severity", "package_name", "ecosystem",
+            "affected_versions", "fixed_versions",
+        )
+    }
+
+
+def _lineages_for_result(
+    result: dict[str, Any],
+    matches: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    verdicts = _active_advisory_verdicts(result)
+    if not verdicts:
+        verdicts = [
+            {
+                "lineage_id": match.get("lineage_id"),
+                "ghsa_id": match.get("ghsa_id"),
+                "fix_commit_sha": match.get("fix_commit_sha"),
+                "file_path": match.get("file_path"),
+                "function_name": match.get("function_name"),
+                "status": result.get("status", "unknown"),
+                "provenance_confidence": result.get("provenance_confidence", "none"),
+            }
+            for match in matches
+        ]
+
+    lineages = []
+    seen: set[tuple[Any, ...]] = set()
+    for verdict in verdicts:
+        scoped = [match for match in matches if _verdict_matches(verdict, match)]
+        representative = _primary_match(
+            {**result, "advisory_verdicts": [verdict]},
+            scoped,
+        ) if scoped else None
+        key = (
+            verdict.get("lineage_id"),
+            verdict.get("ghsa_id"),
+            verdict.get("fix_commit_sha"),
+            verdict.get("file_path"),
+            verdict.get("function_name"),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        advisory_values = verdict.get("advisories", []) or []
+        if not advisory_values and representative:
+            advisory_values = representative.get("advisories", []) or []
+        if not advisory_values and representative:
+            advisory_values = [_fallback_advisory(representative)]
+        reference_packages = sorted(
+            {
+                (str(item.get("package_name") or ""), str(item.get("ecosystem") or ""))
+                for item in advisory_values
+                if item.get("package_name")
+            }
+        )
+        lineages.append(
+            {
+                "lineage_id": verdict.get("lineage_id") or "legacy:" + ":".join(str(value or "") for value in key[1:]),
+                "status": verdict.get("status", result.get("status", "unknown")),
+                "provenance_confidence": verdict.get("provenance_confidence", "none"),
+                "evidence_pair_ids": verdict.get("evidence_pair_ids", []) or [],
+                "evidence_rank": list(_verdict_evidence_score(result, verdict)),
+                "representative": representative,
+                "repo": (representative or {}).get("repo"),
+                "fix_commit_sha": verdict.get("fix_commit_sha") or (representative or {}).get("fix_commit_sha"),
+                "file_path": verdict.get("file_path") or (representative or {}).get("file_path"),
+                "function_name": verdict.get("function_name") or (representative or {}).get("function_name"),
+                "reference_packages": [
+                    {"name": name, "ecosystem": ecosystem}
+                    for name, ecosystem in reference_packages
+                ],
+                "advisories": advisory_values,
+            }
+        )
+    return sorted(
+        lineages,
+        key=lambda item: (
+            tuple(-float(value) for value in item["evidence_rank"]),
+            item["lineage_id"],
+        ),
+    )
+
+
 def finding_detail(finding: dict[str, Any]) -> dict[str, Any]:
     result = _result(finding)
     matches = _matches_for_result(result)
     primary = _primary_match(result, matches)
+    lineages = _lineages_for_result(result, matches)
+    advisories = [
+        advisory
+        for lineage in lineages
+        for advisory in lineage.get("advisories", [])
+    ]
     return {
         "function_id": finding.get("function_id"),
         "path": finding.get("path"),
@@ -130,7 +289,8 @@ def finding_detail(finding: dict[str, Any]) -> dict[str, Any]:
         "provenance_confidence": result.get("provenance_confidence", "none"),
         "severity": (primary or {}).get("severity", "unknown"),
         "primary_match": primary,
-        "advisories": matches,
+        "advisories": advisories,
+        "lineages": lineages,
         "advisory_verdicts": result.get("advisory_verdicts", []),
         "evidence": _best_evidence(result),
         "hash_match_types": result.get("hash_match_types", []),

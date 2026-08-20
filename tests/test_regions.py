@@ -6,6 +6,7 @@ from corpus.models.corpus import CorpusEntry, DiagnosticLine
 from pipeline.controller.region_extraction import (
     candidate_region_is_informative,
     enumerate_candidate_regions,
+    extract_corpus_region_pairs,
     extract_vulnerability_regions,
     source_is_supported,
 )
@@ -64,6 +65,34 @@ def test_extracts_paired_multiresolution_regions_with_source_coordinates():
     assert all(pair.patched_region.span.end_byte <= len(patched.encode("utf-8")) for pair in pairs)
     assert all(pair.change_kind == "replacement" for pair in pairs)
     assert all(pair.pair_id in pair.vulnerable_region.region_id for pair in pairs)
+
+
+def test_corpus_region_pairs_deduplicate_shared_code_lineages_and_keep_aliases():
+    vulnerable = "function checkValue(value) { if (value) return value; return null; }"
+    patched = "function checkValue(value) { if (typeof value === 'string') return value; return null; }"
+    original = _entry(
+        vulnerable,
+        patched,
+        [DiagnosticLine(kind="replacement", vulnerable_line=0, patched_line=0, text="guard")],
+    )
+    alias = original.model_copy(
+        update={
+            "ghsa_id": "GHSA-alias",
+            "cve_id": "CVE-ALIAS",
+            "package_name": "test-package-fork",
+        }
+    )
+
+    pairs = extract_corpus_region_pairs([original, alias])
+
+    assert len(pairs) == 4
+    assert len({pair.lineage_id for pair in pairs}) == 1
+    assert {
+        advisory.ghsa_id for advisory in pairs[0].advisories
+    } == {"GHSA-test-region", "GHSA-alias"}
+    assert {
+        advisory.package_name for advisory in pairs[0].advisories
+    } == {"test-package", "test-package-fork"}
 
 
 def test_pure_patch_insertion_still_produces_a_paired_vulnerable_region():

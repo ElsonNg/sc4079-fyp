@@ -257,6 +257,84 @@ def test_report_primary_match_follows_the_overall_advisory_verdict():
     assert detail["advisory_verdicts"] == result["advisory_verdicts"]
 
 
+def test_report_excludes_retrieval_only_packages_and_ranks_primary_by_evidence():
+    report = _report()
+    finding = report["findings"][1]
+    result = finding["result"]
+    strong = {
+        **result["aggregates"][0]["top_matches"][0],
+        "pair_id": "pair-strong",
+        "ghsa_id": "GHSA-strong",
+        "cve_id": "CVE-STRONG",
+        "package_name": "strong-package",
+        "fix_commit_sha": "strong-fix",
+        "file_path": "strong.js",
+        "function_name": "strong",
+        "similarity": 0.84,
+    }
+    noise = {
+        **strong,
+        "pair_id": "pair-noise",
+        "ghsa_id": "GHSA-noise",
+        "cve_id": "CVE-NOISE",
+        "package_name": "unrelated-package",
+        "fix_commit_sha": "noise-fix",
+        "file_path": "noise.js",
+        "function_name": "noise",
+        "similarity": 0.99,
+    }
+    result["status"] = "flagged"
+    result["aggregates"] = [
+        {"pair_id": "pair-1", "top_matches": result["aggregates"][0]["top_matches"]},
+        {"pair_id": "pair-strong", "top_matches": [strong]},
+        {"pair_id": "pair-noise", "top_matches": [noise]},
+    ]
+    result["evidence"] = [
+        {"pair_id": "pair-1", "vulnerable_score": 0.80, "vulnerable_minus_patched": 0.10},
+        {"pair_id": "pair-strong", "vulnerable_score": 0.91, "vulnerable_minus_patched": 0.42},
+        {"pair_id": "pair-noise", "vulnerable_score": 0.99, "vulnerable_minus_patched": 0.80},
+    ]
+    result["advisory_verdicts"] = [
+        {
+            "ghsa_id": "GHSA-test",
+            "fix_commit_sha": "abc123",
+            "file_path": "lib/http.js",
+            "function_name": "request",
+            "status": "flagged",
+            "evidence_pair_ids": ["pair-1"],
+        },
+        {
+            "ghsa_id": "GHSA-strong",
+            "fix_commit_sha": "strong-fix",
+            "file_path": "strong.js",
+            "function_name": "strong",
+            "status": "flagged",
+            "evidence_pair_ids": ["pair-strong"],
+        },
+        {
+            "ghsa_id": "GHSA-noise",
+            "fix_commit_sha": "noise-fix",
+            "file_path": "noise.js",
+            "function_name": "noise",
+            "status": "cleared",
+            "evidence_pair_ids": ["pair-noise"],
+        },
+    ]
+
+    detail = report_view(report)["findings"][1]
+
+    assert detail["primary_match"]["ghsa_id"] == "GHSA-strong"
+    assert {item["ghsa_id"] for item in detail["advisories"]} == {
+        "GHSA-test",
+        "GHSA-strong",
+    }
+    assert "unrelated-package" not in {
+        package["name"]
+        for lineage in detail["lineages"]
+        for package in lineage["reference_packages"]
+    }
+
+
 def test_cli_report_reads_saved_json_without_detector(tmp_path, capsys):
     path = tmp_path / "scan.json"
     path.write_text(json.dumps(_report()), encoding="utf-8")

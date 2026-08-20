@@ -5,6 +5,7 @@ from typing import Literal
 import tree_sitter
 
 from corpus.models.corpus import CorpusEntry
+from pipeline.controller.provenance import CorpusLineage, cluster_corpus_entries
 from pipeline.controller.parsing import (
     _apply_replacements,
     _collapse_whitespace,
@@ -186,8 +187,11 @@ def _match_from_entry(
     entry: CorpusEntry,
     side: Literal["vulnerable", "patched"],
     match_type: Literal["exact", "abstracted"],
+    lineage: CorpusLineage | None = None,
 ) -> HashMatch:
     return HashMatch(
+        lineage_id=lineage.lineage_id if lineage else None,
+        advisories=list(lineage.advisories) if lineage else [],
         ghsa_id=entry.ghsa_id,
         cve_id=entry.cve_id,
         osv_id=entry.osv_id,
@@ -215,7 +219,8 @@ def build_hash_index(entries: list[CorpusEntry]) -> HashIndex:
     is cheap regardless of corpus size, so this avoids a corpus.db schema migration for
     something trivially recomputed."""
     index = HashIndex()
-    for entry in entries:
+    for lineage in cluster_corpus_entries(entries):
+        entry = lineage.representative
         for side, source in (
             ("vulnerable", entry.vulnerable_function),
             ("patched", entry.patched_function),
@@ -227,13 +232,13 @@ def build_hash_index(entries: list[CorpusEntry]) -> HashIndex:
                 index.exact,
                 fingerprint.exact_length,
                 fingerprint.exact_hash,
-                _match_from_entry(entry, side, "exact"),
+                _match_from_entry(entry, side, "exact", lineage),
             )
             _insert(
                 index.abstracted,
                 fingerprint.abstracted_length,
                 fingerprint.abstracted_hash,
-                _match_from_entry(entry, side, "abstracted"),
+                _match_from_entry(entry, side, "abstracted", lineage),
             )
     return index
 

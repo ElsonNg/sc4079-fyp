@@ -164,6 +164,23 @@ def test_hash_index_round_trip_finds_vulnerable_and_patched_sides():
     assert any(m.side == "patched" and m.match_type == "exact" for m in patched_matches)
 
 
+def test_hash_index_deduplicates_shared_lineage_and_retains_advisory_aliases():
+    original = _entry("GHSA-original", TRANSFER_A, TRANSFER_SWAPPED)
+    alias = original.model_copy(
+        update={"ghsa_id": "GHSA-alias", "package_name": "pkg-fork"}
+    )
+
+    matches = lookup(TRANSFER_A, build_hash_index([original, alias]))
+    exact = [match for match in matches if match.side == "vulnerable" and match.match_type == "exact"]
+
+    assert len(exact) == 1
+    assert exact[0].lineage_id
+    assert {item.ghsa_id for item in exact[0].advisories} == {
+        "GHSA-original",
+        "GHSA-alias",
+    }
+
+
 def test_hash_index_skips_unhashable_entries():
     entry = _entry("GHSA-test-0002", "function f(a) { return a; }", "function f(a) { return -a; }")
     index = build_hash_index([entry])

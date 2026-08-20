@@ -29,7 +29,8 @@ class RegionRetrievalIndex:
 
 def _region_fingerprint(pairs: list[VulnerableRegionPair], model_id: str) -> str:
     values = [
-        f"{model_id}|{pair.pair_id}|{pair.advisory_title}|"
+        f"{model_id}|{pair.pair_id}|{pair.lineage_id}|{pair.advisory_title}|"
+        f"{json.dumps([item.model_dump() for item in pair.advisories], sort_keys=True)}|"
         f"{pair.vulnerable_source_sha256}|{pair.patched_source_sha256}|"
         f"{pair.vulnerable_region.source}|{pair.patched_region.source}"
         for pair in pairs
@@ -102,6 +103,8 @@ def query_region_batch(
             matches.append(
                 RegionRetrievalMatch(
                     pair_id=pair.pair_id,
+                    lineage_id=pair.lineage_id,
+                    advisories=pair.advisories,
                     similarity=float(similarity),
                     rank=rank,
                     candidate_region_id=candidate.region.region_id,
