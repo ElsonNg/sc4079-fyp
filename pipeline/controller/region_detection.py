@@ -25,15 +25,19 @@ from pipeline.controller.region_retrieval import (
 )
 from pipeline.controller.region_verification import (
     RegionVerifierConfig,
-    classify_evidence,
+    classify_boundary,
+    deduplicate_evidence,
     verify_region_pair,
 )
+from pipeline.controller.provenance import cluster_corpus_entries
 from pipeline.controller.embedding import DEFAULT_MODEL_ID
 from pipeline.models.regions import (
-    ProvenanceConfidence,
-    RegionAdvisoryVerdict,
+    LineageAttribution,
+    LineageConfidence,
+    PackageApplicability,
     RegionAggregate,
     RegionDetectionResult,
+    VulnerabilityState,
 )
 
 AdvisoryIdentity = tuple[str, ...]
@@ -51,72 +55,33 @@ def _pair_identity(pair) -> AdvisoryIdentity:
     return pair.ghsa_id, pair.fix_commit_sha, pair.file_path, pair.function_name
 
 
-def _hash_advisory_verdicts(hash_matches) -> list[RegionAdvisoryVerdict]:
-    grouped = {}
-    for match in hash_matches:
-        grouped.setdefault(_hash_identity(match), []).append(match)
-
-    verdicts = []
-    for identity in sorted(grouped, key=lambda item: tuple(value or "" for value in item)):
-        matches = grouped[identity]
-        exact_vulnerable = any(match.side == "vulnerable" and match.match_type == "exact" for match in matches)
-        exact_patched = any(match.side == "patched" and match.match_type == "exact" for match in matches)
-        vulnerable = any(match.side == "vulnerable" for match in matches)
-        patched = any(match.side == "patched" for match in matches)
-
-        if exact_vulnerable and exact_patched:
-            status = "manual_review"
-            confidence: ProvenanceConfidence = "ambiguous"
-            message = "Conflicting exact vulnerable-side and patched-side hash matches"
-        elif exact_patched:
-            status = "cleared"
-            confidence = "none"
-            message = "Exact patched-side hash match for this advisory identity"
-        elif exact_vulnerable:
-            status = "flagged"
-            confidence = "high"
-            message = "Exact vulnerable-side hash match for this advisory identity"
-        elif vulnerable and patched:
-            status = "manual_review"
-            confidence = "ambiguous"
-            message = "Conflicting abstracted vulnerable-side and patched-side hash matches"
-        elif patched:
-            status = "cleared"
-            confidence = "none"
-            message = "Abstracted patched-side hash match for this advisory identity"
-        else:
-            status = "flagged"
-            confidence = "high"
-            message = "Abstracted vulnerable-side hash match for this advisory identity"
-
-        first = matches[0]
-        verdicts.append(
-            RegionAdvisoryVerdict(
-                ghsa_id=first.ghsa_id,
-                lineage_id=first.lineage_id,
-                advisories=first.advisories,
-                cve_id=first.cve_id,
-                fix_commit_sha=first.fix_commit_sha,
-                file_path=first.file_path,
-                function_name=first.function_name,
-                status=status,
-                provenance_confidence=confidence,
-                hash_match_types=sorted({match.match_type for match in matches}),
-                message=message,
-            )
-        )
-    return verdicts
+def derive_priority(lineages, states, applicabilities):
+    credible = {item.lineage_id for item in lineages if item.confidence in {"high", "medium"}}
+    scoped = [item for item in states if item.lineage_id in credible]
+    app = {(item.lineage_id, item.package): item.status for item in applicabilities}
+    vulnerable = [item for item in scoped if item.status == "vulnerable"]
+    if vulnerable:
+        for state in vulnerable:
+            packages = {alias.package_name for alias in state.advisories if alias.package_name}
+            if any(app.get((state.lineage_id, package)) == "confirmed" for package in packages):
+                if not state.contradictions:
+                    return "automatic_vulnerability"
+        return "manual_review"
+    if any(item.status == "uncertain" for item in scoped):
+        return "manual_review"
+    if scoped and all(item.status == "patched" for item in scoped):
+        return "informational_lineage"
+    return "none"
 
 
-def _overall_verdict(verdicts: list[RegionAdvisoryVerdict]) -> tuple[str, ProvenanceConfidence]:
-    flagged = [verdict for verdict in verdicts if verdict.status == "flagged"]
-    if flagged:
-        confidence_order = {"none": 0, "ambiguous": 1, "low": 2, "medium": 3, "high": 4}
-        confidence = max(flagged, key=lambda verdict: confidence_order[verdict.provenance_confidence]).provenance_confidence
-        return "flagged", confidence
-    if any(verdict.status == "manual_review" for verdict in verdicts):
-        return "manual_review", "ambiguous"
-    return "cleared", "none"
+def _confidence(score: float) -> LineageConfidence:
+    if score >= 0.82:
+        return "high"
+    if score >= 0.68:
+        return "medium"
+    if score >= 0.55:
+        return "low"
+    return "none"
 
 
 @dataclass(frozen=True)
@@ -126,6 +91,7 @@ class RegionDetectorConfig:
     retrieval_threshold: float = DEFAULT_REGION_THRESHOLD
     max_candidate_regions: int = 96
     max_verification_candidates: int = 5
+    max_verification_regions_per_pair: int = 3
     # Kept for a later alignment ablation; inactive while the verifier uses
     # the simpler AST/token/semantic score.
     use_embedding_alignment_fallback: bool = False
@@ -147,6 +113,7 @@ class RegionDetector:
         self.hash_index = hash_index
         self.config = config or RegionDetectorConfig()
         self.pairs = {pair.pair_id: pair for pair in region_index.pairs}
+        self.lineage_meta = {item.lineage_id: item for item in cluster_corpus_entries(entries)}
 
     def detect(
         self,
@@ -157,7 +124,7 @@ class RegionDetector:
     ) -> RegionDetectionResult:
         if not source_is_supported(candidate_source):
             return RegionDetectionResult(
-                status="manual_review",
+                priority="manual_review",
                 candidate_id=candidate_id,
                 candidate_region_count=0,
                 retrieval_match_count=0,
@@ -167,18 +134,55 @@ class RegionDetector:
         hash_matches = lookup(candidate_source, self.hash_index)
         hash_types = sorted({match.match_type for match in hash_matches})
         if hash_matches:
-            advisory_verdicts = _hash_advisory_verdicts(hash_matches)
-            status, provenance = _overall_verdict(advisory_verdicts)
+            lineage_ids = sorted({match.lineage_id for match in hash_matches if match.lineage_id})
+            lineages = []
+            for lineage_id in lineage_ids:
+                members = [match for match in hash_matches if match.lineage_id == lineage_id]
+                first = members[0]
+                aliases = {
+                    alias.model_dump_json(): alias
+                    for match in members for alias in match.advisories
+                }
+                lineages.append(LineageAttribution(
+                    lineage_id=lineage_id,
+                    confidence="high",
+                    score=1.0,
+                    repo=first.repo,
+                    file_path=first.file_path,
+                    reference_function=first.function_name,
+                    associated_advisories=list(aliases.values()),
+                ))
+            states = []
+            for boundary_id in sorted({match.fix_boundary_id for match in hash_matches if match.fix_boundary_id}):
+                members = [match for match in hash_matches if match.fix_boundary_id == boundary_id]
+                first = members[0]
+                vulnerable = any(match.side == "vulnerable" for match in members)
+                patched = any(match.side == "patched" for match in members)
+                status = "uncertain" if vulnerable and patched else "vulnerable" if vulnerable else "patched"
+                states.append(VulnerabilityState(
+                    lineage_id=first.lineage_id or "",
+                    fix_boundary_id=boundary_id,
+                    fix_commit_sha=first.fix_commit_sha,
+                    status=status,
+                    vulnerable_score=1.0 if vulnerable else 0.0,
+                    patched_score=1.0 if patched else 0.0,
+                    contrast_score=0.0 if vulnerable and patched else 1.0 if vulnerable else -1.0,
+                    fix_evidence=[f"{first.match_type} {first.side}-side hash match"],
+                    contradictions=["vulnerable and patched hashes both match"] if vulnerable and patched else [],
+                    advisories=first.advisories,
+                ))
+            applications = self._unknown_applicabilities(lineages)
             return RegionDetectionResult(
-                status=status,
+                priority=derive_priority(lineages, states, applications),
                 candidate_id=candidate_id,
-                provenance_confidence=provenance,
                 hash_match_types=hash_types,
                 hash_matches=hash_matches,
                 candidate_region_count=0,
                 retrieval_match_count=0,
-                advisory_verdicts=advisory_verdicts,
-                message="Resolved deterministic hash matches per advisory identity",
+                lineages=lineages,
+                vulnerability_states=states,
+                package_applicabilities=applications,
+                message="Resolved deterministic hash evidence by lineage and fix boundary",
             )
 
         candidate_regions = _candidate_regions or enumerate_candidate_regions(
@@ -200,6 +204,8 @@ class RegionDetector:
             aggregates.append(
                 RegionAggregate(
                     pair_id=pair_id,
+                    lineage_id=self.pairs[pair_id].lineage_id,
+                    fix_boundary_id=self.pairs[pair_id].fix_boundary_id,
                     best_similarity=max(match.similarity for match in pair_matches),
                     support_count=len(candidate_region_ids),
                     candidate_region_ids=candidate_region_ids,
@@ -212,68 +218,102 @@ class RegionDetector:
         regions_by_id = {candidate.region.region_id: candidate.region for candidate in candidate_regions}
         evidence = []
         for aggregate in aggregates:
-            best_match = max(aggregate.top_matches, key=lambda item: item.similarity)
-            candidate_region = regions_by_id[best_match.candidate_region_id]
-            if not candidate_region_is_informative(candidate_region):
-                continue
             pair = self.pairs[aggregate.pair_id]
-            evidence.append(
-                verify_region_pair(
-                    candidate_region,
-                    pair,
-                    retrieval_similarity=best_match.similarity,
-                    config=self.config.verifier,
-                    model_id=self.config.model_id,
-                    use_embedding_alignment=self.config.use_embedding_alignment_fallback,
+            seen_candidate_regions: set[str] = set()
+            verified_region_count = 0
+            for match in sorted(
+                aggregate.top_matches,
+                key=lambda item: item.similarity,
+                reverse=True,
+            ):
+                if match.candidate_region_id in seen_candidate_regions:
+                    continue
+                seen_candidate_regions.add(match.candidate_region_id)
+                candidate_region = regions_by_id[match.candidate_region_id]
+                if not candidate_region_is_informative(candidate_region):
+                    continue
+                evidence.append(
+                    verify_region_pair(
+                        candidate_region,
+                        pair,
+                        retrieval_similarity=match.similarity,
+                        config=self.config.verifier,
+                        model_id=self.config.model_id,
+                        use_embedding_alignment=self.config.use_embedding_alignment_fallback,
+                    )
                 )
-            )
-        evidence_by_identity = {}
+                verified_region_count += 1
+                if verified_region_count >= self.config.max_verification_regions_per_pair:
+                    break
+        evidence_by_boundary = {}
         for item in evidence:
-            identity = _pair_identity(self.pairs[item.pair_id])
-            evidence_by_identity.setdefault(identity, []).append(item)
-        aggregates_by_pair = {aggregate.pair_id: aggregate for aggregate in aggregates}
-        advisory_verdicts = []
-        for identity in sorted(evidence_by_identity, key=lambda item: tuple(value or "" for value in item)):
-            scoped_evidence = evidence_by_identity[identity]
-            scoped_aggregates = [
-                aggregates_by_pair[item.pair_id]
-                for item in scoped_evidence
-                if item.pair_id in aggregates_by_pair
-            ]
-            scoped_status, scoped_provenance = classify_evidence(
-                scoped_evidence,
-                scoped_aggregates,
-                self.config.verifier,
-            )
+            pair = self.pairs[item.pair_id]
+            evidence_by_boundary.setdefault(pair.fix_boundary_id, []).append(item)
+        states = []
+        for boundary_id, scoped_evidence in sorted(evidence_by_boundary.items()):
             pair = self.pairs[scoped_evidence[0].pair_id]
-            advisory_verdicts.append(
-                RegionAdvisoryVerdict(
-                    ghsa_id=pair.ghsa_id,
-                    lineage_id=pair.lineage_id,
-                    advisories=pair.advisories,
-                    cve_id=pair.cve_id,
-                    fix_commit_sha=pair.fix_commit_sha,
-                    file_path=pair.file_path,
-                    function_name=pair.function_name,
-                    status=scoped_status,
-                    provenance_confidence=scoped_provenance,
-                    evidence_pair_ids=[item.pair_id for item in scoped_evidence],
-                )
+            states.append(classify_boundary(scoped_evidence, pair, self.config.verifier))
+
+        lineages = []
+        evidence_by_lineage = {}
+        for item in evidence:
+            lineage_id = self.pairs[item.pair_id].lineage_id
+            if lineage_id:
+                evidence_by_lineage.setdefault(lineage_id, []).append(item)
+        for lineage_id, scoped in sorted(evidence_by_lineage.items()):
+            independent = deduplicate_evidence(scoped)
+            span_scores = sorted(
+                0.60 * item.retrieval_similarity
+                + 0.25 * max(item.structural_vulnerable, item.structural_patched)
+                + 0.15 * 0.5
+                for item in independent
             )
-        status, provenance = _overall_verdict(advisory_verdicts)
+            score = span_scores[len(span_scores) // 2] if span_scores else 0.0
+            meta = self.lineage_meta[lineage_id]
+            lineages.append(LineageAttribution(
+                lineage_id=lineage_id,
+                confidence=_confidence(score),
+                score=score,
+                repo=meta.representative.repo,
+                file_path=meta.representative.file_path,
+                reference_function=meta.representative.function_name,
+                associated_advisories=list(meta.advisories),
+                evidence_pair_ids=sorted({item.pair_id for item in independent}),
+            ))
+        lineages.sort(key=lambda item: (-item.score, item.lineage_id))
+        applications = self._unknown_applicabilities(lineages)
         return RegionDetectionResult(
-            status=status,
+            priority=derive_priority(lineages, states, applications),
             candidate_id=candidate_id,
-            provenance_confidence=provenance,
             hash_match_types=hash_types,
             hash_matches=hash_matches,
             candidate_region_count=len(candidate_regions),
             retrieval_match_count=len(matches),
             aggregates=aggregates,
             evidence=evidence,
-            advisory_verdicts=advisory_verdicts,
-            message=None if evidence else "No vulnerable AST-region evidence retrieved",
+            lineages=lineages,
+            vulnerability_states=states,
+            package_applicabilities=applications,
+            message=None if evidence else "No credible AST-region lineage evidence retrieved",
         )
+
+    @staticmethod
+    def _unknown_applicabilities(lineages):
+        values = []
+        for lineage in lineages:
+            packages = {
+                (alias.package_name, alias.ecosystem or "npm")
+                for alias in lineage.associated_advisories if alias.package_name
+            }
+            values.extend(
+                PackageApplicability(
+                    lineage_id=lineage.lineage_id,
+                    package=package,
+                    ecosystem=ecosystem,
+                )
+                for package, ecosystem in sorted(packages)
+            )
+        return values
 
     def detect_batch(
         self,

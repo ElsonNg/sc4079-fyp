@@ -10,8 +10,12 @@ from pipeline.models.provenance import AdvisoryAlias
 
 RegionGranularity = Literal["changed", "block", "context", "function"]
 RegionChangeKind = Literal["insertion", "deletion", "replacement", "movement", "mixed", "unknown"]
-RegionStatus = Literal["flagged", "cleared", "manual_review"]
-ProvenanceConfidence = Literal["high", "medium", "low", "ambiguous", "none"]
+LineageConfidence = Literal["high", "medium", "low", "none"]
+VulnerabilityStatus = Literal["vulnerable", "patched", "uncertain"]
+ApplicabilityStatus = Literal["confirmed", "conflicting", "unknown"]
+FindingPriority = Literal[
+    "automatic_vulnerability", "manual_review", "informational_lineage", "none"
+]
 
 
 class SourceSpan(BaseModel):
@@ -42,6 +46,7 @@ class AstRegion(BaseModel):
 class VulnerableRegionPair(BaseModel):
     pair_id: str
     lineage_id: str | None = None
+    fix_boundary_id: str = ""
     advisories: list[AdvisoryAlias] = Field(default_factory=list)
     ghsa_id: str
     cve_id: str | None = None
@@ -64,6 +69,8 @@ class VulnerableRegionPair(BaseModel):
     patched_region: AstRegion
     change_kind: RegionChangeKind = "unknown"
     diagnostic_line_count: int = 0
+    vulnerable_signature_tokens: list[str] = Field(default_factory=list)
+    fix_signature_tokens: list[str] = Field(default_factory=list)
     vulnerable_source_sha256: str
     patched_source_sha256: str
 
@@ -77,6 +84,8 @@ class CandidateRegion(BaseModel):
 class RegionRetrievalMatch(BaseModel):
     pair_id: str
     lineage_id: str | None = None
+    fix_boundary_id: str = ""
+    reference_side: Literal["vulnerable", "patched"] = "vulnerable"
     advisories: list[AdvisoryAlias] = Field(default_factory=list)
     similarity: float
     rank: int
@@ -103,6 +112,8 @@ class RegionRetrievalMatch(BaseModel):
 
 class RegionAggregate(BaseModel):
     pair_id: str
+    lineage_id: str | None = None
+    fix_boundary_id: str | None = None
     best_similarity: float
     support_count: int
     candidate_region_ids: list[str] = Field(default_factory=list)
@@ -128,37 +139,68 @@ class RegionVerificationEvidence(BaseModel):
     patched_score: float
     vulnerable_minus_patched: float
     ast_coverage: float
-    provenance_confidence: ProvenanceConfidence = "none"
+    candidate_span: SourceSpan | None = None
+    candidate_granularity: RegionGranularity = "function"
+    fix_signature_coverage: float = 0.0
+    vulnerable_signature_coverage: float = 0.0
+    lineage_confidence: LineageConfidence = "none"
     fallback_used: bool = False
 
 
-class RegionAdvisoryVerdict(BaseModel):
-    """Verdict for one concrete advisory/fix/function corpus identity."""
-
-    ghsa_id: str
-    lineage_id: str | None = None
-    advisories: list[AdvisoryAlias] = Field(default_factory=list)
-    cve_id: str | None = None
-    fix_commit_sha: str
+class LineageAttribution(BaseModel):
+    lineage_id: str
+    confidence: LineageConfidence
+    score: float
+    repo: str
     file_path: str
-    function_name: str | None = None
-    status: RegionStatus
-    provenance_confidence: ProvenanceConfidence = "none"
-    hash_match_types: list[str] = Field(default_factory=list)
+    reference_function: str | None = None
+    associated_advisories: list[AdvisoryAlias] = Field(default_factory=list)
     evidence_pair_ids: list[str] = Field(default_factory=list)
-    message: str | None = None
+
+
+class VulnerabilityState(BaseModel):
+    lineage_id: str
+    fix_boundary_id: str
+    fix_commit_sha: str
+    status: VulnerabilityStatus
+    vulnerable_score: float | None = None
+    patched_score: float | None = None
+    contrast_score: float | None = None
+    fix_signature_coverage: float = 0.0
+    vulnerable_signature_coverage: float = 0.0
+    fix_evidence: list[str] = Field(default_factory=list)
+    contradictions: list[str] = Field(default_factory=list)
+    advisories: list[AdvisoryAlias] = Field(default_factory=list)
+    evidence_pair_ids: list[str] = Field(default_factory=list)
+
+
+class ApplicabilityEvidence(BaseModel):
+    kind: str
+    source: str
+    package: str | None = None
+    version: str | None = None
+    detail: str | None = None
+
+
+class PackageApplicability(BaseModel):
+    lineage_id: str
+    package: str
+    ecosystem: str = "npm"
+    status: ApplicabilityStatus = "unknown"
+    evidence: list[ApplicabilityEvidence] = Field(default_factory=list)
 
 
 class RegionDetectionResult(BaseModel):
-    status: RegionStatus
+    priority: FindingPriority = "none"
     candidate_id: str | None = None
-    provenance_confidence: ProvenanceConfidence = "none"
     hash_match_types: list[str] = Field(default_factory=list)
     hash_matches: list[HashMatch] = Field(default_factory=list)
     candidate_region_count: int
     retrieval_match_count: int
     aggregates: list[RegionAggregate] = Field(default_factory=list)
     evidence: list[RegionVerificationEvidence] = Field(default_factory=list)
-    advisory_verdicts: list[RegionAdvisoryVerdict] = Field(default_factory=list)
+    lineages: list[LineageAttribution] = Field(default_factory=list)
+    vulnerability_states: list[VulnerabilityState] = Field(default_factory=list)
+    package_applicabilities: list[PackageApplicability] = Field(default_factory=list)
     parser_supported: bool = True
     message: str | None = None

@@ -168,7 +168,10 @@ def build_parser() -> argparse.ArgumentParser:
     report = commands.add_parser("report", help="Inspect a saved scan report without rerunning detection")
     report.add_argument("path", type=Path, help="Scan JSON file or target directory")
     report.add_argument("--verbose", action="store_true", help="Show CVE, version, score, and provenance details")
-    report.add_argument("--include-cleared", action="store_true", help="Include cleared findings in detailed output")
+    report.add_argument(
+        "--include-informational", action="store_true",
+        help="Include informational lineage and no-match results in detailed output",
+    )
     report.add_argument("--json", action="store_true", help="Print the structured report view")
 
     corpus = commands.add_parser("corpus", help="Manage the vulnerability corpus")
@@ -287,9 +290,9 @@ def _report(args: argparse.Namespace) -> int:
         return 2
 
     if args.json:
-        print(json.dumps(report_view(payload, include_cleared=args.include_cleared), indent=2))
+        print(json.dumps(report_view(payload, include_informational=args.include_informational), indent=2))
     elif args.verbose:
-        print(format_verbose(payload, include_cleared=args.include_cleared))
+        print(format_verbose(payload, include_informational=args.include_informational))
     else:
         print(format_audit_summary(payload))
     return report_exit_code(payload)

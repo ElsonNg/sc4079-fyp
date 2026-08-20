@@ -14,18 +14,28 @@ def _source_digest(source: str) -> str:
 
 
 def provenance_lineage_id(entry: CorpusEntry) -> str:
-    """Stable identity for one repository-backed vulnerable-to-patched code change."""
+    """Stable identity for an upstream repository/file/function code family."""
 
     values = (
         entry.repo,
-        entry.fix_commit_sha,
         entry.file_path,
         entry.function_name or "",
+    )
+    digest = hashlib.sha256("\0".join(values).encode("utf-8")).hexdigest()
+    return f"lineage-{digest}"
+
+
+def fix_boundary_id(entry: CorpusEntry) -> str:
+    """Stable identity for one concrete fix inside a lineage."""
+
+    values = (
+        provenance_lineage_id(entry),
+        entry.fix_commit_sha,
         _source_digest(entry.vulnerable_function),
         _source_digest(entry.patched_function),
     )
     digest = hashlib.sha256("\0".join(values).encode("utf-8")).hexdigest()
-    return f"lineage-{digest}"
+    return f"boundary-{digest}"
 
 
 def advisory_alias(entry: CorpusEntry) -> AdvisoryAlias:
@@ -47,15 +57,24 @@ def advisory_alias(entry: CorpusEntry) -> AdvisoryAlias:
 
 
 @dataclass(frozen=True)
-class CorpusLineage:
-    lineage_id: str
+class CorpusFixBoundary:
+    fix_boundary_id: str
     representative: CorpusEntry
     entries: tuple[CorpusEntry, ...]
     advisories: tuple[AdvisoryAlias, ...]
 
 
+@dataclass(frozen=True)
+class CorpusLineage:
+    lineage_id: str
+    representative: CorpusEntry
+    entries: tuple[CorpusEntry, ...]
+    advisories: tuple[AdvisoryAlias, ...]
+    boundaries: tuple[CorpusFixBoundary, ...]
+
+
 def cluster_corpus_entries(entries: list[CorpusEntry]) -> list[CorpusLineage]:
-    """Collapse duplicate code pairs while retaining every advisory/package alias."""
+    """Group code families, then deduplicate aliases for each concrete fix boundary."""
 
     grouped: dict[str, list[CorpusEntry]] = {}
     for entry in entries:
@@ -83,12 +102,34 @@ def cluster_corpus_entries(entries: list[CorpusEntry]) -> list[CorpusLineage]:
                 alias.ecosystem or "",
             )
             aliases.setdefault(key, alias)
+        boundary_members: dict[str, list[CorpusEntry]] = {}
+        for member in ordered:
+            boundary_members.setdefault(fix_boundary_id(member), []).append(member)
+        boundaries = []
+        for boundary_id, values in sorted(boundary_members.items()):
+            boundary_aliases = []
+            seen_aliases = set()
+            for member in values:
+                alias = advisory_alias(member)
+                key = (alias.ghsa_id, alias.cve_id, alias.osv_id, alias.package_name, alias.ecosystem)
+                if key not in seen_aliases:
+                    boundary_aliases.append(alias)
+                    seen_aliases.add(key)
+            boundaries.append(
+                CorpusFixBoundary(
+                    fix_boundary_id=boundary_id,
+                    representative=values[0],
+                    entries=tuple(values),
+                    advisories=tuple(boundary_aliases),
+                )
+            )
         lineages.append(
             CorpusLineage(
                 lineage_id=lineage_id,
                 representative=ordered[0],
                 entries=tuple(ordered),
                 advisories=tuple(aliases.values()),
+                boundaries=tuple(boundaries),
             )
         )
     return sorted(lineages, key=lambda item: item.lineage_id)

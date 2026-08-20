@@ -24,12 +24,14 @@ class RegionRetrievalIndex:
     model_id: str
     index: "faiss.Index"
     pairs: list[VulnerableRegionPair] = field(default_factory=list)
+    indexed_pair_ids: list[str] = field(default_factory=list)
+    indexed_sides: list[str] = field(default_factory=list)
     fingerprint: str = ""
 
 
 def _region_fingerprint(pairs: list[VulnerableRegionPair], model_id: str) -> str:
     values = [
-        f"{model_id}|{pair.pair_id}|{pair.lineage_id}|{pair.advisory_title}|"
+        f"symmetric-v2|{model_id}|{pair.pair_id}|{pair.lineage_id}|{pair.advisory_title}|"
         f"{json.dumps([item.model_dump() for item in pair.advisories], sort_keys=True)}|"
         f"{pair.vulnerable_source_sha256}|{pair.patched_source_sha256}|"
         f"{pair.vulnerable_region.source}|{pair.patched_region.source}"
@@ -46,7 +48,11 @@ def build_region_index(
     m: int = 32,
     progress_callback: Callable[[int, int], None] | None = None,
 ) -> RegionRetrievalIndex:
-    texts = [pair.vulnerable_region.embedding_text for pair in pairs]
+    texts = [
+        region.embedding_text
+        for pair in pairs
+        for region in (pair.vulnerable_region, pair.patched_region)
+    ]
     # Keep first-time corpus indexing observable and avoid one long silent model call.
     vectors_parts = []
     index_batch_size = 32
@@ -77,6 +83,8 @@ def build_region_index(
         model_id=model_id,
         index=index,
         pairs=pairs,
+        indexed_pair_ids=[pair.pair_id for pair in pairs for _ in range(2)],
+        indexed_sides=[side for _pair in pairs for side in ("vulnerable", "patched")],
         fingerprint=_region_fingerprint(pairs, model_id),
     )
 
@@ -91,7 +99,8 @@ def query_region_batch(
         return [[] for _ in candidate_regions]
     texts = [candidate.region.embedding_text for candidate in candidate_regions]
     vectors = embedding.encode(retrieval_index.model_id, texts)
-    k = min(top_k, len(retrieval_index.pairs))
+    indexed_count = len(retrieval_index.indexed_pair_ids) or len(retrieval_index.pairs)
+    k = min(top_k, indexed_count)
     similarities, ids = retrieval_index.index.search(vectors, k)
     results: list[list[RegionRetrievalMatch]] = []
     for candidate, row_sims, row_ids in zip(candidate_regions, similarities, ids):
@@ -99,11 +108,19 @@ def query_region_batch(
         for rank, (similarity, index_id) in enumerate(zip(row_sims, row_ids), start=1):
             if index_id < 0 or float(similarity) < threshold:
                 continue
-            pair = retrieval_index.pairs[int(index_id)]
+            if retrieval_index.indexed_pair_ids:
+                pairs_by_id = {pair.pair_id: pair for pair in retrieval_index.pairs}
+                pair = pairs_by_id[retrieval_index.indexed_pair_ids[int(index_id)]]
+                reference_side = retrieval_index.indexed_sides[int(index_id)]
+            else:
+                pair = retrieval_index.pairs[int(index_id)]
+                reference_side = "vulnerable"
             matches.append(
                 RegionRetrievalMatch(
                     pair_id=pair.pair_id,
                     lineage_id=pair.lineage_id,
+                    fix_boundary_id=pair.fix_boundary_id,
+                    reference_side=reference_side,
                     advisories=pair.advisories,
                     similarity=float(similarity),
                     rank=rank,
@@ -172,6 +189,8 @@ def save_region_index(
         "model_id": retrieval_index.model_id,
         "fingerprint": retrieval_index.fingerprint,
         "pairs": [pair.model_dump() for pair in retrieval_index.pairs],
+        "indexed_pair_ids": retrieval_index.indexed_pair_ids,
+        "indexed_sides": retrieval_index.indexed_sides,
     }
     (directory / f"{stem}.meta.json").write_text(json.dumps(metadata), encoding="utf-8")
 
@@ -195,5 +214,7 @@ def load_region_index(
         model_id=model_id,
         index=faiss.read_index(str(index_path)),
         pairs=pairs,
+        indexed_pair_ids=list(metadata.get("indexed_pair_ids", [])),
+        indexed_sides=list(metadata.get("indexed_sides", [])),
         fingerprint=expected,
     )

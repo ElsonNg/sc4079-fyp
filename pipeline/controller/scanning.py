@@ -22,6 +22,7 @@ from pipeline.controller.incremental import (
     save_scan_state,
 )
 from pipeline.controller.parsing import extract_function_units
+from pipeline.controller.project_evidence import build_project_evidence
 from pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig, build_region_detector
 from pipeline.models.regions import RegionDetectionResult
 
@@ -30,7 +31,7 @@ DEFAULT_CORPUS_VERSION = "unknown"
 # Bump this whenever the persisted RegionDetectionResult shape or its serialized
 # metadata contract changes. This prevents old cache entries from being treated as
 # complete results after adding fields such as CVE/version provenance.
-RESULT_CACHE_SCHEMA_VERSION = 6
+RESULT_CACHE_SCHEMA_VERSION = 7
 
 
 class Detector(Protocol):
@@ -58,7 +59,7 @@ class ScanSummary:
     total_functions: int
     scanned_functions: int
     reused_functions: int
-    status_counts: dict[str, int]
+    priority_counts: dict[str, int]
     findings: list[dict[str, Any]]
     state_path: str
     explanation_run: dict[str, Any] = field(
@@ -78,7 +79,7 @@ class ScanSummary:
             for finding in self.findings
         ]
         return {
-            "schema": "provtrail_scan_v4",
+            "schema": "provtrail_scan_v5",
             "target_root": self.target_root,
             "root_hash": self.root_hash,
             "previous_root_hash": self.previous_root_hash,
@@ -89,7 +90,7 @@ class ScanSummary:
             "total_functions": self.total_functions,
             "scanned_functions": self.scanned_functions,
             "reused_functions": self.reused_functions,
-            "status_counts": self.status_counts,
+            "priority_counts": self.priority_counts,
             "findings": public_findings,
             "state_path": self.state_path,
             "explanation_run": self.explanation_run,
@@ -211,6 +212,7 @@ def scan_directory(
     previous = load_scan_state(state_path)
     snapshot = build_merkle_snapshot(root)
     js_files = _js_files(snapshot, config.extensions)
+    project_evidence = build_project_evidence(root, js_files)
     progress("snapshot_complete", total_files=len(js_files))
     config_fingerprint = fingerprint_config(
         {
@@ -253,6 +255,10 @@ def scan_directory(
         if file_unchanged and relative_path in previous_by_path:
             records = [dict(record) for record in previous_by_path[relative_path]]
             for record in records:
+                cached_result = _result_from_record(record, record["function_id"])
+                record["result"] = project_evidence.assess(
+                    cached_result, relative_path
+                ).model_dump(mode="json")
                 current_records[record["function_id"]] = record
                 reused_functions += 1
             progress(
@@ -287,19 +293,20 @@ def scan_directory(
             function_hash = record["function_hash"]
             cached = result_cache.get(function_hash)
             if cached is not None:
-                result = _result_from_record(cached, record["function_id"])
+                raw_result = _result_from_record(cached, record["function_id"])
                 reused_functions += 1
                 file_reused += 1
                 source = "reused"
             else:
-                result = get_detector().detect(record["source"], candidate_id=record["function_id"])
+                raw_result = get_detector().detect(record["source"], candidate_id=record["function_id"])
                 scanned_functions += 1
                 file_scanned += 1
                 source = "scanned"
                 result_cache[function_hash] = {
                     "function_hash": function_hash,
-                    "result": result.model_dump(mode="json"),
+                    "result": raw_result.model_dump(mode="json"),
                 }
+            result = project_evidence.assess(raw_result, relative_path)
             record["result"] = result.model_dump(mode="json")
             current_records[record["function_id"]] = record
             progress(
@@ -308,7 +315,7 @@ def scan_directory(
                 function_index=function_index,
                 function_count=len(records),
                 name=record["name"],
-                status=result.status,
+                status=result.priority,
                 source=source,
             )
         progress(
@@ -349,7 +356,7 @@ def scan_directory(
         result_cache=result_cache,
     )
     save_scan_state(state, state_path)
-    statuses = Counter(finding["result"]["status"] for finding in findings)
+    priorities = Counter(finding["result"]["priority"] for finding in findings)
     progress(
         "scan_complete",
         total_files=len(js_files),
@@ -368,7 +375,7 @@ def scan_directory(
         total_functions=len(findings),
         scanned_functions=scanned_functions,
         reused_functions=reused_functions,
-        status_counts=dict(sorted(statuses.items())),
+        priority_counts=dict(sorted(priorities.items())),
         findings=findings,
         state_path=str(state_path),
     )

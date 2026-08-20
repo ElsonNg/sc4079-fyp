@@ -188,10 +188,13 @@ def _match_from_entry(
     side: Literal["vulnerable", "patched"],
     match_type: Literal["exact", "abstracted"],
     lineage: CorpusLineage | None = None,
+    boundary_id: str | None = None,
+    advisories: list | None = None,
 ) -> HashMatch:
     return HashMatch(
         lineage_id=lineage.lineage_id if lineage else None,
-        advisories=list(lineage.advisories) if lineage else [],
+        fix_boundary_id=boundary_id,
+        advisories=advisories if advisories is not None else (list(lineage.advisories) if lineage else []),
         ghsa_id=entry.ghsa_id,
         cve_id=entry.cve_id,
         osv_id=entry.osv_id,
@@ -220,26 +223,33 @@ def build_hash_index(entries: list[CorpusEntry]) -> HashIndex:
     something trivially recomputed."""
     index = HashIndex()
     for lineage in cluster_corpus_entries(entries):
-        entry = lineage.representative
-        for side, source in (
-            ("vulnerable", entry.vulnerable_function),
-            ("patched", entry.patched_function),
-        ):
-            fingerprint = compute_fingerprint(source)
-            if not fingerprint.hashable:
-                continue
-            _insert(
-                index.exact,
-                fingerprint.exact_length,
-                fingerprint.exact_hash,
-                _match_from_entry(entry, side, "exact", lineage),
-            )
-            _insert(
-                index.abstracted,
-                fingerprint.abstracted_length,
-                fingerprint.abstracted_hash,
-                _match_from_entry(entry, side, "abstracted", lineage),
-            )
+        for boundary in lineage.boundaries:
+            entry = boundary.representative
+            for side, source in (
+                ("vulnerable", entry.vulnerable_function),
+                ("patched", entry.patched_function),
+            ):
+                fingerprint = compute_fingerprint(source)
+                if not fingerprint.hashable:
+                    continue
+                _insert(
+                    index.exact,
+                    fingerprint.exact_length,
+                    fingerprint.exact_hash,
+                    _match_from_entry(
+                        entry, side, "exact", lineage,
+                        boundary.fix_boundary_id, list(boundary.advisories),
+                    ),
+                )
+                _insert(
+                    index.abstracted,
+                    fingerprint.abstracted_length,
+                    fingerprint.abstracted_hash,
+                    _match_from_entry(
+                        entry, side, "abstracted", lineage,
+                        boundary.fix_boundary_id, list(boundary.advisories),
+                    ),
+                )
     return index
 
 

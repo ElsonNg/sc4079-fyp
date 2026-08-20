@@ -22,3 +22,12 @@ class AdvisoryAlias(BaseModel):
     affected_versions: list[str] = Field(default_factory=list)
     fixed_versions: list[str] = Field(default_factory=list)
 
+
+class FixBoundaryReference(BaseModel):
+    """One concrete vulnerable-to-patched transition within a code family."""
+
+    fix_boundary_id: str
+    fix_commit_sha: str
+    vulnerable_source_sha256: str
+    patched_source_sha256: str
+    advisories: list[AdvisoryAlias] = Field(default_factory=list)

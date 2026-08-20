@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from pipeline.controller.parsing import normalize_source
 from pipeline.models.regions import (
     AstRegion,
-    ProvenanceConfidence,
+    LineageConfidence,
     RegionAggregate,
-    RegionDetectionResult,
     RegionVerificationEvidence,
+    VulnerabilityState,
     VulnerableRegionPair,
 )
 
@@ -35,6 +35,11 @@ class RegionVerifierConfig:
 
     minimum_vulnerable_score: float = 0.75
     minimum_margin: float = 0.08
+    minimum_supporting_regions: int = 2
+    minimum_consensus_ratio: float = 0.60
+    contradiction_margin: float = 0.08
+    patched_margin: float = 0.08
+    signature_threshold: float = 0.65
     local_alignment_trigger: float = 0.72
     include_local_alignment: bool = False
 
@@ -163,6 +168,16 @@ def verify_region_pair(
         len(candidate_region.ast_shape),
         len(pair.vulnerable_region.ast_shape),
     ) / max(1, max(len(candidate_region.ast_shape), len(pair.vulnerable_region.ast_shape)))
+    candidate_tokens = set(_role_tokens(candidate_region))
+
+    def signature_coverage(values: list[str]) -> float:
+        signature = {
+            "ID" if _IDENTIFIER_RE.match(token) and token not in _KEYWORDS else token
+            for token in values
+            if token.strip()
+        }
+        return len(signature & candidate_tokens) / len(signature) if signature else 0.0
+
     return RegionVerificationEvidence(
         pair_id=pair.pair_id,
         candidate_region_id=candidate_region.region_id,
@@ -181,7 +196,134 @@ def verify_region_pair(
         patched_score=patch_score,
         vulnerable_minus_patched=margin,
         ast_coverage=coverage,
+        candidate_span=candidate_region.span,
+        candidate_granularity=candidate_region.granularity,
+        fix_signature_coverage=signature_coverage(pair.fix_signature_tokens),
+        vulnerable_signature_coverage=signature_coverage(pair.vulnerable_signature_tokens),
         fallback_used=vuln_fallback or patch_fallback,
+    )
+
+
+_GRANULARITY_WEIGHT = {"changed": 4.0, "block": 3.0, "context": 2.0, "function": 1.0}
+
+
+def _overlap(left: RegionVerificationEvidence, right: RegionVerificationEvidence) -> bool:
+    if left.candidate_span is None or right.candidate_span is None:
+        return left.candidate_region_id == right.candidate_region_id
+    return (
+        left.candidate_span.start_byte < right.candidate_span.end_byte
+        and right.candidate_span.start_byte < left.candidate_span.end_byte
+    )
+
+
+def deduplicate_evidence(
+    evidence: list[RegionVerificationEvidence],
+) -> list[RegionVerificationEvidence]:
+    """Collapse overlapping AST windows so nesting cannot manufacture support."""
+
+    ordered = sorted(
+        evidence,
+        key=lambda item: (
+            -_GRANULARITY_WEIGHT[item.candidate_granularity],
+            -item.ast_coverage,
+            -abs(item.vulnerable_minus_patched),
+            item.candidate_region_id,
+        ),
+    )
+    selected: list[RegionVerificationEvidence] = []
+    for item in ordered:
+        if not any(_overlap(item, existing) for existing in selected):
+            selected.append(item)
+    return selected
+
+
+def _weighted_median(values: list[tuple[float, float]]) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    halfway = sum(weight for _, weight in ordered) / 2.0
+    running = 0.0
+    for value, weight in ordered:
+        running += weight
+        if running >= halfway:
+            return value
+    return ordered[-1][0]
+
+
+def classify_boundary(
+    evidence: list[RegionVerificationEvidence],
+    pair: VulnerableRegionPair,
+    config: RegionVerifierConfig | None = None,
+) -> VulnerabilityState:
+    """Classify one fix boundary from independent, changed-region-led evidence."""
+
+    config = config or RegionVerifierConfig()
+    independent = deduplicate_evidence(evidence)
+    if not independent:
+        return VulnerabilityState(
+            lineage_id=pair.lineage_id or "",
+            fix_boundary_id=pair.fix_boundary_id,
+            fix_commit_sha=pair.fix_commit_sha,
+            status="uncertain",
+            advisories=pair.advisories,
+        )
+    weighted = [
+        (
+            item.vulnerable_minus_patched,
+            _GRANULARITY_WEIGHT[item.candidate_granularity] * max(item.ast_coverage, 0.1),
+        )
+        for item in independent
+    ]
+    contrast = _weighted_median(weighted)
+    vulnerable_score = _weighted_median([
+        (item.vulnerable_score, weight) for item, (_value, weight) in zip(independent, weighted)
+    ])
+    patched_score = _weighted_median([
+        (item.patched_score, weight) for item, (_value, weight) in zip(independent, weighted)
+    ])
+    fix_coverage = max(item.fix_signature_coverage for item in independent)
+    vulnerable_coverage = max(item.vulnerable_signature_coverage for item in independent)
+    fix_present = fix_coverage >= config.signature_threshold
+    vulnerable_present = vulnerable_coverage >= config.signature_threshold
+    vulnerable_signal = (
+        vulnerable_score >= config.minimum_vulnerable_score
+        and contrast >= config.minimum_margin
+        and (vulnerable_present or fix_coverage < config.signature_threshold)
+    )
+    patched_signal = (
+        contrast <= -config.patched_margin or fix_present
+    ) and patched_score >= config.minimum_vulnerable_score
+    contradictions: list[str] = []
+    if vulnerable_signal and patched_signal:
+        contradictions.append("vulnerable and fix-present evidence are both strong")
+        status = "uncertain"
+    elif patched_signal:
+        status = "patched"
+    elif vulnerable_signal:
+        status = "vulnerable"
+    else:
+        status = "uncertain"
+    fix_evidence = []
+    if fix_present:
+        fix_evidence.append("added fix signature present")
+    elif pair.fix_signature_tokens:
+        fix_evidence.append("added fix signature absent")
+    if vulnerable_present:
+        fix_evidence.append("removed vulnerable construct retained")
+    return VulnerabilityState(
+        lineage_id=pair.lineage_id or "",
+        fix_boundary_id=pair.fix_boundary_id,
+        fix_commit_sha=pair.fix_commit_sha,
+        status=status,
+        vulnerable_score=vulnerable_score,
+        patched_score=patched_score,
+        contrast_score=contrast,
+        fix_signature_coverage=fix_coverage,
+        vulnerable_signature_coverage=vulnerable_coverage,
+        fix_evidence=fix_evidence,
+        contradictions=contradictions,
+        advisories=pair.advisories,
+        evidence_pair_ids=sorted({item.pair_id for item in independent}),
     )
 
 
@@ -189,7 +331,7 @@ def classify_evidence(
     evidence: list[RegionVerificationEvidence],
     aggregates: list[RegionAggregate],
     config: RegionVerifierConfig | None = None,
-) -> tuple[str, ProvenanceConfidence]:
+) -> tuple[str, LineageConfidence]:
     config = config or RegionVerifierConfig()
     if not evidence:
         return "cleared", "none"
@@ -198,18 +340,47 @@ def classify_evidence(
         if item.vulnerable_score >= config.minimum_vulnerable_score
         and item.vulnerable_minus_patched >= config.minimum_margin
     ]
-    if passing:
+    contradicting = [
+        item for item in evidence
+        if item.patched_score >= config.minimum_vulnerable_score
+        and item.vulnerable_minus_patched <= -config.contradiction_margin
+    ]
+
+    # Multiple retrieved pairs and granularities can point at the same candidate
+    # region. Count that source region once so repeated corpus windows do not create
+    # artificial consensus.
+    supporting_region_ids = {item.candidate_region_id for item in passing}
+    contradicting_region_ids = {item.candidate_region_id for item in contradicting}
+    decisive_region_ids = supporting_region_ids | contradicting_region_ids
+    consensus_ratio = (
+        len(supporting_region_ids - contradicting_region_ids) / len(decisive_region_ids)
+        if decisive_region_ids else 0.0
+    )
+    strongest_vulnerable_margin = max(
+        (item.vulnerable_minus_patched for item in passing),
+        default=float("-inf"),
+    )
+    strongest_patched_margin = max(
+        (-item.vulnerable_minus_patched for item in contradicting),
+        default=float("-inf"),
+    )
+    has_strong_contradiction = strongest_patched_margin >= strongest_vulnerable_margin
+
+    if (
+        len(supporting_region_ids) >= config.minimum_supporting_regions
+        and consensus_ratio >= config.minimum_consensus_ratio
+        and not has_strong_contradiction
+    ):
         best = max(passing, key=lambda item: (item.vulnerable_minus_patched, item.vulnerable_score))
         status = "flagged"
     else:
         best = max(evidence, key=lambda item: (item.vulnerable_minus_patched, item.vulnerable_score))
+        status = "manual_review"
     if not passing and best.vulnerable_minus_patched <= -config.minimum_margin:
         status = "cleared"
-    elif not passing:
-        status = "manual_review"
 
     aggregate = next((item for item in aggregates if item.pair_id == best.pair_id), None)
-    support = aggregate.support_count if aggregate else 1
+    support = len(supporting_region_ids)
     granularity_count = len(aggregate.granularities) if aggregate else 1
     if status != "flagged":
         confidence: ProvenanceConfidence = "ambiguous" if evidence else "none"

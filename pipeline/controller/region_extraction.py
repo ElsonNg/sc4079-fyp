@@ -9,7 +9,12 @@ from dataclasses import dataclass
 import tree_sitter
 
 from corpus.models.corpus import CorpusEntry
-from pipeline.controller.provenance import advisory_alias, cluster_corpus_entries, provenance_lineage_id
+from pipeline.controller.provenance import (
+    advisory_alias,
+    cluster_corpus_entries,
+    fix_boundary_id,
+    provenance_lineage_id,
+)
 from pipeline.controller.parsing import FUNCTION_NODE_TYPES, normalize_source, parse_source
 from pipeline.models.regions import (
     AstRegion,
@@ -379,6 +384,7 @@ def extract_vulnerability_regions(
     entry: CorpusEntry,
     *,
     lineage_id: str | None = None,
+    boundary_id: str | None = None,
     advisories: list[AdvisoryAlias] | None = None,
 ) -> list[VulnerableRegionPair]:
     """Extract paired multi-resolution regions from one vulnerable/patched entry."""
@@ -398,16 +404,27 @@ def extract_vulnerability_regions(
 
     pairs: list[VulnerableRegionPair] = []
     actual_lineage_id = lineage_id or provenance_lineage_id(entry)
+    actual_boundary_id = boundary_id or fix_boundary_id(entry)
     actual_advisories = advisories if advisories is not None else [advisory_alias(entry)]
+    vulnerable_signature = [
+        token
+        for line in entry.diagnostic_lines if line.kind == "removed"
+        for token in _TOKEN_RE.findall(" ".join(normalize_source(line.text)))
+        if token.strip()
+    ]
+    fix_signature = [
+        token
+        for line in entry.diagnostic_lines if line.kind == "added"
+        for token in _TOKEN_RE.findall(" ".join(normalize_source(line.text)))
+        if token.strip()
+    ]
     for granularity in ("changed", "block", "context", "function"):
-        pair_id = (
-            f"{entry.ghsa_id}:{entry.fix_commit_sha}:{entry.file_path}:"
-            f"{entry.function_name}:{granularity}"
-        )
+        pair_id = f"{actual_boundary_id}:{granularity}"
         pairs.append(
             VulnerableRegionPair(
                 pair_id=pair_id,
                 lineage_id=actual_lineage_id,
+                fix_boundary_id=actual_boundary_id,
                 advisories=actual_advisories,
                 ghsa_id=entry.ghsa_id,
                 cve_id=entry.cve_id,
@@ -430,6 +447,8 @@ def extract_vulnerability_regions(
                 patched_region=patched[granularity].model_copy(update={"region_id": pair_id + ":patched"}),
                 change_kind=_change_kind(entry),
                 diagnostic_line_count=len(entry.diagnostic_lines),
+                vulnerable_signature_tokens=vulnerable_signature,
+                fix_signature_tokens=fix_signature,
                 vulnerable_source_sha256=vulnerable_digest,
                 patched_source_sha256=patched_digest,
             )
@@ -440,11 +459,13 @@ def extract_vulnerability_regions(
 def extract_corpus_region_pairs(entries: list[CorpusEntry]) -> list[VulnerableRegionPair]:
     pairs: list[VulnerableRegionPair] = []
     for lineage in cluster_corpus_entries(entries):
-        pairs.extend(
-            extract_vulnerability_regions(
-                lineage.representative,
-                lineage_id=lineage.lineage_id,
-                advisories=list(lineage.advisories),
+        for boundary in lineage.boundaries:
+            pairs.extend(
+                extract_vulnerability_regions(
+                    boundary.representative,
+                    lineage_id=lineage.lineage_id,
+                    boundary_id=boundary.fix_boundary_id,
+                    advisories=list(boundary.advisories),
+                )
             )
-        )
     return pairs

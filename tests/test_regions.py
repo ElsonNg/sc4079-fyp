@@ -269,14 +269,39 @@ def _evidence(pair_id: str, vulnerable_score: float, margin: float) -> RegionVer
 def test_classification_does_not_let_a_low_score_large_margin_hide_passing_evidence():
     low_score = _evidence("pair-low", vulnerable_score=0.72, margin=0.60)
     passing = _evidence("pair-pass", vulnerable_score=0.90, margin=0.20)
+    corroborating = _evidence("pair-corroborating", vulnerable_score=0.86, margin=0.16)
     aggregates = [
         RegionAggregate(pair_id="pair-low", best_similarity=0.9, support_count=1),
         RegionAggregate(pair_id="pair-pass", best_similarity=0.9, support_count=1),
+        RegionAggregate(pair_id="pair-corroborating", best_similarity=0.9, support_count=1),
     ]
 
-    status, _ = classify_evidence([low_score, passing], aggregates)
+    status, _ = classify_evidence([low_score, passing, corroborating], aggregates)
 
     assert status == "flagged"
+
+
+def test_classification_does_not_flag_from_one_supporting_region():
+    passing = _evidence("pair-pass", vulnerable_score=0.90, margin=0.20)
+    aggregates = [RegionAggregate(pair_id="pair-pass", best_similarity=0.9, support_count=4)]
+
+    status, _ = classify_evidence([passing], aggregates)
+
+    assert status == "manual_review"
+
+
+def test_classification_downgrades_when_patched_contradiction_is_as_strong():
+    first = _evidence("pair-first", vulnerable_score=0.90, margin=0.20)
+    second = _evidence("pair-second", vulnerable_score=0.86, margin=0.16)
+    contradiction = _evidence("pair-patched", vulnerable_score=0.55, margin=-0.25)
+    aggregates = [
+        RegionAggregate(pair_id=item.pair_id, best_similarity=0.9, support_count=1)
+        for item in (first, second, contradiction)
+    ]
+
+    status, _ = classify_evidence([first, second, contradiction], aggregates)
+
+    assert status == "manual_review"
 
 
 def test_region_hit_aggregation_counts_supporting_candidate_regions():

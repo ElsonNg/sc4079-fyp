@@ -16,6 +16,7 @@ class FunctionFingerprint(BaseModel):
 
 class HashMatch(BaseModel):
     lineage_id: str | None = None
+    fix_boundary_id: str | None = None
     advisories: list[AdvisoryAlias] = Field(default_factory=list)
     ghsa_id: str
     cve_id: str | None = None

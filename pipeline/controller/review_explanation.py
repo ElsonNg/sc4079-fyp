@@ -294,12 +294,12 @@ def enrich_manual_review_findings(
     inputs_by_id = {
         finding["id"]: _explanation_input(finding)
         for finding in normalized["findings"]
-        if finding["status"] == "manual_review"
+        if finding["priority"] == "manual_review"
     }
     targets = [
         finding
         for finding in summary.findings
-        if finding.get("result", {}).get("status") == "manual_review"
+        if finding.get("result", {}).get("priority") == "manual_review"
     ]
     cache = _load_cache(cache_path)
     generated = reused = unavailable = 0

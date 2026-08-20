@@ -332,39 +332,57 @@ def _enrich_lineage(
     lineage: dict[str, Any],
     entries_by_key: dict[tuple[Any, ...], CorpusEntry],
     target_package: dict[str, Any],
+    states: list[dict[str, Any]],
+    applications: list[dict[str, Any]],
 ) -> dict[str, Any]:
     output = dict(lineage)
-    representative_raw = lineage.get("representative") or {}
+    lineage_states = [item for item in states if item.get("lineage_id") == lineage.get("lineage_id")]
+    first_state = lineage_states[0] if lineage_states else {}
+    representative_raw = {
+        **(lineage.get("associated_advisories") or [{}])[0],
+        "lineage_id": lineage.get("lineage_id"),
+        "repo": lineage.get("repo"),
+        "fix_commit_sha": first_state.get("fix_commit_sha"),
+        "file_path": lineage.get("file_path"),
+        "function_name": lineage.get("reference_function"),
+    }
     representative_entry = entries_by_key.get(_entry_key(representative_raw)) if representative_raw else None
     representative = _enrich_match(representative_raw, representative_entry) if representative_raw else {}
     output["representative"] = representative
 
     advisories = []
-    for value in lineage.get("advisories", []):
+    for value in lineage.get("associated_advisories", []):
         combined = {
             **representative_raw,
             **value,
             "lineage_id": lineage.get("lineage_id"),
             "repo": lineage.get("repo") or representative_raw.get("repo"),
-            "fix_commit_sha": lineage.get("fix_commit_sha") or representative_raw.get("fix_commit_sha"),
+            "fix_commit_sha": first_state.get("fix_commit_sha") or representative_raw.get("fix_commit_sha"),
             "file_path": lineage.get("file_path") or representative_raw.get("file_path"),
             "function_name": lineage.get("function_name") or representative_raw.get("function_name"),
         }
         entry = entries_by_key.get(_entry_key(combined))
         advisories.append(_enrich_match(combined, entry))
     output["advisories"] = advisories
-    output["reference_packages"] = lineage.get("reference_packages", [])
-    target_name = str(target_package.get("name") or "")
-    reference_names = {
-        str(value.get("name") or "") for value in output["reference_packages"]
-    }
-    if not target_name:
-        applicability = "unresolved"
-    elif target_name in reference_names:
-        applicability = "confirmed"
-    else:
-        applicability = "not_attributed"
-    output["package_applicability"] = applicability
+    output["reference_packages"] = sorted({
+        (value.get("package_name"), value.get("ecosystem") or "npm")
+        for value in lineage.get("associated_advisories", []) if value.get("package_name")
+    })
+    output["reference_packages"] = [
+        {"name": name, "ecosystem": ecosystem} for name, ecosystem in output["reference_packages"]
+    ]
+    lineage_apps = [item for item in applications if item.get("lineage_id") == lineage.get("lineage_id")]
+    app_statuses = {item.get("status") for item in lineage_apps}
+    output["package_applicability"] = (
+        "confirmed" if "confirmed" in app_statuses else
+        "conflicting" if "conflicting" in app_statuses else "unknown"
+    )
+    output["vulnerability_states"] = lineage_states
+    output["status"] = (
+        "vulnerable" if any(item.get("status") == "vulnerable" for item in lineage_states) else
+        "uncertain" if any(item.get("status") == "uncertain" for item in lineage_states) else "patched"
+    )
+    output["provenance_confidence"] = lineage.get("confidence", "none")
     output["target_package"] = target_package
     return output
 
@@ -382,11 +400,14 @@ def _build_finding(
         project,
     )
     lineages = [
-        _enrich_lineage(lineage, entries_by_key, target_package)
+        _enrich_lineage(
+            lineage, entries_by_key, target_package,
+            detail.get("vulnerability_states", []), detail.get("package_applicabilities", []),
+        )
         for lineage in detail.get("lineages", [])
     ]
     matches = [advisory for lineage in lineages for advisory in lineage["advisories"]]
-    primary_raw = detail.get("primary_match") or {}
+    primary_raw = (lineages[0].get("representative") if lineages else {}) or {}
     primary_entry = entries_by_key.get(_entry_key(primary_raw)) if primary_raw else None
     primary = _enrich_match(primary_raw, primary_entry) if primary_raw else {
         "identifier": "No advisory recorded",
@@ -399,8 +420,8 @@ def _build_finding(
         "fixed_versions": [],
     }
     evidence = detail.get("evidence") or {}
-    status = str(detail.get("status") or "unknown")
-    candidate_source = str(finding.get("source") or "") if status in ACTIVE_STATUSES else ""
+    priority = str(detail.get("priority") or "none")
+    candidate_source = str(finding.get("source") or "") if priority in ACTIVE_STATUSES else ""
     result = finding.get("result", {})
     start_line = int(finding.get("start_line") or 0) + 1
     reference = {
@@ -413,7 +434,7 @@ def _build_finding(
         "vulnerable": None,
         "patched": None,
     }
-    if primary_entry is not None and status in ACTIVE_STATUSES:
+    if primary_entry is not None and priority in ACTIVE_STATUSES:
         reference["vulnerable"] = _excerpt(
             primary_entry.vulnerable_function,
             focus_lines=_reference_lines(primary_entry, patched=False),
@@ -431,9 +452,10 @@ def _build_finding(
         "node_type": finding.get("node_type") or "function",
         "start_line": start_line,
         "end_line": int(finding.get("end_line") or 0) + 1,
-        "status": status,
+        "priority": priority,
+        "status": priority,
         "severity": str(detail.get("severity") or "unknown").lower(),
-        "confidence": str(detail.get("provenance_confidence") or "none"),
+        "confidence": str((detail.get("primary_lineage") or {}).get("confidence") or "none"),
         "message": detail.get("message") or "",
         "primary": primary,
         "advisories": matches,
@@ -472,7 +494,7 @@ def _report_review_explanation(value: Any) -> dict[str, Any] | None:
 def _llm_dismissed(finding: dict[str, Any]) -> bool:
     explanation = finding.get("review_explanation") or {}
     return (
-        finding.get("status") == "manual_review"
+        finding.get("priority") == "manual_review"
         and explanation.get("status") == "generated"
         and explanation.get("llm_verdict") == "dismissed"
     )
@@ -497,13 +519,13 @@ def build_html_report_data(
     ]
     findings.sort(
         key=lambda item: (
-            0 if item["status"] == "flagged" else 1 if item["status"] == "manual_review" else 2,
+            0 if item["priority"] == "automatic_vulnerability" else 1 if item["priority"] == "manual_review" else 2,
             SEVERITY_RANK.get(item["severity"], 5),
             item["path"],
             item["start_line"],
         )
     )
-    active = [item for item in findings if item["status"] in ACTIVE_STATUSES]
+    active = [item for item in findings if item["priority"] in ACTIVE_STATUSES]
     dependencies = _dependency_report(active, summary.target_root)
     recommendations: dict[str, dict[str, Any]] = {}
     for finding in (item for item in active if not _llm_dismissed(item)):
@@ -611,7 +633,7 @@ _TEMPLATE = r'''<!doctype html>
 .top-details{margin:-10px 0 15px;background:transparent;border:0;border-radius:0;padding:0}.top-details summary{display:inline-block;color:var(--muted);font-size:13px;font-weight:750;text-decoration:underline;text-underline-offset:4px}.top-details .scan-grid{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:14px}.report-date{font-size:15px;font-weight:750;margin:0}
 .outcome .top-details{margin:8px 0 0}
 .outcome .top-details summary{color:var(--focus);background:transparent;border-radius:0;padding:0}.report-label{margin-left:8px;color:#111820;font-size:24px;line-height:1.1;font-weight:700;letter-spacing:-.04em}[data-theme="dark"] .report-label{color:var(--ink)}.recommendation>.badge-row{padding-bottom:14px}.recommendation-summary{line-height:1.6}.recommendation-summary.collapsed{max-height:10em;overflow:hidden}.summary-toggle{display:inline-flex;margin-top:16px;border:0;background:transparent;color:var(--focus);padding:0;font-weight:inherit;text-decoration:underline;text-underline-offset:3px}.markdown-body{font-size:14px;overflow-wrap:anywhere}.markdown-body>:first-child{margin-top:0}.markdown-body>:last-child{margin-bottom:0}.markdown-body p{margin:0 0 10px}.markdown-body h4,.markdown-body h5,.markdown-body h6{margin:16px 0 7px;line-height:1.3}.markdown-body h4{font-size:15px}.markdown-body h5,.markdown-body h6{font-size:14px}.markdown-body ul,.markdown-body ol{margin:0 0 11px;padding-inline-start:22px}.markdown-body li+li{margin-top:4px}.markdown-body code{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--surface-2);border-radius:3px;padding:2px 4px}.markdown-body pre{margin:0 0 12px;padding:12px;overflow:auto;background:#111820;color:#e8edf5;border-radius:5px}.markdown-body pre code{padding:0;background:transparent;color:inherit;white-space:pre}.markdown-body blockquote{margin:0 0 12px;padding:10px 12px;background:var(--surface-2);color:var(--muted);border-radius:5px}.markdown-table-wrap{overflow:auto;margin:0 0 12px}.markdown-table{min-width:480px;border:1px solid var(--line)}.markdown-table th,.markdown-table td{padding:8px 10px}.markdown-table th{background:var(--surface-2)}
-.report-label{margin-left:0}.badge.manual_review{color:var(--focus);background:var(--focus-bg)}.badge.llm_dismissed{color:var(--muted);background:var(--surface-2)}.badge.llm_escalate{color:var(--amber);background:var(--amber-bg)}.metric.manual_review strong{color:var(--focus)}.tree-file.flagged>.icon,.tree-file.flagged>.file-name{color:var(--red)}.tree-file.llm_dismissed,.tree summary.llm_dismissed{color:var(--muted)}.tree-file.llm_escalate,.tree summary.llm_escalate{color:var(--amber)}.finding-card>summary{list-style:none;cursor:pointer}.finding-card>summary::-webkit-details-marker{display:none}.finding-chevron{display:inline-flex;color:var(--muted);transition:transform .16s ease}.finding-card[open] .finding-chevron{transform:rotate(180deg)}
+.report-label{margin-left:0}.badge.automatic_vulnerability{color:var(--red);background:var(--red-bg)}.badge.informational_lineage{color:var(--teal);background:var(--teal-bg)}.badge.manual_review{color:var(--focus);background:var(--focus-bg)}.badge.llm_dismissed{color:var(--muted);background:var(--surface-2)}.badge.llm_escalate{color:var(--amber);background:var(--amber-bg)}.metric.manual_review strong{color:var(--focus)}.tree-file.flagged>.icon,.tree-file.flagged>.file-name{color:var(--red)}.tree-file.llm_dismissed,.tree summary.llm_dismissed{color:var(--muted)}.tree-file.llm_escalate,.tree summary.llm_escalate{color:var(--amber)}.finding-card>summary{list-style:none;cursor:pointer}.finding-card>summary::-webkit-details-marker{display:none}.finding-chevron{display:inline-flex;color:var(--muted);transition:transform .16s ease}.finding-card[open] .finding-chevron{transform:rotate(180deg)}
 .overview-file{font-weight:400}.overview-file.llm_escalate .file-name{color:var(--amber)}
 .advisory-intro{margin-bottom:16px}.advisory-intro .advisory-heading{margin:0}.advisory-summary{max-width:920px;margin:7px 0 0;color:var(--muted);font-size:13px;line-height:1.55}
 .advisory-id-link{text-decoration:none}.advisory-id-link:hover{text-decoration:underline;text-underline-offset:3px}
@@ -625,7 +647,7 @@ _TEMPLATE = r'''<!doctype html>
 @media(max-width:650px){.dependencies-board{padding:18px}.dependencies-heading{display:block}.dependency-totals{grid-template-columns:1fr}.dependency-total{padding:13px}}
 @media(max-width:700px){.evidence-dialog-head,.evidence-dialog-body{padding:16px}.breakdown-score-strip{grid-template-columns:1fr 1fr}.breakdown-grid{grid-template-columns:1fr}.equation{grid-template-columns:1fr;gap:4px}}
  .dependency-name{text-decoration:none}.dependency-name:hover{text-decoration:underline;text-underline-offset:3px}
-.provenance-map{margin:0 0 18px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}.provenance-root{display:flex;align-items:center;gap:11px;padding:13px 15px;background:var(--surface-2)}.provenance-root-node,.lineage-node{width:13px;height:13px;border:3px solid var(--surface);border-radius:50%;box-shadow:0 0 0 2px var(--navy);flex:0 0 auto}.provenance-root strong{display:block;font-size:13px}.provenance-root span{display:block;color:var(--muted);font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.lineage-list{padding:0 15px 11px 37px}.lineage-branch{position:relative;border-left:2px solid var(--line);padding:10px 0 0 46px}.lineage-branch:last-child{padding-bottom:3px}.lineage-branch::before{content:"";position:absolute;left:0;top:25px;width:22px;border-top:2px solid var(--line)}.lineage-branch>summary{list-style:none;display:flex;align-items:flex-start;gap:10px;cursor:pointer}.lineage-branch>summary::-webkit-details-marker{display:none}.lineage-node{position:absolute;left:20px;top:19px;background:var(--surface);box-shadow:0 0 0 2px var(--focus)}.lineage-branch.flagged .lineage-node{box-shadow:0 0 0 2px var(--red)}.lineage-branch.manual_review .lineage-node{box-shadow:0 0 0 2px var(--amber)}.lineage-head{min-width:0;flex:1}.lineage-head strong{display:block;font-size:13px;overflow-wrap:anywhere}.lineage-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:3px;color:var(--muted);font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.lineage-toggle{color:var(--muted);transition:transform .16s ease}.lineage-branch[open] .lineage-toggle{transform:rotate(180deg)}.lineage-body{margin:9px 0 0;padding:10px 12px;border-left:2px solid var(--surface-2);background:var(--surface-2);font-size:12px}.lineage-facts{display:grid;grid-template-columns:max-content 1fr;gap:5px 11px;margin:0}.lineage-facts dt{color:var(--muted)}.lineage-facts dd{margin:0;overflow-wrap:anywhere}.alias-list{display:grid;gap:5px;margin-top:9px}.alias-row{display:grid;grid-template-columns:minmax(130px,.65fr) minmax(0,1fr) max-content;align-items:start;gap:10px;padding-top:6px;border-top:1px solid var(--line)}.alias-row span{overflow-wrap:anywhere}.most-likely-badge{display:inline-flex;align-items:center;border:1px solid var(--focus);border-radius:999px;padding:2px 7px;color:var(--focus);background:var(--focus-bg);font-size:10px;font-weight:900;letter-spacing:.02em;white-space:nowrap}.applicability{font-weight:800}.applicability.confirmed{color:var(--teal)}.applicability.not_attributed{color:var(--muted)}.applicability.unresolved{color:var(--amber)}.ranked-reference-note{margin:5px 0 0;color:var(--muted);font-size:12px}.association-count{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--muted)}
+.provenance-map{margin:0 0 18px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}.provenance-root{display:flex;align-items:center;gap:11px;padding:13px 15px;background:var(--surface-2)}.provenance-root-node,.lineage-node{width:13px;height:13px;border:3px solid var(--surface);border-radius:50%;box-shadow:0 0 0 2px var(--navy);flex:0 0 auto}.provenance-root strong{display:block;font-size:13px}.provenance-root span{display:block;color:var(--muted);font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.lineage-list{padding:0 15px 11px 37px}.lineage-branch{position:relative;border-left:2px solid var(--line);padding:10px 0 0 46px}.lineage-branch:last-child{padding-bottom:3px}.lineage-branch::before{content:"";position:absolute;left:0;top:25px;width:22px;border-top:2px solid var(--line)}.lineage-branch>summary{list-style:none;display:flex;align-items:flex-start;gap:10px;cursor:pointer}.lineage-branch>summary::-webkit-details-marker{display:none}.lineage-node{position:absolute;left:20px;top:19px;background:var(--surface);box-shadow:0 0 0 2px var(--focus)}.lineage-branch.vulnerable .lineage-node{box-shadow:0 0 0 2px var(--red)}.lineage-branch.uncertain .lineage-node{box-shadow:0 0 0 2px var(--amber)}.lineage-head{min-width:0;flex:1}.lineage-head strong{display:block;font-size:13px;overflow-wrap:anywhere}.lineage-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:3px;color:var(--muted);font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.lineage-toggle{color:var(--muted);transition:transform .16s ease}.lineage-branch[open] .lineage-toggle{transform:rotate(180deg)}.lineage-body{margin:9px 0 0;padding:10px 12px;border-left:2px solid var(--surface-2);background:var(--surface-2);font-size:12px}.lineage-facts{display:grid;grid-template-columns:max-content 1fr;gap:5px 11px;margin:0}.lineage-facts dt{color:var(--muted)}.lineage-facts dd{margin:0;overflow-wrap:anywhere}.alias-list{display:grid;gap:5px;margin-top:9px}.alias-row{display:grid;grid-template-columns:minmax(130px,.65fr) minmax(0,1fr) max-content;align-items:start;gap:10px;padding-top:6px;border-top:1px solid var(--line)}.alias-row span{overflow-wrap:anywhere}.most-likely-badge{display:inline-flex;align-items:center;border:1px solid var(--focus);border-radius:999px;padding:2px 7px;color:var(--focus);background:var(--focus-bg);font-size:10px;font-weight:900;letter-spacing:.02em;white-space:nowrap}.applicability{font-weight:800}.applicability.confirmed{color:var(--teal)}.applicability.conflicting{color:var(--red)}.applicability.unknown,.applicability.unresolved{color:var(--amber)}.ranked-reference-note{margin:5px 0 0;color:var(--muted);font-size:12px}.association-count{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--muted)}
 @media(max-width:650px){.lineage-list{padding-left:28px}.alias-row{grid-template-columns:1fr}.lineage-facts{grid-template-columns:1fr}.lineage-facts dt{margin-top:4px}}
 .advisory-intro{margin-bottom:26px}.advisory-summary{margin-top:13px}.most-likely-label{color:var(--teal)}.provenance-map .lineage-list{padding-top:10px}.alias-row{display:block;padding:9px 10px;text-align:left}.alias-row.most-likely{background:var(--focus-bg)}.alias-copy{display:grid;gap:4px;justify-items:start;min-width:0}.alias-id{font-weight:850}.alias-title{color:var(--muted);line-height:1.45}.advisory-text-link{display:inline-flex;margin-top:13px;border:0;background:transparent;color:var(--focus);padding:0;font-size:13px;font-weight:650;text-decoration:underline;text-underline-offset:3px}
 .most-likely-label.dismissed{color:var(--muted)}.detail-box.reference-detail{display:flex;flex-direction:column}.reference-actions{justify-content:space-between;margin:auto 0 0;padding-top:22px;gap:20px}.reference-actions .advisory-text-link{margin-top:0}.reference-actions .fix{margin-left:auto}
@@ -637,7 +659,7 @@ _TEMPLATE = r'''<!doctype html>
   <section class="outcome" aria-labelledby="outcome-title"><h2 id="outcome-title"></h2><p class="muted report-date" id="generated"></p><details class="top-details"><summary>Details</summary><div class="scan-grid" id="scan-details"></div></details></section>
   <nav class="tabs" aria-label="Report views"><button class="tab" data-tab="files" aria-selected="true">Files</button><button class="tab" data-tab="findings" aria-selected="false">Findings</button><button class="tab" data-tab="recommendations" aria-selected="false">Recommendations</button><button class="tab" data-tab="dependencies" aria-selected="false">Dependencies</button><button class="tab" data-tab="results" aria-selected="false">Results</button></nav>
   <section id="files" class="panel active"><div class="workspace"><aside class="explorer"><p class="section-title">Project Directory</p><div class="tree" id="tree"></div></aside><article class="pane" id="file-pane"></article></div></section>
-  <section id="findings" class="panel"><div class="toolbar"><label class="sr-only" for="search">Search findings</label><input id="search" class="control search" type="search" placeholder="Search path, function, lineage, advisory, or package"><select id="status-filter" class="control" aria-label="Filter by status"><option value="active">Needs attention</option><option value="flagged">Flagged</option><option value="manual_review">Manual review</option><option value="all">All analyzed</option></select><select id="severity-filter" class="control" aria-label="Filter by severity"><option value="all">All severities</option><option>critical</option><option>high</option><option>moderate</option><option>medium</option><option>low</option><option>unknown</option></select><span class="muted" id="result-count"></span></div><div class="table-wrap"><table><thead><tr><th>Status</th><th>Severity</th><th>LLM Decision</th><th>Location</th><th>Function</th><th>Verified associations</th><th>Confidence</th></tr></thead><tbody id="finding-rows"></tbody></table></div></section>
+  <section id="findings" class="panel"><div class="toolbar"><label class="sr-only" for="search">Search findings</label><input id="search" class="control search" type="search" placeholder="Search path, function, lineage, advisory, or package"><select id="status-filter" class="control" aria-label="Filter by priority"><option value="active">Needs attention</option><option value="automatic_vulnerability">Automatic vulnerability</option><option value="manual_review">Manual review</option><option value="informational_lineage">Informational lineage</option><option value="all">All analyzed</option></select><select id="severity-filter" class="control" aria-label="Filter by severity"><option value="all">All severities</option><option>critical</option><option>high</option><option>moderate</option><option>medium</option><option>low</option><option>unknown</option></select><span class="muted" id="result-count"></span></div><div class="table-wrap"><table><thead><tr><th>Priority</th><th>Severity</th><th>LLM Decision</th><th>Location</th><th>Function</th><th>Verified associations</th><th>Confidence</th></tr></thead><tbody id="finding-rows"></tbody></table></div></section>
   <section id="recommendations" class="panel"><div id="recommendation-list" class="recommendations"></div></section>
   <section id="dependencies" class="panel"><div class="dependencies-board"><header class="dependencies-heading"><div><h2>Reference Package Signals</h2><p class="muted">Packages attached to verified provenance lineages, compared with direct declarations. These are source references, not installed-package claims.</p></div></header><div id="dependency-content"></div></div></section>
   <section id="results" class="panel"><div class="results-board"><header class="results-heading"><h2>Scan Summary</h2></header><div id="results-content"></div></div></section>
@@ -646,7 +668,7 @@ _TEMPLATE = r'''<!doctype html>
 <script id="provtrail-data" type="application/json">__REPORT_DATA__</script>
 <script>
 const report=JSON.parse(document.getElementById('provtrail-data').textContent);
-const activeStatuses=new Set(['flagged','manual_review']);
+const activeStatuses=new Set(['automatic_vulnerability','manual_review']);
 const $=(q,root=document)=>root.querySelector(q);
 const $$=(q,root=document)=>[...root.querySelectorAll(q)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -701,7 +723,7 @@ const label=v=>String(v??'unknown').replaceAll('_',' ');
 const flagIcon='<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4m0 1h9l1.5 2L19 5v9h-9l-1.5-2L5 14"/></svg>';
 const reviewIcon='<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1m0 3.5h.01"/></svg>';
 const dismissIcon='<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
-const badge=(v,kind=v)=>{const icon=kind==='flagged'||kind==='llm_escalate'?flagIcon:kind==='manual_review'?reviewIcon:kind==='llm_dismissed'?dismissIcon:'';const text=kind==='manual_review'?'Review':kind==='llm_dismissed'?'LLM Dismissed':kind==='llm_escalate'?'LLM Escalate':label(v);return `<span class="badge ${esc(kind)}">${icon}${esc(text)}</span>`};
+const badge=(v,kind=v)=>{const icon=kind==='automatic_vulnerability'||kind==='llm_escalate'?flagIcon:kind==='manual_review'?reviewIcon:kind==='llm_dismissed'?dismissIcon:'';const text=kind==='automatic_vulnerability'?'Automatic vulnerability':kind==='manual_review'?'Review':kind==='llm_dismissed'?'LLM Dismissed':kind==='llm_escalate'?'LLM Escalate':label(v);return `<span class="badge ${esc(kind)}">${icon}${esc(text)}</span>`};
 const icons={
   folderClosed:'<svg class="icon folder-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 9h18"/></svg>',
   folderOpen:'<svg class="icon folder-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h9a2 2 0 0 1 1.9 2.6l-2 6A2 2 0 0 1 18 19H5a2 2 0 0 1-1.9-2.6L5 11h16"/></svg>',
@@ -721,7 +743,7 @@ function initSummary(){
 function renderResults(){
   const a=report.audit,m=report.results.final_metrics,attention=m.attention;
   const rows=items=>`<dl class="result-list">${items.map(([name,value,tone=''])=>`<div class="result-row ${esc(tone)}"><dt>${esc(name)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>`;
-  $('#results-content').innerHTML=`<section class="attention-ledger" aria-label="Findings requiring attention by priority"><div class="attention-cell attention-total"><span>Total requiring attention</span><strong>${esc(m.final_findings)}</strong></div><div class="attention-cell attention-high"><span>High</span><strong>${esc(attention.high)}</strong></div><div class="attention-cell attention-medium"><span>Medium</span><strong>${esc(attention.medium)}</strong></div><div class="attention-cell attention-low"><span>Low</span><strong>${esc(attention.low)}</strong></div></section><div class="result-ledgers"><section class="result-ledger"><h3>Scan Coverage</h3><p class="result-ledger-note">Work completed in this run, including incremental reuse.</p>${rows([['Functions analyzed',a.total_functions],['Functions recomputed',a.scanned_functions],['Functions reused',a.reused_functions],['Changed files',a.changed_files]])}</section><section class="result-ledger"><h3>Initial Results</h3><p class="result-ledger-note">Detector outcomes across every analyzed function.</p>${rows([['Flagged',a.flagged,'flagged'],['Manual review',a.manual_review,'review'],['Passed screening',a.cleared],['Advisories',a.unique_advisories]])}</section><section class="result-ledger"><h3>Final Review Decisions</h3><p class="result-ledger-note">How deterministic findings and optional LLM reviews resolved.</p>${rows([['Deterministic flagged',m.deterministic_flagged,'flagged'],['LLM escalated',m.llm_escalated,'escalated'],['LLM dismissed',m.llm_dismissed,'dismissed'],['LLM needs review',m.llm_needs_review,'review']])}</section></div>`;
+  $('#results-content').innerHTML=`<section class="attention-ledger" aria-label="Findings requiring attention by priority"><div class="attention-cell attention-total"><span>Total requiring attention</span><strong>${esc(m.final_findings)}</strong></div><div class="attention-cell attention-high"><span>High</span><strong>${esc(attention.high)}</strong></div><div class="attention-cell attention-medium"><span>Medium</span><strong>${esc(attention.medium)}</strong></div><div class="attention-cell attention-low"><span>Low</span><strong>${esc(attention.low)}</strong></div></section><div class="result-ledgers"><section class="result-ledger"><h3>Scan Coverage</h3><p class="result-ledger-note">Work completed in this run, including incremental reuse.</p>${rows([['Functions analyzed',a.total_functions],['Functions recomputed',a.scanned_functions],['Functions reused',a.reused_functions],['Changed files',a.changed_files]])}</section><section class="result-ledger"><h3>Derived Priorities</h3><p class="result-ledger-note">Lineage, fix-boundary state, and package applicability combined.</p>${rows([['Automatic vulnerability',a.automatic_vulnerability,'flagged'],['Manual review',a.manual_review,'review'],['Informational lineage',a.informational_lineage],['No lineage',a.none],['Advisories',a.unique_advisories]])}</section><section class="result-ledger"><h3>Final Review Decisions</h3><p class="result-ledger-note">Deterministic findings and optional contextual reviews.</p>${rows([['Deterministic automatic',m.deterministic_automatic,'flagged'],['LLM escalated',m.llm_escalated,'escalated'],['LLM dismissed',m.llm_dismissed,'dismissed'],['LLM needs review',m.llm_needs_review,'review']])}</section></div>`;
 }
 function renderDependencies(){
   const d=report.dependencies||{manifest:null,manifest_status:'missing',detected_count:0,ghost_count:0,libraries:[]};
@@ -751,7 +773,7 @@ function updateGeneratedTime(){
 function llmVerdict(finding){const explanation=finding.review_explanation;return explanation?.status==='generated'?explanation.llm_verdict||'':''}
 function referencePresentation(finding){
   const verdict=llmVerdict(finding);
-  if(finding.status==='flagged')return{title:'Most Likely:',lineage:'Most Probable Reference Lineage',vulnerable:'Most Likely vulnerable reference',tone:'',highlight:true};
+  if(finding.status==='automatic_vulnerability')return{title:'Attributed advisory:',lineage:'Credible code lineage',vulnerable:'Vulnerable-side reference',tone:'',highlight:true};
   if(verdict==='flagged')return{title:'Most Probable Candidate:',lineage:'Most Probable Candidate Lineage',vulnerable:'Most probable vulnerable reference',tone:'',highlight:true};
   if(verdict==='dismissed')return{title:'Closest Code Reference:',lineage:'Closest Code Reference',vulnerable:'Closest vulnerable code reference',tone:'dismissed',highlight:false};
   return{title:'Highest-Ranked Candidate:',lineage:'Highest-Ranked Candidate Lineage',vulnerable:'Highest-ranked vulnerable reference',tone:'',highlight:true}
@@ -765,7 +787,7 @@ function llmDecision(finding){
   return'<span class="muted">—</span>'
 }
 function findingKind(finding){
-  if(finding.status==='flagged')return'flagged';
+  if(finding.status==='automatic_vulnerability')return'flagged';
   const verdict=llmVerdict(finding);
   if(verdict==='flagged')return'llm_escalate';
   if(verdict==='dismissed')return'llm_dismissed';
@@ -779,7 +801,7 @@ function countMarkers(findings){
   return markers?`<span class="tree-counts">${markers}</span>`:''
 }
 function attentionStatus(findings){
-  if(findings.some(f=>f.status==='flagged'))return'flagged';
+  if(findings.some(f=>f.status==='automatic_vulnerability'))return'flagged';
   const reviews=findings.filter(f=>f.status==='manual_review');
   if(reviews.some(f=>llmVerdict(f)==='flagged'))return'llm_escalate';
   if(reviews.some(f=>llmVerdict(f)!=='dismissed'))return'manual_review';
@@ -832,8 +854,8 @@ function evidenceBreakdown(f){
   const weightLabel=weight=>weight===null?'Unavailable':`${(weight*100).toFixed(2)}%`;
   const tableRows=signals.map(([name,weight,vulnerable,patched,note])=>{const vulnerableWeight=effectiveWeight(vulnerable,weight,vulnerableWeightTotal),patchedWeight=effectiveWeight(patched,weight,patchedWeightTotal);return `<tr><td><strong>${esc(name)}</strong><span class="weight-note">${esc(note)}</span></td><td>${weightLabel(vulnerableWeight)}</td><td>${scoreValue(vulnerable)}</td><td>${scoreValue(weighted(vulnerable,vulnerableWeight))}</td><td>${weightLabel(patchedWeight)}</td><td>${scoreValue(patched)}</td><td>${scoreValue(weighted(patched,patchedWeight))}</td></tr>`}).join('');
   const minimumVulnerable=Number(report.config.minimum_vulnerable_score),minimumMargin=Number(report.config.minimum_margin);
-  const verdict=f.status==='flagged'?'Flagged':f.status==='cleared'?'Cleared':'Manual review';
-  return `<div class="breakdown-score-strip"><div class="breakdown-score"><span>Retrieval similarity</span><strong>${scoreValue(e.retrieval_similarity)}</strong></div><div class="breakdown-score vulnerable"><span>Vulnerable score</span><strong>${scoreValue(e.vulnerable_score)}</strong></div><div class="breakdown-score patched"><span>Patched score</span><strong>${scoreValue(e.patched_score)}</strong></div><div class="breakdown-score margin"><span>Score margin</span><strong>${scoreValue(e.vulnerable_minus_patched)}</strong></div></div><section class="calculation-section"><h3>Weighted verifier score</h3><p>The vulnerable and patched references are scored independently. Signals with no features on either side are unavailable, and the remaining weights are normalized to 100%. Displayed values are rounded to three decimals.</p><div class="calculation-table-wrap"><table class="calculation-table"><thead><tr><th>Signal</th><th>Vulnerable weight</th><th>Vulnerable similarity</th><th>Weighted</th><th>Patched weight</th><th>Patched similarity</th><th>Weighted</th></tr></thead><tbody>${tableRows}</tbody></table></div></section><div class="breakdown-grid"><section class="formula-card"><h3>Retrieval similarity · 0% verdict weight</h3><p>Cosine similarity between normalized Qwen embeddings ranks which vulnerable regions reach verification. It does not contribute to the vulnerable or patched score.</p><code>cosine(candidate, vulnerable region) = ${scoreValue(e.retrieval_similarity)}</code></section><section class="formula-card"><h3>AST coverage · diagnostic only</h3><p>Compares the AST-shape lengths of the candidate and vulnerable regions. It describes size coverage and is not part of the verdict score.</p><code>min(candidate AST nodes, vulnerable AST nodes) ÷ max(...) = ${scoreValue(e.ast_coverage)}</code></section></div><section class="decision-gate"><h3>Decision gate · ${esc(verdict)}</h3><ul><li><strong>Flagged</strong> when vulnerable score ≥ ${scoreValue(minimumVulnerable)} and margin ≥ ${scoreValue(minimumMargin)}.</li><li><strong>Cleared</strong> when margin ≤ −${scoreValue(minimumMargin)}.</li><li><strong>Manual review</strong> for values between those gates.</li><li>Confidence is assigned afterward from supporting regions, granularities, and margin; it is not another weighted input.</li></ul></section>`;
+  const verdict=f.status==='automatic_vulnerability'?'Automatic vulnerability':f.status==='informational_lineage'?'Informational lineage':f.status==='none'?'No lineage':'Manual review';
+  return `<div class="breakdown-score-strip"><div class="breakdown-score"><span>Retrieval similarity</span><strong>${scoreValue(e.retrieval_similarity)}</strong></div><div class="breakdown-score vulnerable"><span>Vulnerable score</span><strong>${scoreValue(e.vulnerable_score)}</strong></div><div class="breakdown-score patched"><span>Patched score</span><strong>${scoreValue(e.patched_score)}</strong></div><div class="breakdown-score margin"><span>Score margin</span><strong>${scoreValue(e.vulnerable_minus_patched)}</strong></div></div><section class="calculation-section"><h3>Fix-boundary evidence</h3><p>Vulnerable and patched references are scored symmetrically. Overlapping AST windows are deduplicated before their contrast and fix signatures are aggregated.</p><div class="calculation-table-wrap"><table class="calculation-table"><thead><tr><th>Signal</th><th>Vulnerable weight</th><th>Vulnerable similarity</th><th>Weighted</th><th>Patched weight</th><th>Patched similarity</th><th>Weighted</th></tr></thead><tbody>${tableRows}</tbody></table></div></section><div class="breakdown-grid"><section class="formula-card"><h3>Retrieval supports lineage</h3><p>Retrieval similarity ranks code-family candidates; it does not itself establish vulnerability state.</p><code>lineage retrieval = ${scoreValue(e.retrieval_similarity)}</code></section><section class="formula-card"><h3>AST coverage</h3><p>Coverage weights independent changed-region observations during robust aggregation.</p><code>AST coverage = ${scoreValue(e.ast_coverage)}</code></section></div><section class="decision-gate"><h3>Derived priority · ${esc(verdict)}</h3><ul><li>Automatic vulnerability additionally requires credible lineage and confirmed package applicability.</li><li>Fix-present contradictions prevent automatic promotion.</li><li>Unresolved state or applicability remains manual review.</li></ul></section>`;
 }
 function openEvidenceBreakdown(findingId){
   const finding=report.findings.find(item=>item.id===findingId);if(!finding)return;
@@ -927,7 +949,7 @@ function findingCard(f,openByDefault=false){
 function selectFile(path){selectedFile=path;$$('.tree-file').forEach(button=>button.classList.toggle('selected',button.dataset.path===path));renderFile()}
 function renderFile(){
   if(!selectedFile){
-    const statusRank={flagged:0,llm_escalate:1,manual_review:2,llm_dismissed:3,cleared:4};
+    const statusRank={flagged:0,llm_escalate:1,manual_review:2,llm_dismissed:3,informational_lineage:4,none:5};
     const affectedFiles=[...byFile.keys()].sort((a,b)=>statusRank[fileStatus(a)]-statusRank[fileStatus(b)]||a.localeCompare(b));
     $('#file-pane').innerHTML=`<header class="file-heading"><div><h2>${esc(report.project)}</h2><span class="muted">${affectedFiles.length?`${affectedFiles.length} affected file${affectedFiles.length===1?'':'s'}`:'No affected files'}</span></div></header>${affectedFiles.length?`<div class="overview-files">${affectedFiles.map(path=>{const status=fileStatus(path),findings=byFile.get(path)||[];return `<button class="overview-file ${esc(status)}" data-path="${esc(path)}"><span class="file-name">${esc(path)}</span>${countMarkers(findings)}</button>`}).join('')}</div>`:`<div class="empty"><strong>No active findings</strong></div>`}`;
     $$('.overview-file').forEach(button=>button.addEventListener('click',()=>selectFile(button.dataset.path)));
