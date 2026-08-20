@@ -469,6 +469,15 @@ def _report_review_explanation(value: Any) -> dict[str, Any] | None:
     return {field: value[field] for field in fields if field in value}
 
 
+def _llm_dismissed(finding: dict[str, Any]) -> bool:
+    explanation = finding.get("review_explanation") or {}
+    return (
+        finding.get("status") == "manual_review"
+        and explanation.get("status") == "generated"
+        and explanation.get("llm_verdict") == "dismissed"
+    )
+
+
 def build_html_report_data(
     summary: ScanSummary,
     *,
@@ -497,7 +506,7 @@ def build_html_report_data(
     active = [item for item in findings if item["status"] in ACTIVE_STATUSES]
     dependencies = _dependency_report(active, summary.target_root)
     recommendations: dict[str, dict[str, Any]] = {}
-    for finding in active:
+    for finding in (item for item in active if not _llm_dismissed(item)):
         for lineage in finding.get("lineages", []):
             primary = lineage.get("representative") or {}
             key = str(lineage["lineage_id"])
@@ -617,7 +626,9 @@ _TEMPLATE = r'''<!doctype html>
 @media(max-width:700px){.evidence-dialog-head,.evidence-dialog-body{padding:16px}.breakdown-score-strip{grid-template-columns:1fr 1fr}.breakdown-grid{grid-template-columns:1fr}.equation{grid-template-columns:1fr;gap:4px}}
  .dependency-name{text-decoration:none}.dependency-name:hover{text-decoration:underline;text-underline-offset:3px}
 .provenance-map{margin:0 0 18px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}.provenance-root{display:flex;align-items:center;gap:11px;padding:13px 15px;background:var(--surface-2)}.provenance-root-node,.lineage-node{width:13px;height:13px;border:3px solid var(--surface);border-radius:50%;box-shadow:0 0 0 2px var(--navy);flex:0 0 auto}.provenance-root strong{display:block;font-size:13px}.provenance-root span{display:block;color:var(--muted);font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.lineage-list{padding:0 15px 11px 37px}.lineage-branch{position:relative;border-left:2px solid var(--line);padding:10px 0 0 46px}.lineage-branch:last-child{padding-bottom:3px}.lineage-branch::before{content:"";position:absolute;left:0;top:25px;width:22px;border-top:2px solid var(--line)}.lineage-branch>summary{list-style:none;display:flex;align-items:flex-start;gap:10px;cursor:pointer}.lineage-branch>summary::-webkit-details-marker{display:none}.lineage-node{position:absolute;left:20px;top:19px;background:var(--surface);box-shadow:0 0 0 2px var(--focus)}.lineage-branch.flagged .lineage-node{box-shadow:0 0 0 2px var(--red)}.lineage-branch.manual_review .lineage-node{box-shadow:0 0 0 2px var(--amber)}.lineage-head{min-width:0;flex:1}.lineage-head strong{display:block;font-size:13px;overflow-wrap:anywhere}.lineage-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:3px;color:var(--muted);font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.lineage-toggle{color:var(--muted);transition:transform .16s ease}.lineage-branch[open] .lineage-toggle{transform:rotate(180deg)}.lineage-body{margin:9px 0 0;padding:10px 12px;border-left:2px solid var(--surface-2);background:var(--surface-2);font-size:12px}.lineage-facts{display:grid;grid-template-columns:max-content 1fr;gap:5px 11px;margin:0}.lineage-facts dt{color:var(--muted)}.lineage-facts dd{margin:0;overflow-wrap:anywhere}.alias-list{display:grid;gap:5px;margin-top:9px}.alias-row{display:grid;grid-template-columns:minmax(130px,.65fr) minmax(0,1fr) max-content;align-items:start;gap:10px;padding-top:6px;border-top:1px solid var(--line)}.alias-row span{overflow-wrap:anywhere}.most-likely-badge{display:inline-flex;align-items:center;border:1px solid var(--focus);border-radius:999px;padding:2px 7px;color:var(--focus);background:var(--focus-bg);font-size:10px;font-weight:900;letter-spacing:.02em;white-space:nowrap}.applicability{font-weight:800}.applicability.confirmed{color:var(--teal)}.applicability.not_attributed{color:var(--muted)}.applicability.unresolved{color:var(--amber)}.ranked-reference-note{margin:5px 0 0;color:var(--muted);font-size:12px}.association-count{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--muted)}
-@media(max-width:650px){.lineage-list{padding-left:28px}.alias-row{grid-template-columns:1fr}.most-likely-badge{justify-self:start}.lineage-facts{grid-template-columns:1fr}.lineage-facts dt{margin-top:4px}}
+@media(max-width:650px){.lineage-list{padding-left:28px}.alias-row{grid-template-columns:1fr}.lineage-facts{grid-template-columns:1fr}.lineage-facts dt{margin-top:4px}}
+.advisory-intro{margin-bottom:26px}.advisory-summary{margin-top:13px}.most-likely-label{color:var(--teal)}.provenance-map .lineage-list{padding-top:10px}.alias-row{display:block;padding:9px 10px;text-align:left}.alias-row.most-likely{background:var(--focus-bg)}.alias-copy{display:grid;gap:4px;justify-items:start;min-width:0}.alias-id{font-weight:850}.alias-title{color:var(--muted);line-height:1.45}.advisory-text-link{display:inline-flex;margin-top:13px;border:0;background:transparent;color:var(--focus);padding:0;font-size:13px;font-weight:650;text-decoration:underline;text-underline-offset:3px}
+.most-likely-label.dismissed{color:var(--muted)}.detail-box.reference-detail{display:flex;flex-direction:column}.reference-actions{justify-content:space-between;margin:auto 0 0;padding-top:22px;gap:20px}.reference-actions .advisory-text-link{margin-top:0}.reference-actions .fix{margin-left:auto}
 </style>
 </head>
 <body>
@@ -721,7 +732,7 @@ function renderDependencies(){
   const rows=unresolved.map(item=>{
     const locations=item.locations.slice(0,3).map(value=>`<span class="dependency-location">${esc(value)}</span>`).join('');
     const remainder=item.locations.length>3?`<span class="dependency-meta">+${esc(item.locations.length-3)} more</span>`:'';
-    const advisories=item.advisories.length?item.advisories.join(', '):'Not recorded';
+    const advisories=item.advisories.length?item.advisories.join(', '):'';
     const packageName=item.package_url?`<a class="dependency-name" href="${esc(item.package_url)}" target="_blank" rel="noopener noreferrer">${esc(item.name)}</a>`:`<span class="dependency-name">${esc(item.name)}</span>`;
     return `<tr><td>${packageName}<span class="dependency-meta">${esc(item.ecosystem)}</span></td><td>${esc(item.evidence_count)} finding${item.evidence_count===1?'':'s'}</td><td><div class="dependency-locations">${locations}${remainder}</div></td><td>${esc(advisories)}</td></tr>`
   }).join('');
@@ -738,6 +749,13 @@ function updateGeneratedTime(){
   element.title=`Generated ${exact}`;
 }
 function llmVerdict(finding){const explanation=finding.review_explanation;return explanation?.status==='generated'?explanation.llm_verdict||'':''}
+function referencePresentation(finding){
+  const verdict=llmVerdict(finding);
+  if(finding.status==='flagged')return{title:'Most Likely:',lineage:'Most Probable Reference Lineage',vulnerable:'Most Likely vulnerable reference',tone:'',highlight:true};
+  if(verdict==='flagged')return{title:'Most Probable Candidate:',lineage:'Most Probable Candidate Lineage',vulnerable:'Most probable vulnerable reference',tone:'',highlight:true};
+  if(verdict==='dismissed')return{title:'Closest Code Reference:',lineage:'Closest Code Reference',vulnerable:'Closest vulnerable code reference',tone:'dismissed',highlight:false};
+  return{title:'Highest-Ranked Candidate:',lineage:'Highest-Ranked Candidate Lineage',vulnerable:'Highest-ranked vulnerable reference',tone:'',highlight:true}
+}
 function llmDecision(finding){
   if(finding.status!=='manual_review')return'<span class="muted">—</span>';
   const verdict=llmVerdict(finding);
@@ -782,12 +800,12 @@ function buildTree(){
   $$('.tree-file').forEach(button=>button.addEventListener('click',()=>selectFile(button.dataset.path)));
 }
 function codePanel(title,snippet,panelClass=''){
-  if(!snippet)return `<div class="code-panel ${esc(panelClass)}"><div class="code-label"><span>${esc(title)}</span></div><div class="empty"><span class="muted">Reference source not recorded.</span></div></div>`;
+  if(!snippet)return `<div class="code-panel ${esc(panelClass)}"><div class="code-label"><span>${esc(title)}</span></div><div class="empty"><span class="muted">Reference source unavailable; verify the advisory or fix commit directly.</span></div></div>`;
   const lines=snippet.lines.map(line=>`<div class="code-line ${esc(line.marker)}"><span class="line-no">${line.number}</span><span class="line-text">${esc(line.text)||' '}</span></div>`).join('');
   return `<div class="code-panel ${esc(panelClass)}"><div class="code-label"><span>${esc(title)}</span></div><pre class="code">${lines}</pre>${snippet.truncated?`<div class="truncate">Excerpt limited to ${snippet.lines.length} of ${snippet.total_lines} lines.</div>`:''}</div>`;
 }
 function scoreRow(name,value,tone){const number=Number(value);if(!Number.isFinite(number))return'';const percent=Math.max(0,Math.min(100,number*100));return `<div class="score"><span>${esc(name)}</span><span class="bar"><span class="bar-fill ${esc(tone)}" style="width:${percent}%"></span></span><strong>${number.toFixed(3)}</strong></div>`}
-function scoreValue(value){if(value===null||value===undefined||value==='')return'Not recorded';const number=Number(value);return Number.isFinite(number)?number.toFixed(3):'Not recorded'}
+function scoreValue(value){if(value===null||value===undefined||value==='')return'Unavailable';const number=Number(value);return Number.isFinite(number)?number.toFixed(3):'Unavailable'}
 function evidenceBreakdown(f){
   const e=f.evidence||{},hasRegionScore=Number.isFinite(Number(e.vulnerable_score));
   if(!hasRegionScore){
@@ -826,6 +844,7 @@ function openEvidenceBreakdown(findingId){
 }
 function bindEvidenceBreakdowns(root=document){$$('.evidence-breakdown-trigger',root).forEach(button=>button.addEventListener('click',()=>openEvidenceBreakdown(button.dataset.findingId)))}
 function externalLink(url,text){return url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(text)} ↗</a>`:''}
+function advisoryActionLink(url,text,side){return url?`<a class="advisory-text-link ${esc(side||'')}" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(text)}</a>`:''}
 function advisoryIdentifierLink(url,identifier){return url?`<a class="advisory-id-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(identifier)}</a>`:`<span class="advisory-heading-id">${esc(identifier)}</span>`}
 function advisorySummary(value){
   const source=String(value||'').trim();
@@ -839,12 +858,19 @@ function reviewExplanationPanel(explanation){
   const verdictIcon=verdict==='flagged'?flagIcon:verdict==='dismissed'?dismissIcon:reviewIcon;
   const verdictRow=`<div class="llm-verdict ${esc(verdict)}" aria-label="LLM verdict"><strong>${verdictIcon}Verdict: ${verdictText}</strong></div>`;
   const head=`<div class="review-explanation-head"><h4>LLM Explanation</h4><span class="review-explanation-meta">By ${model}</span></div>`;
-  if(verdict==='dismissed')return `${verdictRow}<section class="review-explanation dismissed" aria-label="LLM explanation">${head}<p class="verdict-rationale">${esc(explanation.verdict_rationale)}</p></section>`;
+  if(verdict==='dismissed')return `${verdictRow}<section class="review-explanation dismissed" aria-label="LLM explanation">${head}<p>Code similarity was detected, but contextual vulnerability relevance was not supported.</p><p class="verdict-rationale">${esc(explanation.verdict_rationale)}</p></section>`;
   return `${verdictRow}<section class="review-explanation" aria-label="LLM explanation">${head}<p class="verdict-rationale">${esc(explanation.verdict_rationale)}</p><p><strong>Advisory mechanism:</strong> ${esc(explanation.security_mechanism)}</p></section>`;
 }
-function packageNames(lineage){return(lineage.reference_packages||[]).map(item=>item.ecosystem?`${item.name} (${item.ecosystem})`:item.name).join(', ')||'Not recorded'}
-function targetPackageLabel(target){if(!target?.name)return'Unresolved';return target.version?`${target.name} @ ${target.version}`:target.name}
-function lineageTitle(lineage,index){const rep=lineage.representative||{};return rep.repo||packageNames(lineage)||`Lineage ${index+1}`}
+function factRow(name,value){if(value===null||value===undefined||value==='')return'';return `<dt>${esc(name)}</dt><dd>${esc(value)}</dd>`}
+function factHtml(name,value){if(!value)return'';return `<dt>${esc(name)}</dt><dd>${value}</dd>`}
+function numericFact(name,value,digits=3){if(value===null||value===undefined||value===''||!Number.isFinite(Number(value)))return'';return factRow(name,Number(value).toFixed(digits))}
+function packageNames(lineage){return(lineage.reference_packages||[]).map(item=>item.ecosystem?`${item.name} (${item.ecosystem})`:item.name).join(', ')}
+function targetPackageLabel(target){if(!target?.name)return'';return target.version?`${target.name} @ ${target.version}`:target.name}
+function lineageTitle(lineage,index){
+  const rep=lineage.representative||{},functionName=lineage.function_name||rep.function_name||'',filePath=lineage.file_path||rep.file_path||'';
+  if(functionName&&filePath)return `${functionName} · ${filePath}`;
+  return functionName||filePath||rep.repo||packageNames(lineage)||`Lineage ${index+1}`
+}
 function advisoryKeys(value){return[value?.cve_id,value?.ghsa_id,value?.osv_id,value?.identifier].filter(Boolean).map(item=>String(item).toLocaleLowerCase())}
 function isMostLikelyAdvisory(alias,lineage,primary){
   if(!primary)return false;
@@ -853,33 +879,50 @@ function isMostLikelyAdvisory(alias,lineage,primary){
   if(aliasKeys.length&&primaryKeys.length)return aliasKeys.some(key=>primaryKeys.includes(key));
   return Boolean(alias.advisory_url&&primary.advisory_url&&alias.advisory_url===primary.advisory_url)
 }
-function provenanceTree(f){
-  const lineages=f.lineages||[],advisoryCount=lineages.reduce((total,lineage)=>total+(lineage.advisories||[]).length,0);
+function compareEvidenceRank(left,right){
+  const a=left.evidence_rank||[],b=right.evidence_rank||[],length=Math.max(a.length,b.length);
+  for(let index=0;index<length;index++){const difference=Number(b[index]||0)-Number(a[index]||0);if(difference)return difference}
+  return String(left.lineage_id||'').localeCompare(String(right.lineage_id||''))
+}
+function provenanceTree(f,presentation){
+  const lineages=[...(f.lineages||[])].sort(compareEvidenceRank),advisoryCount=lineages.reduce((total,lineage)=>total+(lineage.advisories||[]).length,0);
   const branches=lineages.map((lineage,index)=>{
-    const aliases=lineage.advisories||[],rep=lineage.representative||{},confidence=label(lineage.provenance_confidence||'none');
-    const aliasRows=aliases.map(alias=>{const identifier=alias.cve_id||alias.ghsa_id||alias.osv_id||'Unknown advisory';const linked=advisoryIdentifierLink(alias.advisory_url,identifier);const mostLikely=isMostLikelyAdvisory(alias,lineage,f.primary);return `<div class="alias-row${mostLikely?' most-likely':''}"><span>${linked}</span><span>${esc(alias.title||alias.advisory_title||identifier)}</span>${mostLikely?'<span class="most-likely-badge" title="Highest evidence score; other verified associations remain possible.">Most Likely</span>':''}</div>`}).join('');
-    const commit=String(lineage.fix_commit_sha||'Not recorded'),shortCommit=commit.length>12?commit.slice(0,12)+'…':commit;
+    const aliases=[...(lineage.advisories||[])].sort((left,right)=>Number(isMostLikelyAdvisory(right,lineage,f.primary))-Number(isMostLikelyAdvisory(left,lineage,f.primary))),rep=lineage.representative||{},confidence=label(lineage.provenance_confidence||'none');
+    const aliasRows=aliases.map(alias=>{const identifier=alias.cve_id||alias.ghsa_id||alias.osv_id||'Unknown advisory',title=String(alias.title||alias.advisory_title||'').trim();const linked=advisoryIdentifierLink(alias.advisory_url,identifier),mostLikely=isMostLikelyAdvisory(alias,lineage,f.primary),titleRow=title&&title.toLocaleLowerCase()!==identifier.toLocaleLowerCase()?`<span class="alias-title">${esc(title)}</span>`:'';return `<div class="alias-row${presentation.highlight&&mostLikely?' most-likely':''}"><div class="alias-copy"><span class="alias-id">${linked}</span>${titleRow}</div></div>`}).join('');
+    const commit=String(lineage.fix_commit_sha||''),shortCommit=commit.length>12?commit.slice(0,12)+'…':commit;
     const applicability=lineage.package_applicability||'unresolved';
-    return `<details class="lineage-branch ${esc(lineage.status)}"${index===0?' open':''}><summary><span class="lineage-node" aria-hidden="true"></span><span class="lineage-head"><strong>${esc(lineageTitle(lineage,index))}</strong><span class="lineage-meta"><span>${esc(shortCommit)}</span><span>${esc(aliases.length)} advisory alias${aliases.length===1?'':'es'}</span><span>${esc(confidence)} confidence</span></span></span><span class="lineage-toggle">${icons.chevron}</span></summary><div class="lineage-body"><dl class="lineage-facts"><dt>Reference package</dt><dd>${esc(packageNames(lineage))}</dd><dt>Target package</dt><dd>${esc(targetPackageLabel(f.target_package))}</dd><dt>Applicability</dt><dd><span class="applicability ${esc(applicability)}">${esc(label(applicability))}</span></dd><dt>Reference</dt><dd>${esc(rep.repo||'Not recorded')} · ${esc(lineage.file_path||rep.file_path||'')}</dd><dt>Fix commit</dt><dd>${esc(commit)}</dd></dl>${aliasRows?`<div class="alias-list">${aliasRows}</div>`:''}</div></details>`;
+    const referencePackage=packageNames(lineage),targetPackage=targetPackageLabel(f.target_package),reference=[rep.repo,lineage.file_path||rep.file_path].filter(Boolean).join(' · ');
+    const packageFacts=targetPackage?`${factRow('Target package',targetPackage)}${factHtml('Applicability',`<span class="applicability ${esc(applicability)}">${esc(label(applicability))}</span>`)}`:factHtml('Package applicability','<span class="applicability unresolved">Unverified — target package could not be resolved</span>');
+    const provenanceFacts=reference?factRow('Reference',reference):factHtml('Reference provenance','<span class="applicability unresolved">Missing source repository and file</span>');
+    const fixFact=commit?factRow('Fix commit hash',commit):factHtml('Fix provenance','<span class="applicability unresolved">Missing fix commit hash</span>');
+    const meta=[shortCommit,`${aliases.length} advisory alias${aliases.length===1?'':'es'}`,confidence!=='None'?`${confidence} confidence`:null].filter(Boolean).map(value=>`<span>${esc(value)}</span>`).join('');
+    return `<details class="lineage-branch ${esc(lineage.status)}"${index===0?' open':''}><summary><span class="lineage-node" aria-hidden="true"></span><span class="lineage-head"><strong>${esc(lineageTitle(lineage,index))}</strong><span class="lineage-meta">${meta}</span></span><span class="lineage-toggle">${icons.chevron}</span></summary><div class="lineage-body"><dl class="lineage-facts">${factRow('Reference package',referencePackage)}${packageFacts}${provenanceFacts}${fixFact}</dl>${aliasRows?`<div class="alias-list">${aliasRows}</div>`:''}</div></details>`;
   }).join('');
-  const attribution=lineages.length===1?'One verified lineage':lineages.length?`${lineages.length} verified lineages`:'No verified lineage';
-  return `<section class="provenance-map" aria-label="Finding provenance tree"><div class="provenance-root"><span class="provenance-root-node" aria-hidden="true"></span><span><strong>${esc(f.name)}</strong><span>${esc(f.path)}:${esc(f.start_line)}–${esc(f.end_line)} · ${esc(attribution)} · ${esc(advisoryCount)} advisory alias${advisoryCount===1?'':'es'}</span></span></div><div class="lineage-list">${branches||'<p class="muted">No verified advisory lineage was retained.</p>'}</div></section>`
+  return `<section class="provenance-map" aria-label="Finding provenance tree"><div class="lineage-list">${branches||'<p class="muted">No verified advisory lineage was retained.</p>'}</div></section>`
 }
 function findingCard(f,openByDefault=false){
   const p=f.primary,e=f.evidence||{};
   const needsReview=f.status==='manual_review';
-  const verdict=llmVerdict(f),llmStatus=verdict==='dismissed'?'llm_dismissed':verdict==='flagged'?'llm_escalate':'';
+  const verdict=llmVerdict(f),presentation=referencePresentation(f),llmStatus=verdict==='dismissed'?'llm_dismissed':verdict==='flagged'?'llm_escalate':'';
   const headerBadges=needsReview?(llmStatus?badge(llmStatus,llmStatus):badge(f.status)):`${badge(f.status)} ${badge(f.severity,f.severity)}`;
-  const impact=label(f.severity),potentialImpact=needsReview?`<dt>Potential impact</dt><dd><strong>${esc(impact.charAt(0).toUpperCase()+impact.slice(1))} if confirmed</strong></dd>`:'';
+  const impact=label(f.severity),potentialImpact=needsReview&&verdict!=='dismissed'?`<dt>Potential impact</dt><dd><strong>${esc(impact.charAt(0).toUpperCase()+impact.slice(1))} if confirmed</strong></dd>`:'';
   const ids=[p.cve_id,p.ghsa_id,p.osv_id].filter(Boolean).join(' · ')||p.identifier;
   const identifier=String(p.cve_id||p.ghsa_id||p.osv_id||p.identifier||'Advisory').trim(),title=String(p.title||'').trim();
-  const linkedIdentifier=advisoryIdentifierLink(p.advisory_url,identifier);
-  const heading=title&&title.toLocaleLowerCase()!==identifier.toLocaleLowerCase()?`${linkedIdentifier}: ${esc(title)}`:linkedIdentifier;
-  const affected=(p.affected_versions||[]).join(', ')||'Not recorded';
-  const versions=(p.fixed_versions||[]).join(', ')||'Not recorded';
+  const headingText=title&&title.toLocaleLowerCase()!==identifier.toLocaleLowerCase()?`${identifier}: ${title}`:identifier;
+  const heading=p.advisory_url?`<a class="advisory-id-link" href="${esc(p.advisory_url)}" target="_blank" rel="noreferrer">${esc(headingText)}</a>`:esc(headingText);
+  const affected=(p.affected_versions||[]).join(', '),versions=(p.fixed_versions||[]).join(', ');
   const summary=advisorySummary(p.advisory_summary);
   const lineageCount=(f.lineages||[]).length,advisoryCount=(f.lineages||[]).reduce((total,lineage)=>total+(lineage.advisories||[]).length,0);
-  return `<details class="finding-card"${openByDefault?' open':''}><summary class="finding-head"><div><h3>${esc(f.name)}</h3><span class="muted">${esc(f.path)}:${f.start_line}–${f.end_line}</span></div><div class="badge-row"><span class="association-count">${esc(lineageCount)} lineage${lineageCount===1?'':'s'} · ${esc(advisoryCount)} ${advisoryCount===1?'advisory':'advisories'}</span>${headerBadges}<span class="finding-chevron">${icons.chevron}</span></div></summary><div class="finding-body">${provenanceTree(f)}<div class="advisory-intro"><div class="advisory-heading"><h3><span class="advisory-heading-id">Most Likely: ${heading}</span></h3></div><p class="ranked-reference-note">Selected by evidence strength for code comparison; other verified associations remain represented in the lineage tree.</p>${summary}</div>${needsReview?reviewExplanationPanel(f.review_explanation):''}<div class="code-compare">${codePanel('Project code',f.reference.candidate,'detected-panel')}<div class="reference-stack">${codePanel('Most Likely vulnerable reference',f.reference.vulnerable)}${codePanel('Known patched reference',f.reference.patched)}</div></div><div class="detail-grid"><section class="detail-box"><h4>Most Likely reference lineage</h4><dl class="facts">${potentialImpact}<dt>Representative IDs</dt><dd>${esc(ids)}</dd><dt>Advisory aliases</dt><dd>${esc(advisoryCount)}</dd><dt>Affected versions</dt><dd>${esc(affected)}</dd><dt>Known fixed versions</dt><dd>${esc(versions)}</dd><dt>Reference package</dt><dd>${esc(p.package_name||'Not recorded')} ${p.ecosystem?`(${esc(p.ecosystem)})`:''}</dd><dt>Target package</dt><dd>${esc(targetPackageLabel(f.target_package))}</dd><dt>CWE</dt><dd>${esc((p.cwes||[]).join(', ')||'Not recorded')}</dd><dt>Reference</dt><dd>${esc(p.repo||'Not recorded')} · ${esc(p.file_path||'')}</dd></dl><p class="link-row">${externalLink(p.advisory_url,'Open representative advisory')} ${externalLink(p.fix_url,'Open fix commit')}</p></section><section class="detail-box"><h4>Detection evidence</h4>${scoreRow('Vulnerable',e.vulnerable_score,'vulnerable')}${scoreRow('Patched',e.patched_score,'patched')}${scoreRow('Retrieval',e.retrieval_similarity,'retrieval')}<dl class="facts"><dt>Confidence</dt><dd><strong>${esc(label(f.confidence))}</strong></dd><dt>Score margin</dt><dd>${Number.isFinite(Number(e.vulnerable_minus_patched))?Number(e.vulnerable_minus_patched).toFixed(3):'Not recorded'}</dd><dt>AST coverage</dt><dd>${Number.isFinite(Number(e.ast_coverage))?Number(e.ast_coverage).toFixed(3):'Not recorded'}</dd><dt>Match type</dt><dd>${esc(f.hash_match_types.join(', ')||'Region similarity')}</dd></dl><button class="evidence-breakdown-trigger" type="button" aria-haspopup="dialog" data-finding-id="${esc(f.id)}">View breakdown</button></section></div></div></details>`;
+  const rankedLineage=[...(f.lineages||[])].sort(compareEvidenceRank)[0]||{},rankedRepresentative=rankedLineage.representative||{};
+  const fixRepo=p.repo||rankedRepresentative.repo||'',fixCommit=p.fix_commit_sha||rankedLineage.fix_commit_sha||rankedRepresentative.fix_commit_sha||'';
+  const fixUrl=p.fix_url||rankedRepresentative.fix_url||(fixRepo&&fixCommit?`https://github.com/${fixRepo}/commit/${fixCommit}`:'');
+  const reviewPanel=needsReview?reviewExplanationPanel(f.review_explanation):'',dismissedReview=verdict==='dismissed'?reviewPanel:'',activeReview=verdict==='dismissed'?'':reviewPanel;
+  const referenceActions=`${advisoryActionLink(p.advisory_url,'Open advisory','advisory')}${advisoryActionLink(fixUrl,'Open fix commit','fix')}`;
+  const referencePackage=p.package_name?`${p.package_name}${p.ecosystem?` (${p.ecosystem})`:''}`:'',cwes=(p.cwes||[]).join(', ');
+  const primaryFacts=`${potentialImpact}${factRow('Representative IDs',ids)}${advisoryCount>1?factRow('Advisory aliases',advisoryCount):''}${factRow('Affected versions',affected)}${factRow('Known fixed versions',versions)}${factRow('Reference package',referencePackage)}${factRow('CWE',cwes)}`;
+  const confidenceFact=f.confidence&&f.confidence!=='none'?factHtml('Confidence',`<strong>${esc(label(f.confidence))}</strong>`):factHtml('Evidence completeness','<span class="applicability unresolved">Confidence unavailable</span>');
+  const evidenceFacts=`${confidenceFact}${numericFact('Score margin',e.vulnerable_minus_patched)}${numericFact('AST coverage',e.ast_coverage)}${factRow('Match type',f.hash_match_types.join(', ')||'Region similarity')}`;
+  return `<details class="finding-card"${openByDefault?' open':''}><summary class="finding-head"><div><h3>${esc(f.name)}</h3><span class="muted">${esc(f.path)}:${f.start_line}–${f.end_line}</span></div><div class="badge-row"><span class="association-count">${esc(lineageCount)} lineage${lineageCount===1?'':'s'} · ${esc(advisoryCount)} ${advisoryCount===1?'advisory':'advisories'}</span>${headerBadges}<span class="finding-chevron">${icons.chevron}</span></div></summary><div class="finding-body">${dismissedReview}${provenanceTree(f,presentation)}<div class="advisory-intro"><div class="advisory-heading"><h3><span class="advisory-heading-id"><span class="most-likely-label ${esc(presentation.tone)}">${esc(presentation.title)}</span> ${heading}</span></h3></div>${summary}</div>${activeReview}<div class="code-compare">${codePanel('Project code',f.reference.candidate,'detected-panel')}<div class="reference-stack">${codePanel(presentation.vulnerable,f.reference.vulnerable)}${codePanel('Known patched reference',f.reference.patched)}</div></div><div class="detail-grid"><section class="detail-box reference-detail"><h4>${esc(presentation.lineage)}</h4><dl class="facts">${primaryFacts}</dl>${referenceActions?`<p class="link-row reference-actions">${referenceActions}</p>`:''}</section><section class="detail-box"><h4>Detection Evidence</h4>${scoreRow('Vulnerable',e.vulnerable_score,'vulnerable')}${scoreRow('Patched',e.patched_score,'patched')}${scoreRow('Retrieval',e.retrieval_similarity,'retrieval')}<dl class="facts">${evidenceFacts}</dl><button class="evidence-breakdown-trigger" type="button" aria-haspopup="dialog" data-finding-id="${esc(f.id)}">View breakdown</button></section></div></div></details>`;
 }
 function selectFile(path){selectedFile=path;$$('.tree-file').forEach(button=>button.classList.toggle('selected',button.dataset.path===path));renderFile()}
 function renderFile(){
@@ -907,8 +950,8 @@ function renderRecommendations(){
   const root=$('#recommendation-list');
   if(!report.recommendations.length){root.innerHTML=`<div class="empty"><div><strong>No remediation actions</strong><p class="muted">The scan completed without active findings.</p></div></div>`;return}
   root.innerHTML=report.recommendations.map((r,index)=>{
-    const affected=r.affected_versions.length?r.affected_versions.join(', '):'Not recorded';
-    const fixed=r.fixed_versions.length?r.fixed_versions.join(', '):'Not recorded';
+    const affected=r.affected_versions.length?r.affected_versions.join(', '):'';
+    const fixed=r.fixed_versions.length?r.fixed_versions.join(', '):'';
     const removed=r.patch_changes.removed||[],added=r.patch_changes.added||[];
     const changeText=added.length&&removed.length?`Replace the matched behavior in ${r.locations.length} location${r.locations.length===1?'':'s'} with the validation or control flow demonstrated by the known patch.`:added.length?`Add the missing safeguard demonstrated by the known patch to each matched location.`:removed.length?`Remove or constrain the behavior deleted by the known patch in each matched location.`:`Use the known patched implementation as the behavioral baseline for the matched region in ${r.reference_file||'the reference source'}.`;
     const changes=[...removed.map(line=>['Removed',line]),...added.map(line=>['Added',line])];
@@ -916,13 +959,15 @@ function renderRecommendations(){
     const sameTitle=identifier&&identifier.toLocaleLowerCase()===title.toLocaleLowerCase();
     const linkedIdentifier=identifier?advisoryIdentifierLink(r.advisory_url,identifier):'';
     const titleMarkup=identifier?(sameTitle?linkedIdentifier:`${linkedIdentifier}: ${esc(title)}`):esc(title);
-    const description=String(r.description||'No advisory summary was recorded.').trim(),expandable=description.length>240,summaryId=`recommendation-summary-${index}`;
+    const description=String(r.description||'').trim(),expandable=description.length>240,summaryId=`recommendation-summary-${index}`;
     const summaryControl=expandable?`<button class="summary-toggle" type="button" aria-expanded="false" aria-controls="${summaryId}">Show more</button>`:'';
-    const packageLabel=(r.reference_packages||[]).map(item=>item.ecosystem?`${item.name} (${item.ecosystem})`:item.name).join(', ')||'Not recorded';
+    const descriptionMarkup=description?`<div class="recommendation-summary markdown-body ${expandable?'collapsed':''}" id="${summaryId}">${markdown(description)}</div>${summaryControl}`:'';
+    const packageLabel=(r.reference_packages||[]).map(item=>item.ecosystem?`${item.name} (${item.ecosystem})`:item.name).join(', ');
     const targetLabel=targetPackageLabel(r.target_package),applicability=label(r.package_applicability||'unresolved');
+    const packageBoxes=`${packageLabel?`<div class="version-box"><span class="muted">Reference package</span><strong>${esc(packageLabel)}</strong></div>`:''}${targetLabel?`<div class="version-box"><span class="muted">Target package</span><strong>${esc(targetLabel)}</strong><span class="applicability ${esc(r.package_applicability)}">${esc(applicability)}</span></div>`:`<div class="version-box"><span class="muted">Package applicability</span><strong class="applicability unresolved">Unverified — target package could not be resolved</strong></div>`}${affected?`<div class="version-box"><span class="muted">Historical affected versions</span><strong>${esc(affected)}</strong></div>`:''}${fixed?`<div class="version-box"><span class="muted">Known fixed versions</span><strong>${esc(fixed)}</strong></div>`:''}`;
     const versionGuidance='For copied or adapted code, follow the code change shown here instead of changing a dependency version.';
     const lineageNote=r.advisory_count===1?'1 advisory alias':`${r.advisory_count} advisory aliases`;
-    return `<article class="recommendation"><h3>${titleMarkup}</h3><div class="badge-row">${badge(r.severity,r.severity)}<span class="association-count">${esc(lineageNote)}</span></div><div class="recommendation-summary markdown-body ${expandable?'collapsed':''}" id="${summaryId}">${markdown(description)}</div>${summaryControl}<div class="recommendation-grid"><div><div class="version-box"><span class="muted">Reference package</span><strong>${esc(packageLabel)}</strong></div><div class="version-box"><span class="muted">Target package</span><strong>${esc(targetLabel)}</strong><span class="applicability ${esc(r.package_applicability)}">${esc(applicability)}</span></div><div class="version-box"><span class="muted">Historical affected versions</span><strong>${esc(affected)}</strong></div><div class="version-box"><span class="muted">Known fixed versions</span><strong>${esc(fixed)}</strong></div><p class="muted">${esc(versionGuidance)}</p><section class="affected-locations"><h4>Affected locations</h4><div class="locations">${r.locations.map(l=>`<span class="location">${esc(l)}</span>`).join('')}</div></section></div><div><h4>Recommended code change</h4><p>${esc(changeText)}</p>${changes.length?`<div class="patch-lines">${changes.map(([kind,line])=>{const tone=kind.toLowerCase(),marker=kind==='Removed'?'−':'+';return `<div class="patch-line ${tone}"><strong><span aria-hidden="true">${marker}</span> ${kind}</strong><code>${esc(line)}</code></div>`}).join('')}</div>`:`<p class="muted">No diagnostic patch lines were recorded. Inspect the linked fix commit before modifying code.</p>`}</div></div><p class="link-row">${externalLink(r.advisory_url,'Read representative advisory')} ${externalLink(r.fix_url,'Inspect fix commit')}</p></article>`
+    return `<article class="recommendation"><h3>${titleMarkup}</h3><div class="badge-row">${badge(r.severity,r.severity)}<span class="association-count">${esc(lineageNote)}</span></div>${descriptionMarkup}<div class="recommendation-grid"><div>${packageBoxes}<p class="muted">${esc(versionGuidance)}</p><section class="affected-locations"><h4>Affected locations</h4><div class="locations">${r.locations.map(l=>`<span class="location">${esc(l)}</span>`).join('')}</div></section></div><div><h4>Recommended code change</h4><p>${esc(changeText)}</p>${changes.length?`<div class="patch-lines">${changes.map(([kind,line])=>{const tone=kind.toLowerCase(),marker=kind==='Removed'?'−':'+';return `<div class="patch-line ${tone}"><strong><span aria-hidden="true">${marker}</span> ${kind}</strong><code>${esc(line)}</code></div>`}).join('')}</div>`:`<p class="muted">Patch guidance unavailable; inspect the linked fix commit before modifying code.</p>`}</div></div><p class="link-row">${externalLink(r.advisory_url,'Read representative advisory')} ${externalLink(r.fix_url,'Inspect fix commit')}</p></article>`
   }).join('');
   $$('.summary-toggle',root).forEach(button=>button.addEventListener('click',()=>{const summary=document.getElementById(button.getAttribute('aria-controls')),expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));button.textContent=expanded?'Show more':'Show less';summary.classList.toggle('collapsed',expanded)}))
 }
@@ -930,7 +975,7 @@ function initDetails(){
   const values=[['Project',report.project],['Report schema',report.schema],['Tool version',report.tool_version],['Corpus version',report.corpus_version],['Root hash',report.root_hash],['Embedding model',report.config.model],['Retrieval threshold',report.config.retrieval_threshold],['Minimum vulnerable score',report.config.minimum_vulnerable_score],['Minimum margin',report.config.minimum_margin],['Changed files',report.changed_files.length],['Deleted files',report.deleted_files.length],['Files analyzed',report.scanned_files.length],['Functions recomputed',report.audit.scanned_functions]];
   const run=report.explanation_run||{};
   if(run.enabled)values.push(['Review explanation model',run.model],['Explanations generated',run.generated],['Explanations reused',run.reused],['Explanations unavailable',run.unavailable]);
-  $('#scan-details').innerHTML=values.map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v??'Not recorded')}</strong></div>`).join('')
+  $('#scan-details').innerHTML=values.filter(([,value])=>value!==null&&value!==undefined&&value!=='').map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')
 }
 $$('.tab').forEach(tab=>tab.addEventListener('click',()=>switchTab(tab.dataset.tab)));
 ['search','status-filter','severity-filter'].forEach(id=>$('#'+id).addEventListener(id==='search'?'input':'change',renderRows));

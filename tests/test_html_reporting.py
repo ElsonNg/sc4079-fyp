@@ -172,11 +172,16 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "https://www.npmjs.com/package/demo-http" in output
     assert 'href="${esc(item.package_url)}"' in output
     assert "Resolve the target file's owning package and version" in output
-    assert "function provenanceTree(f)" in output
+    assert "function provenanceTree(f,presentation)" in output
+    assert "if(functionName&&filePath)return `${functionName} · ${filePath}`" in output
     assert 'class="provenance-map"' in output
-    assert "Most Likely: ${heading}" in output
-    assert 'class="most-likely-badge"' in output
-    assert "Highest evidence score; other verified associations remain possible." in output
+    assert '<span class="most-likely-label ${esc(presentation.tone)}">${esc(presentation.title)}</span> ${heading}' in output
+    assert '<span class="most-likely-badge"' not in output
+    assert '.alias-row.most-likely{background:var(--focus-bg)' in output
+    assert 'border-left:3px solid var(--focus)' not in output
+    assert '<div class="provenance-root">' not in output
+    assert 'class="alias-id"' in output
+    assert 'class="alias-title"' in output
     assert "<h2>Scan Summary</h2>" in output
     assert "Results requiring attention" not in output
     assert "Prioritized findings after deterministic detection and optional LLM review." not in output
@@ -217,6 +222,18 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert ".calculation-table th:nth-child(4),.calculation-table th:nth-child(6)" in output
     assert 'class="equation-list"' not in output
     assert ".evidence-breakdown-trigger{display:inline-flex" in output
+    assert ".advisory-text-link{display:inline-flex" in output
+    assert "advisoryActionLink(p.advisory_url,'Open advisory','advisory')" in output
+    assert "advisoryActionLink(fixUrl,'Open fix commit','fix')" in output
+    assert "reference-actions" in output
+    assert "${esc(text)}</a>" in output
+    assert "Open representative advisory" not in output
+    assert "Most Probable Reference Lineage" in output
+    assert "Most Probable Candidate Lineage" in output
+    assert "Highest-Ranked Candidate Lineage" in output
+    assert "Closest Code Reference" in output
+    assert "Detection Evidence" in output
+    assert "Fix commit hash" in output
     assert ".evidence-dialog::backdrop" in output
     assert ".showModal()" in output
     assert "Project Directory" in output
@@ -313,8 +330,11 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert "function advisorySummary(value)" in output
     assert 'class="advisory-summary markdown-body"' in output
     assert "const summary=advisorySummary(p.advisory_summary)" in output
-    assert '${summary}</div>${needsReview?reviewExplanationPanel(f.review_explanation):\'\'}<div class="code-compare">' in output
+    assert '${summary}</div>${activeReview}<div class="code-compare">' in output
     assert ".advisory-summary{max-width:920px" in output
+    assert ".advisory-intro{margin-bottom:26px}" in output
+    assert ".advisory-summary{margin-top:13px}" in output
+    assert ".most-likely-label{color:var(--teal)}" in output
     assert "title.toLocaleLowerCase()!==identifier.toLocaleLowerCase()" in output
     assert "p.cve_id||p.ghsa_id||p.osv_id||p.identifier" in output
     assert 'class="advisory-action"' not in output
@@ -322,8 +342,14 @@ def test_html_report_is_self_contained_and_includes_core_views():
     assert 'class="advisory-id-link"' in output
     assert ".advisory-id-link{text-decoration:none}" in output
     assert ".advisory-id-link:hover{text-decoration:underline;text-underline-offset:3px}" in output
-    assert "const linkedIdentifier=advisoryIdentifierLink(p.advisory_url,identifier)" in output
-    assert "`${linkedIdentifier}: ${esc(title)}`" in output
+    assert "const headingText=title&&title.toLocaleLowerCase()!==identifier.toLocaleLowerCase()?`${identifier}: ${title}`:identifier" in output
+    assert '${esc(headingText)}</a>`:esc(headingText)' in output
+    assert "[...(f.lineages||[])].sort(compareEvidenceRank)" in output
+    assert "isMostLikelyAdvisory(right,lineage,f.primary)" in output
+    assert "Selected by evidence strength for code comparison" not in output
+    assert "Not recorded" not in output
+    assert "Unverified — target package could not be resolved" in output
+    assert "Missing fix commit" in output
     assert 'class="affected-locations"' in output
     assert "background:var(--location-bg)" in output
     assert "Version ranges apply to upstream" not in output
@@ -593,6 +619,25 @@ def test_manual_review_explanation_is_embedded_in_its_finding():
     assert "What to check next" not in output
     assert "Review explanation model" in output
     assert "Explanations unavailable" in output
+
+
+def test_llm_dismissed_finding_keeps_evidence_but_suppresses_recommendations():
+    summary = _summary()
+    summary.findings[0]["result"]["status"] = "manual_review"
+    summary.findings[0]["review_explanation"] = {
+        "status": "generated",
+        "model": "qwen3:8b",
+        "llm_verdict": "dismissed",
+        "verdict_rationale": "The advisory mechanism is absent from this context.",
+    }
+
+    data = build_html_report_data(summary, entries=[_entry()], config=ScanConfig())
+    output = render_html_report(data)
+
+    assert data["recommendations"] == []
+    assert "Code similarity was detected, but contextual vulnerability relevance was not supported." in output
+    assert "Closest Code Reference" in output
+    assert "presentation.highlight&&mostLikely" in output
 
 
 def test_existing_corpus_database_is_migrated_and_metadata_round_trips(tmp_path):
