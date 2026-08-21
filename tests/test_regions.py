@@ -362,12 +362,12 @@ def test_region_detector_uses_region_path_when_hash_path_is_empty(monkeypatch):
 
     result = detector.detect(vulnerable, candidate_id="C-region")
 
-    assert result.status == "flagged"
+    assert result.priority == "automatic_vulnerability"
     assert result.candidate_region_count > 0
     assert result.retrieval_match_count > 0
     assert result.evidence
-    assert len(result.advisory_verdicts) == 1
-    assert result.advisory_verdicts[0].ghsa_id == entry.ghsa_id
+    assert len(result.lineages) == 1
+    assert result.lineages[0].associated_advisories[0].ghsa_id == entry.ghsa_id
 
 
 def test_hash_verdicts_are_scoped_and_exact_patch_beats_same_identity_region_path():
@@ -419,11 +419,14 @@ function transfer(sender, receiver, amount) {
 
     result = detector.detect(patched_snapshot, candidate_id="mixed-history")
 
-    assert result.status == "flagged"
+    assert result.priority == "automatic_vulnerability"
     assert result.candidate_region_count == 0
-    assert {(item.ghsa_id, item.status) for item in result.advisory_verdicts} == {
-        ("GHSA-earlier", "cleared"),
-        ("GHSA-later", "flagged"),
+    assert {
+        (state.advisories[0].ghsa_id, state.status)
+        for state in result.vulnerability_states
+    } == {
+        ("GHSA-earlier", "patched"),
+        ("GHSA-later", "vulnerable"),
     }
 
 

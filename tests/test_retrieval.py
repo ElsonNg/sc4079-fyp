@@ -90,7 +90,11 @@ def test_build_or_load_reuses_unchanged_corpus_and_rebuilds_on_change(tmp_path):
     assert is_stale(DEFAULT_MODEL_ID, changed_entries, dir_path=tmp_path)
 
     rebuilt = build_or_load_index(changed_entries, model_id=DEFAULT_MODEL_ID, dir_path=tmp_path)
-    assert len(rebuilt.entries) == 3
+    # Long functions may contribute several diagnostic-anchored windows. The
+    # rebuilt index must retain all three corpus identities, not one vector each.
+    assert {entry.ghsa_id for entry in rebuilt.entries} == {
+        "GHSA-demo-0001", "GHSA-demo-0002", "GHSA-demo-0003",
+    }
 
 
 def test_source_change_marks_saved_index_stale(tmp_path):

@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from corpus.controller.store import load_entries
+from pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
 from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
 
 DEFAULT_INPUT = Path(__file__).resolve().parent.parent / "eval" / "candidate_subset_30.jsonl"
@@ -91,8 +92,13 @@ def main() -> None:
         )
         results.append(result)
         expected = _corpus_key(record)
-        ordered_pairs = [detector.pairs[aggregate.pair_id] for aggregate in result.aggregates]
-        rank = next((index for index, pair in enumerate(ordered_pairs, start=1) if _pair_key(pair) == expected), None)
+        result_payload = result.model_dump(mode="json")
+        stages = vulnerable_origin_stages(
+            result_payload,
+            expected=expected,
+            pairs=detector.pairs,
+        )
+        rank = stages["expected_aggregate_rank"]
         rank_values.append(rank)
         serialized.append(
             {
@@ -100,12 +106,12 @@ def main() -> None:
                 "expected_status": record["expected_status"],
                 "transformation_family": record["transformation_family"],
                 "corpus_entry": record["corpus_entry"],
-                "expected_aggregate_rank": rank,
-                "result": result.model_dump(),
+                **stages,
+                "result": result_payload,
             }
         )
         print(
-            f"[{index}/{len(records)}] {record['candidate_id']} status={result.status:13s} "
+            f"[{index}/{len(records)}] {record['candidate_id']} priority={result.priority:24s} "
             f"regions={result.candidate_region_count:3d} matches={result.retrieval_match_count:4d} "
             f"correct_aggregate_rank={rank or 'MISS'} provenance={result.provenance_confidence}",
             flush=True,
@@ -121,8 +127,9 @@ def main() -> None:
         "aggregate_recall_at_1": sum(rank is not None and rank <= 1 for rank in rank_values) / len(rank_values),
         "aggregate_recall_at_5": sum(rank is not None and rank <= 5 for rank in rank_values) / len(rank_values),
         "aggregate_recall_at_10": sum(rank is not None and rank <= 10 for rank in rank_values) / len(rank_values),
-        "status_counts": dict(Counter(result.status for result in results)),
+        "priority_counts": dict(Counter(result.priority for result in results)),
         "provenance_counts": dict(Counter(result.provenance_confidence for result in results)),
+        **vulnerable_origin_summary(serialized),
     }
     output = {
         "schema": "candidate_subset_ast_region_methodology_v1",

@@ -46,7 +46,7 @@ def test_first_party_copy_without_upstream_evidence_remains_unknown(tmp_path):
     result = evidence.assess(_result(), "src.js")
 
     assert result.package_applicabilities[0].status == "unknown"
-    assert result.priority == "manual_review"
+    assert result.priority == "automatic_vulnerability"
 
 
 def test_declared_imported_dependency_confirms_applicability(tmp_path):
@@ -72,4 +72,4 @@ def test_concrete_different_node_modules_owner_is_conflicting(tmp_path):
     result = evidence.assess(_result(), "node_modules/other/index.js")
 
     assert result.package_applicabilities[0].status == "conflicting"
-    assert result.priority == "manual_review"
+    assert result.priority == "automatic_vulnerability"

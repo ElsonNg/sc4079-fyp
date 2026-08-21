@@ -11,9 +11,27 @@ from pipeline.controller.reporting import (
 )
 
 
+def _alias() -> dict:
+    return {
+        "ghsa_id": "GHSA-test", "cve_id": "CVE-2026-1234", "osv_id": "GHSA-test",
+        "cwes": [{"cwe_id": "CWE-918", "name": "SSRF"}], "severity": "high",
+        "package_name": "axios", "ecosystem": "npm",
+        "affected_versions": ["1.0.0", "< 1.15.0"], "fixed_versions": ["1.15.0"],
+    }
+
+
+def _lineage(*, lineage_id="lineage-test", score=0.90, confidence="high", alias=None) -> dict:
+    return {
+        "lineage_id": lineage_id, "confidence": confidence, "score": score,
+        "repo": "axios/axios", "file_path": "lib/http.js",
+        "reference_function": "request", "associated_advisories": [alias or _alias()],
+        "evidence_pair_ids": ["pair-1"],
+    }
+
+
 def _report() -> dict:
     return {
-        "schema": "provtrail_scan_v1",
+        "schema": "provtrail_scan_v5",
         "target_root": "/tmp/project",
         "total_files": 3,
         "total_functions": 3,
@@ -28,22 +46,13 @@ def _report() -> dict:
                 "start_line": 0,
                 "end_line": 4,
                 "result": {
-                    "status": "flagged",
-                    "provenance_confidence": "high",
+                    "priority": "automatic_vulnerability",
                     "hash_match_types": [],
                     "hash_matches": [
                         {
-                            "ghsa_id": "GHSA-test",
-                            "cve_id": "CVE-2026-1234",
-                            "osv_id": "GHSA-test",
+                            **_alias(),
                             "side": "vulnerable",
                             "match_type": "abstracted",
-                            "cwes": [{"cwe_id": "CWE-918", "name": "SSRF"}],
-                            "severity": "high",
-                            "package_name": "axios",
-                            "ecosystem": "npm",
-                            "affected_versions": ["1.0.0", "< 1.15.0"],
-                            "fixed_versions": ["1.15.0"],
                             "repo": "axios/axios",
                             "fix_commit_sha": "abc123",
                             "file_path": "lib/http.js",
@@ -52,6 +61,14 @@ def _report() -> dict:
                     ],
                     "aggregates": [],
                     "evidence": [],
+                    "lineages": [_lineage()],
+                    "vulnerability_states": [{
+                        "lineage_id": "lineage-test", "fix_boundary_id": "boundary-test",
+                        "fix_commit_sha": "abc123", "status": "vulnerable",
+                        "vulnerable_score": 1.0, "patched_score": 0.0,
+                        "contrast_score": 1.0, "contradictions": [],
+                    }],
+                    "package_applicabilities": [],
                 },
             },
             {
@@ -70,8 +87,7 @@ def _report() -> dict:
                     "review_steps": ["Trace redirect destinations through the request path."],
                 },
                 "result": {
-                    "status": "manual_review",
-                    "provenance_confidence": "ambiguous",
+                    "priority": "manual_review",
                     "hash_match_types": [],
                     "hash_matches": [],
                     "aggregates": [
@@ -114,6 +130,14 @@ def _report() -> dict:
                             "retrieval_similarity": 0.88,
                         }
                     ],
+                    "lineages": [_lineage()],
+                    "vulnerability_states": [{
+                        "lineage_id": "lineage-test", "fix_boundary_id": "boundary-test",
+                        "fix_commit_sha": "abc123", "status": "uncertain",
+                        "vulnerable_score": 0.91, "patched_score": 0.62,
+                        "contrast_score": 0.29, "contradictions": [],
+                    }],
+                    "package_applicabilities": [],
                 },
             },
             {
@@ -123,7 +147,7 @@ def _report() -> dict:
                 "start_line": 0,
                 "end_line": 2,
                 "result": {
-                    "status": "cleared",
+                    "priority": "informational_lineage",
                     "hash_matches": [],
                     "aggregates": [],
                     "evidence": [],
@@ -137,9 +161,10 @@ def test_audit_summary_counts_findings_and_unique_advisories():
     summary = audit_summary(_report())
 
     assert summary["findings"] == 2
-    assert summary["flagged"] == 1
+    assert summary["automatic_vulnerability"] == 1
     assert summary["manual_review"] == 1
-    assert summary["cleared"] == 1
+    assert summary["informational_lineage"] == 1
+    assert summary["none"] == 0
     assert summary["unique_advisories"] == 1
     assert summary["severity"] == {"high": 2}
 
@@ -147,7 +172,7 @@ def test_audit_summary_counts_findings_and_unique_advisories():
 def test_final_metrics_separate_deterministic_and_llm_outcomes():
     metrics = final_metrics(_report())
 
-    assert metrics["deterministic_flagged"] == 1
+    assert metrics["deterministic_automatic"] == 1
     assert metrics["llm_escalated"] == 0
     assert metrics["llm_dismissed"] == 0
     assert metrics["llm_needs_review"] == 1
@@ -159,179 +184,92 @@ def test_audit_summary_has_divided_sections_and_final_counts():
     output = format_audit_summary(_report())
 
     assert "PROVTRAIL SCAN RESULT" in output
-    assert "✖ 2 vulnerability clone finding(s) · 2 requiring attention (!)" in output
+    assert "✖ 2 finding(s) require attention" in output
     assert "SCAN OVERVIEW" in output
     assert "RESULTS" in output
     assert "DETERMINISTIC RESULTS" not in output
-    assert "SEVERITY" in output
-    assert "FINAL METRICS" in output
-    assert "advisories:            1" in output
+    assert "automatic vulnerability: 1" in output
+    assert "manual review:           1" in output
+    assert "informational lineage:   1" in output
     assert "security advisories" not in output
     assert "unique advisories:" not in output
-    assert "Deterministic flagged: 1" in output
-    assert "LLM needs review:      1" in output
+    assert "advisories:              1" in output
     assert "LLM unavailable:" not in output
     assert "LLM not run:" not in output
     assert "escalation rate:" not in output
     assert "LLM review coverage:" not in output
     assert "target recall:" not in output
     assert "total escalated:" not in output
-    assert output.count("─" * 72) >= 5
+    assert output.count("─" * 72) >= 3
 
 
 def test_final_findings_counts_every_item_still_requiring_attention():
     report = _report()
     output = format_attention(report)
     assert "ATTENTION" in output
-    assert "High:                  2" in output
-    assert "Medium:                0" in output
-    assert "Low:                   0" in output
-    assert "Total:                 2" in output
+    assert "High                  2" in output
+    assert "Medium                0" in output
+    assert "Low                   0" in output
 
     report["findings"][1]["review_explanation"]["llm_verdict"] = "dismissed"
     assert final_metrics(report)["final_findings"] == 1
-    assert "Total:                 1" in format_attention(report)
-    assert "✖ 2 vulnerability clone finding(s) · 1 requiring attention (!)" in format_audit_summary(report)
+    assert "High                  1" in format_attention(report)
+    assert "✖ 2 finding(s) require attention" in format_audit_summary(report)
 
 
-def test_verbose_report_contains_cve_and_version_metadata():
+def test_verbose_report_contains_lineage_and_boundary_metadata():
     output = format_verbose(_report())
 
-    assert "CVE-2026-1234 / GHSA-test" in output
-    assert "affected versions:" in output
-    assert "1.0.0, < 1.15.0" in output
-    assert "fixed versions:" in output
-    assert "1.15.0" in output
-    assert "score margin:           0.290" in output
-    assert "local explanation:      generated" in output
-    assert "model:                qwen3:8b" in output
-    assert "LLM verdict:          needs_review" in output
-    assert "relevance tier:       2 / 3" in output
-    assert "Redirect validation is not visible in this region." in output
-    assert "Trace redirect destinations through the request path." in output
+    assert "Finding 1: AUTOMATIC_VULNERABILITY" in output
+    assert "lineage: lineage-test (high, 0.900)" in output
+    assert "fix boundary: abc123 — vulnerable (contrast 1.000)" in output
+    assert "Finding 2: MANUAL_REVIEW" in output
+    assert "fix boundary: abc123 — uncertain (contrast 0.290)" in output
 
 
-def test_report_view_excludes_cleared_by_default_and_can_include_them():
+def test_report_view_excludes_informational_by_default_and_can_include_them():
     report = _report()
 
     assert len(report_view(report)["findings"]) == 2
-    assert len(report_view(report, include_cleared=True)["findings"]) == 3
+    assert len(report_view(report, include_informational=True)["findings"]) == 3
     assert report_view(report)["findings"][1]["review_explanation"]["model"] == "qwen3:8b"
 
 
-def test_report_primary_match_follows_the_overall_advisory_verdict():
+def test_report_primary_lineage_uses_the_highest_credible_score():
     report = _report()
     result = report["findings"][0]["result"]
-    earlier = result["hash_matches"][0]
-    earlier["side"] = "patched"
-    later = {
-        **earlier,
-        "ghsa_id": "GHSA-later",
-        "cve_id": "CVE-LATER",
-        "fix_commit_sha": "later-fix",
-        "side": "vulnerable",
-    }
-    result["hash_matches"].append(later)
-    result["advisory_verdicts"] = [
-        {
-            "ghsa_id": "GHSA-test",
-            "cve_id": "CVE-2026-1234",
-            "fix_commit_sha": "abc123",
-            "file_path": "lib/http.js",
-            "function_name": "request",
-            "status": "cleared",
-        },
-        {
-            "ghsa_id": "GHSA-later",
-            "cve_id": "CVE-LATER",
-            "fix_commit_sha": "later-fix",
-            "file_path": "lib/http.js",
-            "function_name": "request",
-            "status": "flagged",
-        },
-    ]
+    later_alias = {**_alias(), "ghsa_id": "GHSA-later", "cve_id": "CVE-LATER"}
+    result["lineages"].append(_lineage(
+        lineage_id="lineage-later", score=0.95, alias=later_alias,
+    ))
 
     detail = report_view(report)["findings"][0]
 
-    assert detail["primary_match"]["ghsa_id"] == "GHSA-later"
-    assert detail["advisory_verdicts"] == result["advisory_verdicts"]
+    assert detail["primary_lineage"]["lineage_id"] == "lineage-later"
+    assert {item["cve_id"] for item in detail["advisories"]} == {
+        "CVE-2026-1234", "CVE-LATER",
+    }
 
 
-def test_report_excludes_retrieval_only_packages_and_ranks_primary_by_evidence():
+def test_report_retains_low_confidence_lineages_but_primary_stays_credible():
     report = _report()
-    finding = report["findings"][1]
-    result = finding["result"]
-    strong = {
-        **result["aggregates"][0]["top_matches"][0],
-        "pair_id": "pair-strong",
-        "ghsa_id": "GHSA-strong",
-        "cve_id": "CVE-STRONG",
-        "package_name": "strong-package",
-        "fix_commit_sha": "strong-fix",
-        "file_path": "strong.js",
-        "function_name": "strong",
-        "similarity": 0.84,
-    }
-    noise = {
-        **strong,
-        "pair_id": "pair-noise",
-        "ghsa_id": "GHSA-noise",
-        "cve_id": "CVE-NOISE",
-        "package_name": "unrelated-package",
-        "fix_commit_sha": "noise-fix",
-        "file_path": "noise.js",
-        "function_name": "noise",
-        "similarity": 0.99,
-    }
-    result["status"] = "flagged"
-    result["aggregates"] = [
-        {"pair_id": "pair-1", "top_matches": result["aggregates"][0]["top_matches"]},
-        {"pair_id": "pair-strong", "top_matches": [strong]},
-        {"pair_id": "pair-noise", "top_matches": [noise]},
-    ]
-    result["evidence"] = [
-        {"pair_id": "pair-1", "vulnerable_score": 0.80, "vulnerable_minus_patched": 0.10},
-        {"pair_id": "pair-strong", "vulnerable_score": 0.91, "vulnerable_minus_patched": 0.42},
-        {"pair_id": "pair-noise", "vulnerable_score": 0.99, "vulnerable_minus_patched": 0.80},
-    ]
-    result["advisory_verdicts"] = [
-        {
-            "ghsa_id": "GHSA-test",
-            "fix_commit_sha": "abc123",
-            "file_path": "lib/http.js",
-            "function_name": "request",
-            "status": "flagged",
-            "evidence_pair_ids": ["pair-1"],
-        },
-        {
-            "ghsa_id": "GHSA-strong",
-            "fix_commit_sha": "strong-fix",
-            "file_path": "strong.js",
-            "function_name": "strong",
-            "status": "flagged",
-            "evidence_pair_ids": ["pair-strong"],
-        },
-        {
-            "ghsa_id": "GHSA-noise",
-            "fix_commit_sha": "noise-fix",
-            "file_path": "noise.js",
-            "function_name": "noise",
-            "status": "cleared",
-            "evidence_pair_ids": ["pair-noise"],
-        },
+    result = report["findings"][1]["result"]
+    strong = {**_alias(), "ghsa_id": "GHSA-strong", "cve_id": "CVE-STRONG"}
+    noise = {**_alias(), "ghsa_id": "GHSA-noise", "cve_id": "CVE-NOISE"}
+    result["lineages"] = [
+        _lineage(),
+        _lineage(lineage_id="lineage-strong", score=0.95, alias=strong),
+        _lineage(lineage_id="lineage-noise", score=0.99, confidence="low", alias=noise),
     ]
 
     detail = report_view(report)["findings"][1]
 
-    assert detail["primary_match"]["ghsa_id"] == "GHSA-strong"
-    assert {item["ghsa_id"] for item in detail["advisories"]} == {
-        "GHSA-test",
-        "GHSA-strong",
+    assert detail["primary_lineage"]["lineage_id"] == "lineage-strong"
+    assert {item["lineage_id"] for item in detail["lineages"]} == {
+        "lineage-test", "lineage-strong", "lineage-noise",
     }
-    assert "unrelated-package" not in {
-        package["name"]
-        for lineage in detail["lineages"]
-        for package in lineage["reference_packages"]
+    assert {item["ghsa_id"] for item in detail["advisories"]} == {
+        "GHSA-test", "GHSA-strong", "GHSA-noise",
     }
 
 
@@ -343,8 +281,8 @@ def test_cli_report_reads_saved_json_without_detector(tmp_path, capsys):
 
     assert exit_code == 1
     output = capsys.readouterr().out
-    assert "CVE-2026-1234" in output
-    assert "affected versions:" in output
+    assert "Finding 1: AUTOMATIC_VULNERABILITY" in output
+    assert "lineage: lineage-test (high, 0.900)" in output
 
 
 def test_cli_report_returns_zero_when_all_findings_are_cleared(tmp_path, capsys):
@@ -354,7 +292,7 @@ def test_cli_report_returns_zero_when_all_findings_are_cleared(tmp_path, capsys)
     path.write_text(json.dumps(report), encoding="utf-8")
 
     assert main(["report", str(path)]) == 0
-    assert "No vulnerability clone findings" in capsys.readouterr().out
+    assert "✔ No actionable findings" in capsys.readouterr().out
 
 
 def test_scan_progress_is_written_to_stderr(capsys):

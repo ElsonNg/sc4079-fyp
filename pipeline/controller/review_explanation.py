@@ -15,12 +15,12 @@ import requests
 from pydantic import ValidationError
 
 from corpus.models.corpus import CorpusEntry
-from pipeline.controller.html_reporting import build_html_report_data
+from pipeline.controller.html_reporting import _candidate_lines, build_html_report_data
 from pipeline.controller.scanning import ScanConfig, ScanSummary
 from pipeline.models.explanations import ReviewBrief, ReviewExplanation
 
 EXPLANATION_CACHE_SCHEMA_VERSION = 1
-EXPLANATION_PROMPT_VERSION = "advisory-relevance-v4"
+EXPLANATION_PROMPT_VERSION = "advisory-relevance-v5-full-function-region"
 DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434"
 DEFAULT_OLLAMA_MODEL = "qwen3:8b"
 DEFAULT_OLLAMA_TIMEOUT = 180.0
@@ -70,32 +70,67 @@ def _canonical_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
-def _snippet_payload(snippet: dict[str, Any] | None) -> dict[str, Any] | None:
+def _snippet_payload(
+    snippet: dict[str, Any] | None,
+    *,
+    max_characters: int | None = MAX_SNIPPET_CHARACTERS,
+) -> dict[str, Any] | None:
     if not snippet:
         return None
     lines: list[dict[str, Any]] = []
     used = 0
     for raw in snippet.get("lines", []):
         text = str(raw.get("text") or "")
-        remaining = MAX_SNIPPET_CHARACTERS - used
-        if remaining <= 0:
+        remaining = None if max_characters is None else max_characters - used
+        if remaining is not None and remaining <= 0:
             break
-        text = text[:remaining]
+        if remaining is not None:
+            text = text[:remaining]
         used += len(text)
         lines.append(
             {
                 "number": int(raw.get("number") or 0),
                 "text": text,
-                "highlighted": bool(raw.get("marker")),
+                "in_detected_region": bool(raw.get("marker")),
             }
         )
+    truncated = bool(snippet.get("truncated")) or len(lines) < len(snippet.get("lines", []))
     return {
+        "scope": "function_truncated_at_safety_limit" if truncated else "complete_function",
         "lines": lines,
-        "truncated": bool(snippet.get("truncated")) or len(lines) < len(snippet.get("lines", [])),
+        "detected_region_lines": [
+            line["number"] for line in lines if line["in_detected_region"]
+        ],
+        "truncated": truncated,
     }
 
 
-def _explanation_input(finding: dict[str, Any]) -> dict[str, Any]:
+def _complete_project_function(
+    finding: dict[str, Any], normalized: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Build the complete function block with the detector region marked explicitly."""
+
+    source = str(finding.get("source") or "")
+    if not source:
+        return (normalized.get("reference") or {}).get("candidate")
+    first_line = int(finding.get("start_line") or 0) + 1
+    focus_lines = _candidate_lines(finding, source, normalized.get("evidence") or {})
+    return {
+        "lines": [
+            {
+                "number": first_line + index,
+                "text": text,
+                "marker": "detected" if index in focus_lines else "",
+            }
+            for index, text in enumerate(source.splitlines())
+        ],
+        "truncated": False,
+    }
+
+
+def _explanation_input(
+    finding: dict[str, Any], *, project_function: dict[str, Any] | None = None
+) -> dict[str, Any]:
     primary = finding.get("primary") or {}
     reference = finding.get("reference") or {}
     return {
@@ -115,7 +150,10 @@ def _explanation_input(finding: dict[str, Any]) -> dict[str, Any]:
             "reference_function": primary.get("function_name"),
         },
         "source_evidence": {
-            "project": _snippet_payload(reference.get("candidate")),
+            "project_function": _snippet_payload(
+                project_function or reference.get("candidate"),
+                max_characters=None,
+            ),
             "vulnerable_reference": _snippet_payload(reference.get("vulnerable")),
             "patched_reference": _snippet_payload(reference.get("patched")),
             "patch_changes": primary.get("patch_changes") or {"removed": [], "added": []},
@@ -199,6 +237,10 @@ class OllamaReviewExplainer:
             "flow, and missing safeguard. Identifier renaming, statement ordering, braces, generic loops, "
             "generic object access, error construction, string formatting, and common helper shapes are "
             "not security relevance by themselves. Package or function-name similarity is also insufficient.\n\n"
+            "The project_function evidence contains the complete project function block. Lines with "
+            "in_detected_region=true are the specific region that triggered retrieval and verification; "
+            "use the surrounding function lines as context. Do not assume that unmarked lines matched the "
+            "reference, and do not evaluate the detected region without its enclosing function context.\n\n"
             "Return one relevance_tier using this rubric:\n"
             "1 — Totally irrelevant: the required security mechanism or input-to-sink path is absent; overlap "
             "is incidental, generic, formatting-only, or serves a different purpose.\n"
@@ -291,11 +333,18 @@ def enrich_manual_review_findings(
     """Attach cached or locally generated explanations to manual-review findings."""
 
     normalized = build_html_report_data(summary, entries=entries, config=scan_config)
-    inputs_by_id = {
-        finding["id"]: _explanation_input(finding)
-        for finding in normalized["findings"]
-        if finding["priority"] == "manual_review"
+    raw_by_id = {
+        str(finding.get("function_id") or ""): finding for finding in summary.findings
     }
+    inputs_by_id = {}
+    for finding in normalized["findings"]:
+        if finding["priority"] != "manual_review":
+            continue
+        raw = raw_by_id.get(finding["id"], {})
+        inputs_by_id[finding["id"]] = _explanation_input(
+            finding,
+            project_function=_complete_project_function(raw, finding),
+        )
     targets = [
         finding
         for finding in summary.findings

@@ -7,6 +7,7 @@ from pipeline.controller.review_explanation import (
     OllamaExplanationConfig,
     OllamaExplanationError,
     OllamaReviewExplainer,
+    _complete_project_function,
     _explanation_input,
     _snippet_payload,
     enrich_manual_review_findings,
@@ -69,7 +70,7 @@ def _summary():
         total_functions=1,
         scanned_functions=1,
         reused_functions=0,
-        status_counts={"manual_review": 1},
+        priority_counts={"manual_review": 1},
         findings=[
             {
                 "function_id": "src/request.js::0:42",
@@ -78,7 +79,7 @@ def _summary():
                 "start_line": 0,
                 "end_line": 2,
                 "source": "function request(url) { return fetch(url); }",
-                "result": {"status": "manual_review"},
+                "result": {"priority": "manual_review"},
             }
         ],
         state_path="/tmp/demo/.provtrail/scan-state.json",
@@ -88,7 +89,7 @@ def _summary():
 def _normalized_finding():
     return {
         "id": "src/request.js::0:42",
-        "status": "manual_review",
+        "priority": "manual_review",
         "path": "src/request.js",
         "name": "request",
         "start_line": 1,
@@ -232,7 +233,7 @@ def test_unavailable_ollama_does_not_fail_scan_or_poison_cache(monkeypatch, tmp_
     )
 
     assert stats.unavailable == 1
-    assert summary.findings[0]["result"]["status"] == "manual_review"
+    assert summary.findings[0]["result"]["priority"] == "manual_review"
     assert summary.findings[0]["review_explanation"]["error_code"] == "ollama_unavailable"
     assert warnings == ["offline"]
     assert not cache_path.exists()
@@ -251,6 +252,45 @@ def test_prompt_snippets_have_a_hard_character_bound():
 
     assert sum(len(line["text"]) for line in payload["lines"]) == MAX_SNIPPET_CHARACTERS
     assert payload["truncated"] is True
+    assert payload["scope"] == "function_truncated_at_safety_limit"
+    assert payload["lines"][0]["in_detected_region"] is True
+    assert payload["detected_region_lines"] == [1]
+
+
+def test_complete_project_function_marks_region_without_dropping_context():
+    source = "function request(url) {\n  const target = normalize(url);\n  return fetch(target);\n}"
+    raw = {
+        "function_id": "src/request.js::0:80",
+        "start_line": 9,
+        "source": source,
+    }
+    normalized = {
+        "evidence": {"candidate_region_id": "missing-region"},
+        "reference": {"candidate": None},
+    }
+
+    payload = _snippet_payload(_complete_project_function(raw, normalized))
+
+    assert payload["scope"] == "complete_function"
+    assert [line["text"] for line in payload["lines"]] == source.splitlines()
+    assert payload["detected_region_lines"] == [10, 11, 12, 13]
+    assert all(line["in_detected_region"] for line in payload["lines"])
+
+
+def test_project_function_input_is_not_truncated_by_reference_snippet_limit():
+    finding = _normalized_finding()
+    project_function = {
+        "lines": [
+            {"number": 1, "text": "x" * (MAX_SNIPPET_CHARACTERS + 1), "marker": "detected"}
+        ],
+        "truncated": False,
+    }
+
+    payload = _explanation_input(finding, project_function=project_function)
+
+    project = payload["source_evidence"]["project_function"]
+    assert len(project["lines"][0]["text"]) == MAX_SNIPPET_CHARACTERS + 1
+    assert project["scope"] == "complete_function"
 
 
 def test_prompt_is_an_independent_three_tier_security_review():
@@ -266,6 +306,8 @@ def test_prompt_is_an_independent_three_tier_security_review():
     assert "2 — Potentially relevant" in prompt
     assert "3 — Definitely relevant" in prompt
     assert "independent second opinion" in prompt
+    assert "complete project function block" in prompt
+    assert "in_detected_region=true" in prompt
     assert "__proto__" in prompt
     assert "Do not discuss, infer, justify, or repeat detector scores" in prompt
 
@@ -292,13 +334,13 @@ def test_second_opinion_input_excludes_detector_scores_and_status():
 
 def test_flagged_findings_do_not_invoke_second_opinion(monkeypatch, tmp_path):
     normalized = _normalized_finding()
-    normalized["status"] = "flagged"
+    normalized["priority"] = "automatic_vulnerability"
     monkeypatch.setattr(
         "pipeline.controller.review_explanation.build_html_report_data",
         lambda *_args, **_kwargs: {"findings": [normalized]},
     )
     summary = _summary()
-    summary.findings[0]["result"]["status"] = "flagged"
+    summary.findings[0]["result"]["priority"] = "automatic_vulnerability"
     session = FakeSession()
 
     stats = enrich_manual_review_findings(
@@ -313,7 +355,7 @@ def test_flagged_findings_do_not_invoke_second_opinion(monkeypatch, tmp_path):
     assert stats.generated == 0
     assert stats.reused == 0
     assert stats.unavailable == 0
-    assert summary.findings[0]["result"]["status"] == "flagged"
+    assert summary.findings[0]["result"]["priority"] == "automatic_vulnerability"
     assert "review_explanation" not in summary.findings[0]
     assert session.get_calls == []
     assert session.post_calls == []

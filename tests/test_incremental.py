@@ -18,7 +18,7 @@ class _FakeDetector:
     def detect(self, candidate_source: str, candidate_id: str | None = None):
         self.calls.append((candidate_source, candidate_id))
         return RegionDetectionResult(
-            status="manual_review",
+            priority="manual_review",
             candidate_id=candidate_id,
             candidate_region_count=1,
             retrieval_match_count=1,
@@ -151,7 +151,9 @@ def test_scan_reports_intermediate_progress(tmp_path):
         "scan_complete",
     ]
     function_events = [event for event in events if event["phase"] == "function_complete"]
-    assert [event["status"] for event in function_events] == ["manual_review", "manual_review"]
+    # Project-evidence assessment derives the final priority; a detector result
+    # without attributable lineages is intentionally reduced to no lineage.
+    assert [event["status"] for event in function_events] == ["none", "none"]
     assert all(event["source"] == "scanned" for event in function_events)
 
 

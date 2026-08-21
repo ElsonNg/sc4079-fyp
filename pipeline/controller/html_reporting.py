@@ -335,20 +335,57 @@ def _enrich_lineage(
     states: list[dict[str, Any]],
     applications: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    output = dict(lineage)
-    lineage_states = [item for item in states if item.get("lineage_id") == lineage.get("lineage_id")]
-    first_state = lineage_states[0] if lineage_states else {}
-    representative_raw = {
-        **(lineage.get("associated_advisories") or [{}])[0],
-        "lineage_id": lineage.get("lineage_id"),
-        "repo": lineage.get("repo"),
-        "fix_commit_sha": first_state.get("fix_commit_sha"),
-        "file_path": lineage.get("file_path"),
-        "function_name": lineage.get("reference_function"),
+    output = {
+        key: lineage.get(key)
+        for key in (
+            "lineage_id", "confidence", "score", "repo", "file_path",
+            "reference_function", "evidence_pair_ids",
+        )
     }
-    representative_entry = entries_by_key.get(_entry_key(representative_raw)) if representative_raw else None
+    lineage_states = [item for item in states if item.get("lineage_id") == lineage.get("lineage_id")]
+    state_options = lineage_states or [{}]
+    advisory_options = lineage.get("associated_advisories") or [{}]
+    representative_raw: dict[str, Any] = {}
+    representative_entry = None
+    for state in state_options:
+        for advisory in advisory_options:
+            candidate = {
+                **advisory,
+                "lineage_id": lineage.get("lineage_id"),
+                "repo": lineage.get("repo"),
+                "fix_commit_sha": state.get("fix_commit_sha"),
+                "file_path": lineage.get("file_path"),
+                "function_name": lineage.get("reference_function"),
+            }
+            entry = entries_by_key.get(_entry_key(candidate))
+            if entry is not None:
+                representative_raw, representative_entry = candidate, entry
+                break
+        if representative_entry is not None:
+            break
+    if not representative_raw:
+        representative_raw = {
+            **advisory_options[0],
+            "lineage_id": lineage.get("lineage_id"),
+            "repo": lineage.get("repo"),
+            "fix_commit_sha": state_options[0].get("fix_commit_sha"),
+            "file_path": lineage.get("file_path"),
+            "function_name": lineage.get("reference_function"),
+        }
     representative = _enrich_match(representative_raw, representative_entry) if representative_raw else {}
     output["representative"] = representative
+    output["reference"] = {
+        "vulnerable": _excerpt(
+            representative_entry.vulnerable_function,
+            focus_lines=_reference_lines(representative_entry, patched=False),
+            marker="vulnerable",
+        ) if representative_entry is not None else None,
+        "patched": _excerpt(
+            representative_entry.patched_function,
+            focus_lines=_reference_lines(representative_entry, patched=True),
+            marker="patched",
+        ) if representative_entry is not None else None,
+    }
 
     advisories = []
     for value in lineage.get("associated_advisories", []):
@@ -357,7 +394,7 @@ def _enrich_lineage(
             **value,
             "lineage_id": lineage.get("lineage_id"),
             "repo": lineage.get("repo") or representative_raw.get("repo"),
-            "fix_commit_sha": first_state.get("fix_commit_sha") or representative_raw.get("fix_commit_sha"),
+            "fix_commit_sha": representative_raw.get("fix_commit_sha"),
             "file_path": lineage.get("file_path") or representative_raw.get("file_path"),
             "function_name": lineage.get("function_name") or representative_raw.get("function_name"),
         }
@@ -377,7 +414,6 @@ def _enrich_lineage(
         "confirmed" if "confirmed" in app_statuses else
         "conflicting" if "conflicting" in app_statuses else "unknown"
     )
-    output["vulnerability_states"] = lineage_states
     output["status"] = (
         "vulnerable" if any(item.get("status") == "vulnerable" for item in lineage_states) else
         "uncertain" if any(item.get("status") == "uncertain" for item in lineage_states) else "patched"
@@ -385,6 +421,55 @@ def _enrich_lineage(
     output["provenance_confidence"] = lineage.get("confidence", "none")
     output["target_package"] = target_package
     return output
+
+
+def _display_outcome(priority: str, result: dict[str, Any]) -> str:
+    if priority == "automatic_vulnerability":
+        exact_vulnerable = any(
+            item.get("match_type") == "exact" and item.get("side") == "vulnerable"
+            for item in result.get("hash_matches", [])
+        )
+        return "flagged_exact" if exact_vulnerable else "flagged_inferred"
+    if priority == "manual_review":
+        return "manual_review"
+    if priority == "informational_lineage":
+        return "patched"
+    return "none"
+
+
+def _decision_copy(outcome: str, result: dict[str, Any]) -> tuple[str, str]:
+    evidence = result.get("evidence", []) or []
+    supporting = {
+        item.get("candidate_region_id") for item in evidence
+        if item.get("candidate_region_id") and float(item.get("vulnerable_minus_patched") or 0) > 0
+    }
+    if outcome == "flagged_exact":
+        return (
+            "The function exactly matches the vulnerable side of a known fix boundary.",
+            "Apply the upstream security fix or replace this copied implementation with the patched version.",
+        )
+    if outcome == "flagged_inferred":
+        count = len(supporting)
+        support = f"{count} independent region{'s' if count != 1 else ''}" if count else "independent structural evidence"
+        verb = "favours" if count in {0, 1} else "favour"
+        return (
+            f"{support.capitalize()} strongly {verb} the vulnerable implementation over the patched implementation.",
+            "Compare this code with the upstream fix and apply the missing security control.",
+        )
+    if outcome == "manual_review":
+        return (
+            "The code lineage is credible, but the vulnerable and patched evidence cannot be resolved confidently.",
+            "Review the highlighted code against the upstream patch before accepting or dismissing this finding.",
+        )
+    if outcome == "patched":
+        return (
+            "The code is related to a known lineage and the patched-side evidence is stronger.",
+            "No action is required for this fix boundary unless project context contradicts the detected state.",
+        )
+    return (
+        "No credible vulnerable-code lineage was retained.",
+        "No action is required from this scan result.",
+    )
 
 
 def _build_finding(
@@ -406,8 +491,12 @@ def _build_finding(
         )
         for lineage in detail.get("lineages", [])
     ]
-    matches = [advisory for lineage in lineages for advisory in lineage["advisories"]]
-    primary_raw = (lineages[0].get("representative") if lineages else {}) or {}
+    primary_lineage_id = str((detail.get("primary_lineage") or {}).get("lineage_id") or "")
+    primary_lineage = next(
+        (lineage for lineage in lineages if lineage.get("lineage_id") == primary_lineage_id),
+        lineages[0] if lineages else {},
+    )
+    primary_raw = (primary_lineage.get("representative") if primary_lineage else {}) or {}
     primary_entry = entries_by_key.get(_entry_key(primary_raw)) if primary_raw else None
     primary = _enrich_match(primary_raw, primary_entry) if primary_raw else {
         "identifier": "No advisory recorded",
@@ -423,6 +512,29 @@ def _build_finding(
     priority = str(detail.get("priority") or "none")
     candidate_source = str(finding.get("source") or "") if priority in ACTIVE_STATUSES else ""
     result = finding.get("result", {})
+    if candidate_source:
+        for lineage in lineages:
+            pair_ids = set(lineage.get("evidence_pair_ids") or [])
+            scoped_evidence = [
+                item for item in (result.get("evidence", []) or [])
+                if item.get("pair_id") in pair_ids
+            ]
+            focus_lines: set[int] = set()
+            for item in scoped_evidence:
+                focus_lines.update(_candidate_lines(finding, candidate_source, item))
+            if not focus_lines and any(
+                item.get("lineage_id") == lineage.get("lineage_id")
+                for item in (result.get("hash_matches", []) or [])
+            ):
+                focus_lines = set(range(len(candidate_source.splitlines())))
+            lineage.setdefault("reference", {})["candidate"] = _excerpt(
+                candidate_source,
+                first_line=int(finding.get("start_line") or 0) + 1,
+                focus_lines=focus_lines,
+                marker="detected",
+            )
+    outcome = _display_outcome(priority, result)
+    reason, recommended_action = _decision_copy(outcome, result)
     start_line = int(finding.get("start_line") or 0) + 1
     reference = {
         "candidate": _excerpt(
@@ -454,11 +566,13 @@ def _build_finding(
         "end_line": int(finding.get("end_line") or 0) + 1,
         "priority": priority,
         "status": priority,
+        "outcome": outcome,
+        "reason": reason,
+        "recommended_action": recommended_action,
         "severity": str(detail.get("severity") or "unknown").lower(),
         "confidence": str((detail.get("primary_lineage") or {}).get("confidence") or "none"),
         "message": detail.get("message") or "",
         "primary": primary,
-        "advisories": matches,
         "lineages": lineages,
         "target_package": target_package,
         "attribution_status": (
@@ -467,6 +581,60 @@ def _build_finding(
             else "unresolved"
         ),
         "evidence": evidence,
+        "diagnostics": {
+            "candidate_region_count": result.get("candidate_region_count", 0),
+            "retrieval_match_count": result.get("retrieval_match_count", 0),
+            "evidence_count": len(result.get("evidence", []) or []),
+            "supporting_region_count": len({
+                item.get("candidate_region_id") for item in result.get("evidence", [])
+                if item.get("candidate_region_id")
+                and float(item.get("vulnerable_minus_patched") or 0) > 0
+            }),
+            "contradicting_region_count": len({
+                item.get("candidate_region_id") for item in result.get("evidence", [])
+                if item.get("candidate_region_id")
+                and float(item.get("vulnerable_minus_patched") or 0) < 0
+            }),
+            "aggregates": [
+                {
+                    "pair_id": item.get("pair_id"),
+                    "lineage_id": item.get("lineage_id"),
+                    "best_similarity": item.get("best_similarity"),
+                    "support_count": item.get("support_count"),
+                }
+                for item in (result.get("aggregates", []) or [])[:10]
+            ],
+            "hash_matches": [
+                {
+                    "match_type": item.get("match_type"),
+                    "side": item.get("side"),
+                    "lineage_id": item.get("lineage_id"),
+                    "fix_boundary_id": item.get("fix_boundary_id"),
+                }
+                for item in result.get("hash_matches", [])
+            ],
+            "vulnerability_states": [
+                {
+                    key: item.get(key)
+                    for key in (
+                        "lineage_id", "fix_boundary_id", "fix_commit_sha", "status",
+                        "vulnerable_score", "patched_score", "contrast_score",
+                        "fix_signature_coverage", "vulnerable_signature_coverage",
+                        "fix_evidence", "contradictions",
+                    )
+                }
+                for item in result.get("vulnerability_states", [])
+            ],
+            "package_applicabilities": [
+                {
+                    "lineage_id": item.get("lineage_id"),
+                    "package": item.get("package"),
+                    "ecosystem": item.get("ecosystem"),
+                    "status": item.get("status"),
+                }
+                for item in result.get("package_applicabilities", [])
+            ],
+        },
         "hash_match_types": detail.get("hash_match_types", []),
         "reference": reference,
         "parser_supported": result.get("parser_supported", True),
@@ -526,44 +694,10 @@ def build_html_report_data(
         )
     )
     active = [item for item in findings if item["priority"] in ACTIVE_STATUSES]
-    dependencies = _dependency_report(active, summary.target_root)
-    recommendations: dict[str, dict[str, Any]] = {}
-    for finding in (item for item in active if not _llm_dismissed(item)):
-        for lineage in finding.get("lineages", []):
-            primary = lineage.get("representative") or {}
-            key = str(lineage["lineage_id"])
-            aliases = lineage.get("advisories", [])
-            group = recommendations.setdefault(
-                key,
-                {
-                    "key": key,
-                    "lineage_id": key,
-                    "identifier": primary.get("identifier"),
-                    "title": primary.get("title"),
-                    "description": primary.get("advisory_description") or "No advisory description was recorded.",
-                    "severity": str(primary.get("severity") or finding["severity"]).lower(),
-                    "advisory_url": primary.get("advisory_url") or "",
-                    "fix_url": primary.get("fix_url") or "",
-                    "affected_versions": primary.get("affected_versions") or [],
-                    "fixed_versions": primary.get("fixed_versions") or [],
-                    "reference_packages": lineage.get("reference_packages", []),
-                    "target_package": finding.get("target_package", {}),
-                    "package_applicability": lineage.get("package_applicability", "unresolved"),
-                    "advisories": aliases,
-                    "advisory_count": len(aliases),
-                    "reference_file": primary.get("file_path") or "",
-                    "reference_function": primary.get("function_name") or "",
-                    "patch_changes": primary.get("patch_changes") or {"removed": [], "added": []},
-                    "locations": [],
-                },
-            )
-            location = f"{finding['path']}:{finding['start_line']}"
-            if location not in group["locations"]:
-                group["locations"].append(location)
-    recommendation_list = sorted(
-        recommendations.values(),
-        key=lambda item: (SEVERITY_RANK.get(item["severity"], 5), str(item["identifier"] or "")),
-    )
+    outcome_counts = {
+        name: sum(item["outcome"] == name for item in active)
+        for name in ("flagged_exact", "flagged_inferred", "manual_review")
+    }
     public_payload = summary.to_dict()
     audit = audit_summary(public_payload)
     metrics = final_metrics(public_payload)
@@ -584,9 +718,8 @@ def build_html_report_data(
         "scanned_files": summary.scanned_files,
         "audit": audit,
         "results": {"final_metrics": metrics},
+        "outcome_counts": outcome_counts,
         "findings": findings,
-        "dependencies": dependencies,
-        "recommendations": recommendation_list,
         "explanation_run": summary.explanation_run,
         "config": {
             "model": config.detector.model_id,
@@ -604,7 +737,8 @@ def render_html_report(data: dict[str, Any]) -> str:
     encoded = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     encoded = encoded.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
     title = html.escape(f"provtrail - {data.get('project', 'scan report')}", quote=True)
-    return _TEMPLATE.replace("__REPORT_TITLE__", title).replace("__REPORT_DATA__", encoded)
+    template = Path(__file__).with_name("report_template.html").read_text(encoding="utf-8")
+    return template.replace("__REPORT_TITLE__", title).replace("__REPORT_DATA__", encoded)
 
 
 def write_html_report(path: Path | str, data: dict[str, Any]) -> None:

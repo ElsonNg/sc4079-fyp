@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from corpus.controller.store import DEFAULT_DB_PATH, load_entries
+from pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
 from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
 
 DEFAULT_POSITIVE_INPUT = Path(__file__).resolve().parent.parent / "eval" / "candidate_subset_30.jsonl"
@@ -105,33 +106,28 @@ def main() -> None:
             flush=True,
         )
         result = detector.detect(record["candidate_source"], candidate_id=record["candidate_id"])
-        actual = result.status
+        actual = result.priority
         category_statuses[category][actual] += 1
         if expected == "flagged":
-            outcome = "true_positive" if actual == "flagged" else (
-                "false_negative" if actual == "cleared" else "abstained_positive"
+            outcome = "true_positive" if actual == "automatic_vulnerability" else (
+                "abstained_positive" if actual == "manual_review" else "false_negative"
             )
         else:
-            outcome = "true_negative" if actual == "cleared" else (
-                "false_positive" if actual == "flagged" else "abstained_negative"
+            outcome = "false_positive" if actual == "automatic_vulnerability" else (
+                "abstained_negative" if actual == "manual_review" else "true_negative"
             )
         confusion[outcome] += 1
 
+        stages = None
         rank = None
-        if expected == "flagged" and not result.hash_match_types:
+        if expected == "flagged":
             expected_key = _corpus_key(record)
-            ordered_pairs = [
-                detector.pairs[aggregate.pair_id]
-                for aggregate in result.aggregates
-            ]
-            rank = next(
-                (
-                    candidate_rank
-                    for candidate_rank, pair in enumerate(ordered_pairs, start=1)
-                    if _pair_key(pair) == expected_key
-                ),
-                None,
+            stages = vulnerable_origin_stages(
+                result.model_dump(mode="json"),
+                expected=expected_key,
+                pairs=detector.pairs,
             )
+            rank = stages["expected_aggregate_rank"]
             rank_values.append(rank)
 
         serialized.append(
@@ -142,6 +138,7 @@ def main() -> None:
                 "negative_category": record.get("negative_category"),
                 "corpus_entry": record["corpus_entry"],
                 "expected_aggregate_rank": rank,
+                **(stages or {}),
                 "outcome": outcome,
                 "result": result.model_dump(),
             }
@@ -184,9 +181,12 @@ def main() -> None:
             sum(rank is not None and rank <= 5 for rank in rank_values) / positive_region_count
             if positive_region_count else None
         ),
-        "status_counts": dict(Counter(row["result"]["status"] for row in serialized)),
-        "status_by_category": {key: dict(value) for key, value in sorted(category_statuses.items())},
+        "priority_counts": dict(Counter(row["result"]["priority"] for row in serialized)),
+        "priority_by_category": {key: dict(value) for key, value in sorted(category_statuses.items())},
         "outcome_counts": dict(confusion),
+        **vulnerable_origin_summary(
+            row for row in serialized if row["category"] == "positive"
+        ),
     }
     output = {
         "schema": "candidate_subset_mixed_90_ast_region_methodology_v1",

@@ -58,14 +58,13 @@ def _pair_identity(pair) -> AdvisoryIdentity:
 def derive_priority(lineages, states, applicabilities):
     credible = {item.lineage_id for item in lineages if item.confidence in {"high", "medium"}}
     scoped = [item for item in states if item.lineage_id in credible]
-    app = {(item.lineage_id, item.package): item.status for item in applicabilities}
     vulnerable = [item for item in scoped if item.status == "vulnerable"]
+    if any(not item.contradictions for item in vulnerable):
+        # Package ownership explains how code entered the project; it does not
+        # invalidate strong code-level evidence. Keep applicability as report
+        # context and reserve manual review for genuinely ambiguous boundaries.
+        return "automatic_vulnerability"
     if vulnerable:
-        for state in vulnerable:
-            packages = {alias.package_name for alias in state.advisories if alias.package_name}
-            if any(app.get((state.lineage_id, package)) == "confirmed" for package in packages):
-                if not state.contradictions:
-                    return "automatic_vulnerability"
         return "manual_review"
     if any(item.status == "uncertain" for item in scoped):
         return "manual_review"
