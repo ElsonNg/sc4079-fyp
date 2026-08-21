@@ -305,6 +305,8 @@ def _enrich_match(match: dict[str, Any], entry: CorpusEntry | None) -> dict[str,
         output["advisory_references"] = output.get("advisory_references") or entry.advisory_references
         output["affected_versions"] = output.get("affected_versions") or entry.affected_versions
         output["fixed_versions"] = output.get("fixed_versions") or entry.fixed_versions
+        output["source_language"] = entry.source_language
+        output["representation"] = "type-erased runtime" if entry.source_language != "javascript" else "native"
     output["affected_versions"] = _version_values(output.get("affected_versions"))
     output["fixed_versions"] = _version_values(output.get("fixed_versions"))
     output["advisory_summary"] = _advisory_summary(output.get("advisory_description"))
@@ -562,6 +564,7 @@ def _build_finding(
         "path": str(finding.get("path") or "unknown"),
         "name": finding.get("name") or "<anonymous>",
         "node_type": finding.get("node_type") or "function",
+        "source_language": finding.get("source_language") or "javascript",
         "start_line": start_line,
         "end_line": int(finding.get("end_line") or 0) + 1,
         "priority": priority,

@@ -73,6 +73,8 @@ class VulnerableRegionPair(BaseModel):
     fix_signature_tokens: list[str] = Field(default_factory=list)
     vulnerable_source_sha256: str
     patched_source_sha256: str
+    source_language: str = "javascript"
+    representation: Literal["native", "type_erased"] = "native"
 
 
 class CandidateRegion(BaseModel):
@@ -108,6 +110,8 @@ class RegionRetrievalMatch(BaseModel):
     fix_commit_sha: str
     file_path: str
     function_name: str | None = None
+    source_language: str = "javascript"
+    representation: Literal["native", "type_erased"] = "native"
 
 
 class RegionAggregate(BaseModel):

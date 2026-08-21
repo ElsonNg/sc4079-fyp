@@ -7,23 +7,33 @@ from corpus.models.corpus import DiagnosticLine
 from pipeline.controller.parsing import (
     extract_function_units,
     find_enclosing_function,
+    is_parse_valid,
     normalize_source_with_lines,
+    parse_source,
+    source_language,
+    type_erase_source,
 )
 from pipeline.models.parsing import FunctionUnit
 
 COMMIT_URL_RE = re.compile(r"^https://github\.com/([^/]+)/([^/]+)/commit/([0-9a-fA-F]{7,40})/?$")
 HUNK_HEADER_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 
-JS_EXTENSIONS = (".js", ".jsx", ".mjs", ".cjs")
-TEST_PATH_MARKERS = ("test/", "tests/", "__tests__/", "spec/", ".test.", ".spec.")
+JS_EXTENSIONS = (".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts")
+TEST_PATH_MARKERS = (
+    "test/", "tests/", "__tests__/", "spec/", "specs/", "example/", "examples/",
+    "fixture/", "fixtures/", "benchmark/", "benchmarks/", "vendor/", "vendors/",
+    "third_party/", "node_modules/", "dist/", "build/", "coverage/", ".test.", ".spec.",
+)
+NON_PRODUCTION_SUFFIXES = (".d.ts", ".min.js", ".min.mjs", ".bundle.js")
 
 # Thresholds for the diff cleanliness filter (automated proxy for the manual review this
 # fully-automated pipeline deliberately doesn't have). Calibrated against the axios bootstrap
 # commit (7 production files, ~98 changed lines, part of a multi-CVE release) so that a
 # legitimate multi-file security fix still passes, while a large unrelated refactor/format
 # commit still gets rejected.
-MAX_PRODUCTION_FILES = 15
-MAX_PRODUCTION_LINES_CHANGED = 400
+MAX_PRODUCTION_FILES = 3
+MAX_PRODUCTION_LINES_CHANGED = 150
+MAX_PRODUCTION_FUNCTIONS = 5
 
 # Greedy name-fallback matching (anonymous functions) only pairs a pre/post unit if their
 # start lines are within this many lines of each other.
@@ -47,10 +57,33 @@ def extract_commit_refs(references: list[str]) -> list[tuple[str, str, str]]:
 
 
 def is_production_js_file(filename: str) -> bool:
-    lower = filename.lower()
+    lower = filename.lower().replace("\\", "/")
     if not lower.endswith(JS_EXTENSIONS):
         return False
+    if lower.endswith(NON_PRODUCTION_SUFFIXES):
+        return False
     return not any(marker in lower for marker in TEST_PATH_MARKERS)
+
+
+def _substantive_patch_lines(patch: str | None) -> int:
+    if not patch:
+        return 0
+    count = 0
+    in_block_comment = False
+    for raw in patch.splitlines():
+        if not raw.startswith(("+", "-")) or raw.startswith(("+++", "---")):
+            continue
+        text = raw[1:].strip()
+        if in_block_comment:
+            if "*/" in text:
+                in_block_comment = False
+            continue
+        if text.startswith("/*"):
+            in_block_comment = "*/" not in text
+            continue
+        if text and not text.startswith(("//", "*")):
+            count += 1
+    return count
 
 
 def check_diff_cleanliness(commit: GitHubCommitDetail) -> list[GitHubCommitFile]:
@@ -62,10 +95,24 @@ def check_diff_cleanliness(commit: GitHubCommitDetail) -> list[GitHubCommitFile]
         raise CleanlinessRejection("no_production_js_files")
     if len(production_files) > MAX_PRODUCTION_FILES:
         raise CleanlinessRejection("too_many_files")
-    total_changes = sum(f.additions + f.deletions for f in production_files)
+    total_changes = sum(_substantive_patch_lines(f.patch) for f in production_files)
     if total_changes > MAX_PRODUCTION_LINES_CHANGED:
         raise CleanlinessRejection("too_many_lines_changed")
     return production_files
+
+
+def _changed_executable_node_count(source: str, lines: list[int], filename: str) -> int:
+    tree = parse_source(source, filename=filename)
+    ignored = {"program", "comment", "identifier", "property_identifier", "string", "number"}
+    seen: set[tuple[int, int, str]] = set()
+    for line in lines:
+        point = (line, 0)
+        node = tree.root_node.descendant_for_point_range(point, (line, 2**31 - 1))
+        while node is not None and (not node.is_named or node.type in ignored):
+            node = node.parent
+        if node is not None and node.type != "program":
+            seen.add((node.start_byte, node.end_byte, node.type))
+    return len(seen)
 
 
 def parse_patch_line_numbers(patch: str) -> tuple[list[int], list[int]]:
@@ -163,6 +210,8 @@ def extract_function_pairs_from_commit(
     """
     commit = fetch_commit(owner, repo, sha, session=session)
     production_files = check_diff_cleanliness(commit)
+    if not any(f.deletions for f in production_files):
+        raise CleanlinessRejection("added_only")
     parent_sha = commit.parent_shas[0]
 
     pairs: list[ExtractedFunctionPair] = []
@@ -177,9 +226,14 @@ def extract_function_pairs_from_commit(
         if pre_content is None or post_content is None:
             continue
 
+        language = source_language(f.filename)
+        if not is_parse_valid(pre_content, filename=pre_path) or not is_parse_valid(
+            post_content, filename=f.filename
+        ):
+            raise CleanlinessRejection("parser_invalid")
         pre_lines, post_lines = parse_patch_line_numbers(f.patch)
-        pre_units = extract_function_units(pre_content)
-        post_units = extract_function_units(post_content)
+        pre_units = extract_function_units(pre_content, filename=pre_path)
+        post_units = extract_function_units(post_content, filename=f.filename)
 
         touched_pre = _touched_units(pre_lines, pre_units)
         touched_post = _touched_units(post_lines, post_units)
@@ -188,19 +242,57 @@ def extract_function_pairs_from_commit(
             if pre_unit.source == post_unit.source:
                 skipped_identical += 1
                 continue
+            diagnostics = compute_diagnostic_lines(
+                pre_unit.source, post_unit.source, language=language
+            )
+            if not diagnostics:
+                raise CleanlinessRejection("formatting_only")
+            removed = sum(d.kind == "removed" for d in diagnostics)
+            added = sum(d.kind == "added" for d in diagnostics)
+            if not removed:
+                raise CleanlinessRejection("added_only")
+            if not added:
+                raise CleanlinessRejection("partial_patch")
+            removed_nodes = _changed_executable_node_count(pre_content, pre_lines, pre_path)
+            added_nodes = _changed_executable_node_count(post_content, post_lines, f.filename)
+            if not removed_nodes or not added_nodes:
+                raise CleanlinessRejection("no_executable_ast_change")
             pairs.append(
                 ExtractedFunctionPair(
                     file_path=f.filename,
                     function_name=pre_unit.name or post_unit.name,
                     vulnerable_function=pre_unit.source,
                     patched_function=post_unit.source,
+                    source_language=language,
+                    vulnerable_runtime=type_erase_source(pre_unit.source, filename=pre_path),
+                    patched_runtime=type_erase_source(post_unit.source, filename=f.filename),
+                    patch_hunk=f.patch,
+                    substantive_changed_lines=len(diagnostics),
+                    removed_executable_nodes=removed_nodes,
+                    added_executable_nodes=added_nodes,
                 )
             )
 
+    if len(pairs) > MAX_PRODUCTION_FUNCTIONS:
+        raise CleanlinessRejection("too_many_functions")
+    if not pairs:
+        raise CleanlinessRejection("identical" if skipped_identical else "partial_patch")
+    smallest = min(
+        range(len(pairs)),
+        key=lambda index: (
+            pairs[index].substantive_changed_lines,
+            len(pairs[index].vulnerable_function),
+            pairs[index].file_path,
+            pairs[index].function_name or "",
+        ),
+    )
+    pairs[smallest].is_primary = True
     return pairs, skipped_identical
 
 
-def compute_diagnostic_lines(vulnerable_source: str, patched_source: str) -> list[DiagnosticLine]:
+def compute_diagnostic_lines(
+    vulnerable_source: str, patched_source: str, *, language: str | None = None
+) -> list[DiagnosticLine]:
     """Plain line diff (not embedding-based alignment) locating which lines differ.
 
     Comment-only and blank lines are excluded even when difflib flags them as
@@ -217,8 +309,12 @@ def compute_diagnostic_lines(vulnerable_source: str, patched_source: str) -> lis
     patched_lines = patched_source.splitlines()
     matcher = difflib.SequenceMatcher(a=vuln_lines, b=patched_lines, autojunk=False)
 
-    vuln_significant = {ln for ln, _ in normalize_source_with_lines(vulnerable_source)}
-    patched_significant = {ln for ln, _ in normalize_source_with_lines(patched_source)}
+    vuln_significant = {
+        ln for ln, _ in normalize_source_with_lines(vulnerable_source, language=language)
+    }
+    patched_significant = {
+        ln for ln, _ in normalize_source_with_lines(patched_source, language=language)
+    }
 
     diagnostics: list[DiagnosticLine] = []
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():

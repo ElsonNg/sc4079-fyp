@@ -1,10 +1,12 @@
 # provtrail
 
-A CLI tool for detecting JavaScript vulnerability clones (patched-but-reintroduced or renamed/reworded vulnerable code) against a corpus built from real CVE fix commits.
+A CLI tool for detecting JavaScript and TypeScript vulnerability clones against strictly
+evidence-attributed vulnerable origins from the npm JavaScript/TypeScript ecosystem.
 
 ## CLI
 
-The detector can be run against a JavaScript codebase with incremental scan state:
+The detector scans `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`
+files with incremental scan state:
 
 ```bash
 PYTHONPATH=. .venv/bin/python -m cli scan /path/to/project --output scan.json
@@ -75,7 +77,33 @@ PYTHONPATH=. .venv/bin/python -m cli corpus ingest-klaban
 PYTHONPATH=. .venv/bin/python -m cli corpus index
 ```
 
-`corpus ingest-klaban` reads the bundled manually confirmed Klaban dataset, replaces
+`corpus build` discovers every reviewed, non-withdrawn npm advisory automatically. It
+admits entries only after GitHub Advisory Database, OSV, npm tarball, repository, release,
+commit-ancestry, focused-diff, parser, and executable-AST checks agree. `--package` is a
+diagnostic restriction and does not bypass any check. Severity, popularity, maintenance,
+and the post-admission high-impact cohort are metadata rather than admission gates.
+
+Successful builds are first written to a versioned directory under
+`corpus/data/snapshots/`. The database, native/type-erased retrieval map, source and
+artifact hashes, policy manifest, attrition report, quarantine ledger, and complete and
+high-impact cohort counts are checked before `current.json` and the active database are
+replaced atomically. Failed builds do not promote a partial snapshot.
+
+Native source is authoritative. An exact native vulnerable-side hash can produce
+`Flagged (Exact)`; a TypeScript-to-JavaScript match through the type-erased runtime
+representation can produce only `Flagged (Inferred)`. The report's **View info** dialog
+shows both source language and representation.
+
+The initial corpus is coverage-first and has not yet undergone manual sampling,
+precision confidence-interval measurement, reviewer-consistency analysis, LLM corpus
+review, or independent vulnerability-semantic/exploitability validation. Consequently,
+an entry is described as a “strictly evidence-attributed vulnerable origin,” not an
+independently proven exploitable function, and `Flagged (Exact)` is not a statistically
+validated corpus-wide guarantee. The immutable provenance and quarantine artifacts are
+retained for that later evaluation.
+
+The separate `corpus ingest-klaban` evaluation utility is not used by `corpus build`.
+It reads the bundled manually confirmed Klaban dataset, replaces
 previously imported Klaban rows in `corpus/data/corpus.db`, and builds both the
 whole-function and AST-region FAISS embedding indexes. Pass `--skip-index` to perform
 only the SQLite import, or `--db-path` and the index-directory options to write isolated
@@ -85,7 +113,8 @@ Use `--skip-region-index` when only the whole-function FAISS index is required.
 
 Long functions are indexed with bounded, diagnostic-aware windows so code around the
 security fix remains retrievable even when it occurs far beyond the function prefix.
-Measure Klaban vulnerable and patched Recall@K with:
+Kluban overlap analysis and benchmarking are deferred to the later evaluation phase. The
+existing evaluation utility can be run independently with:
 
 ```bash
 PYTHONPATH=. .venv/bin/python scripts/evaluate_klaban_retrieval.py --k 10

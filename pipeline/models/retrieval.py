@@ -17,3 +17,5 @@ class RetrievalMatch(BaseModel):
     file_path: str
     function_name: str | None = None
     similarity: float = 0.0
+    source_language: str = "javascript"
+    representation: str = "native"

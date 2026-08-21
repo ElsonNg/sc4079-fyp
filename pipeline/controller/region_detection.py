@@ -31,6 +31,7 @@ from pipeline.controller.region_verification import (
 )
 from pipeline.controller.provenance import cluster_corpus_entries
 from pipeline.controller.embedding import DEFAULT_MODEL_ID
+from pipeline.controller.parsing import source_language, type_erase_source
 from pipeline.models.regions import (
     LineageAttribution,
     LineageConfidence,
@@ -121,7 +122,13 @@ class RegionDetector:
         _candidate_regions=None,
         _matches=None,
     ) -> RegionDetectionResult:
-        if not source_is_supported(candidate_source):
+        candidate_language = source_language(candidate_id)
+        analysis_source = (
+            type_erase_source(candidate_source, filename=candidate_id)
+            if candidate_language != "javascript"
+            else candidate_source
+        )
+        if not source_is_supported(analysis_source):
             return RegionDetectionResult(
                 priority="manual_review",
                 candidate_id=candidate_id,
@@ -130,7 +137,7 @@ class RegionDetector:
                 parser_supported=False,
                 message="Candidate syntax is unsupported or could not be parsed safely",
             )
-        hash_matches = lookup(candidate_source, self.hash_index)
+        hash_matches = lookup(candidate_source, self.hash_index, filename=candidate_id)
         hash_types = sorted({match.match_type for match in hash_matches})
         if hash_matches:
             lineage_ids = sorted({match.lineage_id for match in hash_matches if match.lineage_id})
@@ -185,7 +192,7 @@ class RegionDetector:
             )
 
         candidate_regions = _candidate_regions or enumerate_candidate_regions(
-            candidate_source,
+            analysis_source,
             candidate_id=candidate_id,
             max_regions=self.config.max_candidate_regions,
         )

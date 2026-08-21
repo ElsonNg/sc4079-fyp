@@ -1,0 +1,61 @@
+"""Stable multi-representation corpus deduplication."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+
+from corpus.models.corpus import CorpusEntry
+from pipeline.controller.parsing import normalize_source
+
+
+def _hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _token_form(source: str) -> str:
+    return " ".join(re.findall(r"[A-Za-z_$][\w$]*|\d+(?:\.\d+)?|[^\s\w]", source))
+
+
+def fingerprint_entry(entry: CorpusEntry) -> CorpusEntry:
+    entry.native_hash = _hash(entry.vulnerable_function)
+    entry.normalized_hash = _hash(_token_form(" ".join(normalize_source(entry.vulnerable_function))))
+    runtime = entry.vulnerable_runtime or entry.vulnerable_function
+    entry.runtime_hash = _hash(_token_form(" ".join(normalize_source(runtime))))
+    # The normalized syntax representation is deterministic and conservative. It is
+    # intentionally separate from native and type-erased hashes for auditability.
+    entry.ast_hash = _hash(json.dumps(_token_form(runtime).split(), separators=(",", ":")))
+    if not entry.advisory_aliases:
+        entry.advisory_aliases = [{
+            "ghsa_id": entry.ghsa_id, "cve_id": entry.cve_id, "osv_id": entry.osv_id,
+            "title": entry.advisory_title, "url": entry.advisory_url,
+        }]
+    return entry
+
+
+def deduplicate_entries(entries: list[CorpusEntry]) -> tuple[list[CorpusEntry], int]:
+    """Collapse aliases/backports while retaining different vulnerable-to-fixed boundaries."""
+    result: list[CorpusEntry] = []
+    seen: dict[tuple, CorpusEntry] = {}
+    for entry in sorted(
+        (fingerprint_entry(item) for item in entries),
+        key=lambda e: (e.ghsa_id, e.fix_commit_sha, e.file_path, e.function_name or ""),
+    ):
+        boundary = (
+            entry.release_boundary.get("last_affected"),
+            entry.release_boundary.get("first_fixed"),
+        )
+        key = (entry.package_name, boundary, entry.ast_hash)
+        if key in seen:
+            existing = seen[key]
+            known = {(a.get("ghsa_id"), a.get("cve_id"), a.get("osv_id")) for a in existing.advisory_aliases}
+            for alias in entry.advisory_aliases:
+                identity = (alias.get("ghsa_id"), alias.get("cve_id"), alias.get("osv_id"))
+                if identity not in known:
+                    existing.advisory_aliases.append(alias)
+                    known.add(identity)
+            continue
+        seen[key] = entry
+        result.append(entry)
+    return result, len(entries) - len(result)

@@ -30,6 +30,20 @@ CREATE TABLE IF NOT EXISTS corpus_entries (
     affected_versions TEXT NOT NULL DEFAULT '[]',
     fixed_versions TEXT NOT NULL DEFAULT '[]',
     osv_confirmed INTEGER NOT NULL DEFAULT 0,
+    source_language TEXT NOT NULL DEFAULT 'javascript',
+    vulnerable_runtime TEXT,
+    patched_runtime TEXT,
+    patch_hunk TEXT NOT NULL DEFAULT '',
+    native_hash TEXT NOT NULL DEFAULT '',
+    normalized_hash TEXT NOT NULL DEFAULT '',
+    runtime_hash TEXT NOT NULL DEFAULT '',
+    ast_hash TEXT NOT NULL DEFAULT '',
+    release_boundary TEXT NOT NULL DEFAULT '{}',
+    high_impact INTEGER NOT NULL DEFAULT 0,
+    impact_metadata TEXT NOT NULL DEFAULT '{}',
+    evidence_label TEXT NOT NULL DEFAULT 'strictly evidence-attributed vulnerable origin',
+    primary_evidence INTEGER NOT NULL DEFAULT 1,
+    advisory_aliases TEXT NOT NULL DEFAULT '[]',
     UNIQUE (ghsa_id, fix_commit_sha, file_path, function_name)
 );
 """
@@ -39,8 +53,11 @@ INSERT INTO corpus_entries (
     ghsa_id, cve_id, osv_id, advisory_title, advisory_description, advisory_url,
     advisory_references, cwes, severity, package_name, ecosystem, repo,
     fix_commit_sha, file_path, function_name, vulnerable_function,
-    patched_function, diagnostic_lines, affected_versions, fixed_versions, osv_confirmed
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    patched_function, diagnostic_lines, affected_versions, fixed_versions, osv_confirmed,
+    source_language, vulnerable_runtime, patched_runtime, patch_hunk, native_hash,
+    normalized_hash, runtime_hash, ast_hash, release_boundary, high_impact,
+    impact_metadata, evidence_label, primary_evidence, advisory_aliases
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (ghsa_id, fix_commit_sha, file_path, function_name) DO UPDATE SET
     cve_id=excluded.cve_id, osv_id=excluded.osv_id,
     advisory_title=excluded.advisory_title,
@@ -55,8 +72,39 @@ ON CONFLICT (ghsa_id, fix_commit_sha, file_path, function_name) DO UPDATE SET
     diagnostic_lines=excluded.diagnostic_lines,
     affected_versions=excluded.affected_versions,
     fixed_versions=excluded.fixed_versions,
-    osv_confirmed=excluded.osv_confirmed
+    osv_confirmed=excluded.osv_confirmed,
+    source_language=excluded.source_language,
+    vulnerable_runtime=excluded.vulnerable_runtime,
+    patched_runtime=excluded.patched_runtime,
+    patch_hunk=excluded.patch_hunk,
+    native_hash=excluded.native_hash,
+    normalized_hash=excluded.normalized_hash,
+    runtime_hash=excluded.runtime_hash,
+    ast_hash=excluded.ast_hash,
+    release_boundary=excluded.release_boundary,
+    high_impact=excluded.high_impact,
+    impact_metadata=excluded.impact_metadata,
+    evidence_label=excluded.evidence_label,
+    primary_evidence=excluded.primary_evidence,
+    advisory_aliases=excluded.advisory_aliases
 """
+
+
+def _entry_values(e: CorpusEntry) -> tuple:
+    return (
+        e.ghsa_id, e.cve_id, e.osv_id, e.advisory_title, e.advisory_description,
+        e.advisory_url, json.dumps(e.advisory_references),
+        json.dumps([c.model_dump() for c in e.cwes]), e.severity, e.package_name,
+        e.ecosystem, e.repo, e.fix_commit_sha, e.file_path, e.function_name,
+        e.vulnerable_function, e.patched_function,
+        json.dumps([d.model_dump() for d in e.diagnostic_lines]),
+        json.dumps(e.affected_versions), json.dumps(e.fixed_versions), int(e.osv_confirmed),
+        e.source_language, e.vulnerable_runtime, e.patched_runtime, e.patch_hunk,
+        e.native_hash, e.normalized_hash, e.runtime_hash, e.ast_hash,
+        json.dumps(e.release_boundary, sort_keys=True), int(e.high_impact),
+        json.dumps(e.impact_metadata, sort_keys=True), e.evidence_label, int(e.primary_evidence),
+        json.dumps(e.advisory_aliases, sort_keys=True),
+    )
 
 
 def get_connection(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
@@ -70,6 +118,20 @@ def get_connection(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
         "advisory_description": "TEXT NOT NULL DEFAULT ''",
         "advisory_url": "TEXT NOT NULL DEFAULT ''",
         "advisory_references": "TEXT NOT NULL DEFAULT '[]'",
+        "source_language": "TEXT NOT NULL DEFAULT 'javascript'",
+        "vulnerable_runtime": "TEXT",
+        "patched_runtime": "TEXT",
+        "patch_hunk": "TEXT NOT NULL DEFAULT ''",
+        "native_hash": "TEXT NOT NULL DEFAULT ''",
+        "normalized_hash": "TEXT NOT NULL DEFAULT ''",
+        "runtime_hash": "TEXT NOT NULL DEFAULT ''",
+        "ast_hash": "TEXT NOT NULL DEFAULT ''",
+        "release_boundary": "TEXT NOT NULL DEFAULT '{}'",
+        "high_impact": "INTEGER NOT NULL DEFAULT 0",
+        "impact_metadata": "TEXT NOT NULL DEFAULT '{}'",
+        "evidence_label": "TEXT NOT NULL DEFAULT 'strictly evidence-attributed vulnerable origin'",
+        "primary_evidence": "INTEGER NOT NULL DEFAULT 1",
+        "advisory_aliases": "TEXT NOT NULL DEFAULT '[]'",
     }
     for column, declaration in migrations.items():
         if column not in columns:
@@ -82,32 +144,7 @@ def save_entries(entries: list[CorpusEntry], db_path: Path | str = DEFAULT_DB_PA
     conn = get_connection(db_path)
     with conn:
         for e in entries:
-            conn.execute(
-                _UPSERT_SQL,
-                (
-                    e.ghsa_id,
-                    e.cve_id,
-                    e.osv_id,
-                    e.advisory_title,
-                    e.advisory_description,
-                    e.advisory_url,
-                    json.dumps(e.advisory_references),
-                    json.dumps([c.model_dump() for c in e.cwes]),
-                    e.severity,
-                    e.package_name,
-                    e.ecosystem,
-                    e.repo,
-                    e.fix_commit_sha,
-                    e.file_path,
-                    e.function_name,
-                    e.vulnerable_function,
-                    e.patched_function,
-                    json.dumps([d.model_dump() for d in e.diagnostic_lines]),
-                    json.dumps(e.affected_versions),
-                    json.dumps(e.fixed_versions),
-                    int(e.osv_confirmed),
-                ),
-            )
+            conn.execute(_UPSERT_SQL, _entry_values(e))
     conn.close()
 
 
@@ -124,21 +161,7 @@ def replace_entries_by_ghsa_prefix(
             (len(ghsa_prefix), ghsa_prefix),
         )
         for e in entries:
-            conn.execute(
-                _UPSERT_SQL,
-                (
-                    e.ghsa_id, e.cve_id, e.osv_id, e.advisory_title,
-                    e.advisory_description, e.advisory_url,
-                    json.dumps(e.advisory_references),
-                    json.dumps([c.model_dump() for c in e.cwes]), e.severity,
-                    e.package_name, e.ecosystem, e.repo, e.fix_commit_sha,
-                    e.file_path, e.function_name, e.vulnerable_function,
-                    e.patched_function,
-                    json.dumps([d.model_dump() for d in e.diagnostic_lines]),
-                    json.dumps(e.affected_versions), json.dumps(e.fixed_versions),
-                    int(e.osv_confirmed),
-                ),
-            )
+            conn.execute(_UPSERT_SQL, _entry_values(e))
     conn.close()
 
 
@@ -177,6 +200,20 @@ def load_entries(db_path: Path | str = DEFAULT_DB_PATH) -> list[CorpusEntry]:
                 affected_versions=json.loads(d["affected_versions"]),
                 fixed_versions=json.loads(d["fixed_versions"]),
                 osv_confirmed=bool(d["osv_confirmed"]),
+                source_language=d.get("source_language", "javascript"),
+                vulnerable_runtime=d.get("vulnerable_runtime"),
+                patched_runtime=d.get("patched_runtime"),
+                patch_hunk=d.get("patch_hunk", ""),
+                native_hash=d.get("native_hash", ""),
+                normalized_hash=d.get("normalized_hash", ""),
+                runtime_hash=d.get("runtime_hash", ""),
+                ast_hash=d.get("ast_hash", ""),
+                release_boundary=json.loads(d.get("release_boundary") or "{}"),
+                high_impact=bool(d.get("high_impact", 0)),
+                impact_metadata=json.loads(d.get("impact_metadata") or "{}"),
+                evidence_label=d.get("evidence_label", "strictly evidence-attributed vulnerable origin"),
+                primary_evidence=bool(d.get("primary_evidence", 1)),
+                advisory_aliases=json.loads(d.get("advisory_aliases") or "[]"),
             )
         )
     return entries

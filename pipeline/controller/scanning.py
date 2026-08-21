@@ -21,12 +21,12 @@ from pipeline.controller.incremental import (
     load_scan_state,
     save_scan_state,
 )
-from pipeline.controller.parsing import extract_function_units
+from pipeline.controller.parsing import SUPPORTED_SOURCE_EXTENSIONS, extract_function_units
 from pipeline.controller.project_evidence import build_project_evidence
 from pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig, build_region_detector
 from pipeline.models.regions import RegionDetectionResult
 
-JS_EXTENSIONS = (".js", ".jsx", ".mjs", ".cjs")
+JS_EXTENSIONS = SUPPORTED_SOURCE_EXTENSIONS
 DEFAULT_CORPUS_VERSION = "unknown"
 # Bump this whenever the persisted RegionDetectionResult shape or its serialized
 # metadata contract changes. This prevents old cache entries from being treated as
@@ -168,7 +168,7 @@ def _js_files(snapshot: MerkleSnapshot, extensions: tuple[str, ...]) -> list[str
 def _extract_file_functions(root: Path, relative_path: str) -> list[dict[str, Any]]:
     source = (root / relative_path).read_text(encoding="utf-8")
     records = []
-    for unit in extract_function_units(source):
+    for unit in extract_function_units(source, filename=relative_path):
         function_id = _function_id(relative_path, unit.start_byte, unit.end_byte)
         records.append(
             {
@@ -182,6 +182,7 @@ def _extract_file_functions(root: Path, relative_path: str) -> list[dict[str, An
                 "end_byte": unit.end_byte,
                 "function_hash": _function_hash(unit.source),
                 "source": unit.source,
+                "source_language": unit.language,
             }
         )
     return records
@@ -196,7 +197,7 @@ def scan_directory(
     config: ScanConfig | None = None,
     progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> ScanSummary:
-    """Scan JavaScript functions, reusing safe cached results where possible."""
+    """Scan JavaScript and TypeScript functions, reusing safe cached results."""
 
     config = config or ScanConfig()
     root = Path(root).resolve()
@@ -339,6 +340,7 @@ def scan_directory(
             "start_line": record["start_line"],
             "end_line": record["end_line"],
             "function_hash": record["function_hash"],
+            "source_language": record.get("source_language", "javascript"),
             # Kept on the in-memory summary for HTML rendering. ``to_dict``
             # deliberately removes source so the established JSON artifact remains
             # safe to share and compact.

@@ -12,6 +12,8 @@ from pipeline.controller.parsing import (
     _find_comment_ranges,
     normalize_source,
     parse_source,
+    source_language,
+    type_erase_source,
 )
 from pipeline.models.hashing import FunctionFingerprint, HashMatch
 
@@ -177,6 +179,7 @@ HashBucket = dict[int, dict[str, list[HashMatch]]]
 class HashIndex:
     exact: HashBucket = field(default_factory=dict)
     abstracted: HashBucket = field(default_factory=dict)
+    native: dict[str, list[HashMatch]] = field(default_factory=dict)
 
 
 def _insert(bucket: HashBucket, length: int, digest: str, match: HashMatch) -> None:
@@ -186,7 +189,7 @@ def _insert(bucket: HashBucket, length: int, digest: str, match: HashMatch) -> N
 def _match_from_entry(
     entry: CorpusEntry,
     side: Literal["vulnerable", "patched"],
-    match_type: Literal["exact", "abstracted"],
+    match_type: Literal["exact", "abstracted", "type_erased"],
     lineage: CorpusLineage | None = None,
     boundary_id: str | None = None,
     advisories: list | None = None,
@@ -214,6 +217,8 @@ def _match_from_entry(
         fix_commit_sha=entry.fix_commit_sha,
         file_path=entry.file_path,
         function_name=entry.function_name,
+        source_language=entry.source_language,
+        cross_language=match_type == "type_erased",
     )
 
 
@@ -229,15 +234,24 @@ def build_hash_index(entries: list[CorpusEntry]) -> HashIndex:
                 ("vulnerable", entry.vulnerable_function),
                 ("patched", entry.patched_function),
             ):
-                fingerprint = compute_fingerprint(source)
+                native_match = _match_from_entry(
+                    entry, side, "exact", lineage,
+                    boundary.fix_boundary_id, list(boundary.advisories),
+                )
+                index.native.setdefault(hashlib.sha256(source.encode("utf-8")).hexdigest(), []).append(native_match)
+                runtime_source = (
+                    entry.vulnerable_runtime if side == "vulnerable" else entry.patched_runtime
+                ) or source
+                fingerprint = compute_fingerprint(runtime_source)
                 if not fingerprint.hashable:
                     continue
+                exact_type = "type_erased" if entry.source_language != "javascript" else "exact"
                 _insert(
                     index.exact,
                     fingerprint.exact_length,
                     fingerprint.exact_hash,
                     _match_from_entry(
-                        entry, side, "exact", lineage,
+                        entry, side, exact_type, lineage,
                         boundary.fix_boundary_id, list(boundary.advisories),
                     ),
                 )
@@ -253,15 +267,18 @@ def build_hash_index(entries: list[CorpusEntry]) -> HashIndex:
     return index
 
 
-def lookup(target_source: str, index: HashIndex) -> list[HashMatch]:
+def lookup(target_source: str, index: HashIndex, *, filename: str | None = None) -> list[HashMatch]:
     """VUDDY's S4 (length-key lookup) then S5 (hash lookup) against both the exact and
     abstracted indices. A target can legitimately match both a "vulnerable" and a
     "patched" entry -- every match found is returned rather than picking one."""
-    fingerprint = compute_fingerprint(target_source)
+    native = index.native.get(hashlib.sha256(target_source.encode("utf-8")).hexdigest(), [])
+    language = source_language(filename)
+    runtime_source = type_erase_source(target_source, filename=filename) if language != "javascript" else target_source
+    fingerprint = compute_fingerprint(runtime_source)
     if not fingerprint.hashable:
-        return []
+        return list(native)
 
-    matches: list[HashMatch] = []
+    matches: list[HashMatch] = list(native)
     matches.extend(
         index.exact.get(fingerprint.exact_length, {}).get(fingerprint.exact_hash, [])
     )
@@ -270,4 +287,14 @@ def lookup(target_source: str, index: HashIndex) -> list[HashMatch]:
             fingerprint.abstracted_hash, []
         )
     )
-    return matches
+    if language != "javascript":
+        matches = [
+            match if match in native or match.match_type == "abstracted"
+            else match.model_copy(update={"match_type": "type_erased", "cross_language": True})
+            for match in matches
+        ]
+    unique = {}
+    for match in matches:
+        key = (match.lineage_id, match.fix_boundary_id, match.side, match.match_type)
+        unique[key] = match
+    return list(unique.values())

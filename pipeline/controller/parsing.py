@@ -3,6 +3,11 @@ import re
 import tree_sitter
 import tree_sitter_javascript
 
+try:
+    import tree_sitter_typescript
+except ImportError:  # Existing JS-only installs remain usable until dependencies are refreshed.
+    tree_sitter_typescript = None
+
 from pipeline.models.parsing import FunctionUnit
 
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -31,21 +36,88 @@ _RESERVED_WORDS = {
     "false", "in", "of", "with", "debugger",
 }
 
-_language: tree_sitter.Language | None = None
-_parser: tree_sitter.Parser | None = None
+SUPPORTED_SOURCE_EXTENSIONS = (".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts")
+TYPESCRIPT_EXTENSIONS = (".ts", ".tsx", ".mts", ".cts")
+
+_languages: dict[str, tree_sitter.Language] = {}
+_parsers: dict[str, tree_sitter.Parser] = {}
+
+
+def _typescript_fallback(source: str, *, preserve_width: bool) -> str:
+    """Conservative fallback used only when the optional TS grammar is unavailable."""
+    patterns = (
+        r"\b(?:interface|type)\s+[A-Za-z_$][\w$]*(?:\s*<[^>\n]+>)?\s*(?:=\s*[^;\n]+;?|\{[^{}]*\})",
+        r"(?<=[A-Za-z0-9_$])<\s*[A-Za-z_$][^>\n]*>(?=\s*\()",
+        r":\s*(?:string|number|boolean|unknown|any|never|void|object|[A-Z_$][\w$]*)(?:\s*<[^;=(){}\n]+>)?(?:\[\])?(?:\s*\|\s*[A-Za-z_$][\w$]*(?:\[\])?)*(?=\s*[,)=;{}])",
+        r"\s+as\s+(?:const|[A-Za-z_$][\w$]*(?:\s*<[^;,){}\n]+>)?(?:\[\])?)(?=\s*[,);}\]])",
+        r"\b(?:public|private|protected|readonly|abstract|declare)\s+",
+    )
+
+    def replacement(match: re.Match) -> str:
+        if not preserve_width:
+            return ""
+        return "".join("\n" if char == "\n" else " " for char in match.group(0))
+
+    output = source
+    for pattern in patterns:
+        output = re.sub(pattern, replacement, output, flags=re.DOTALL)
+    return output
 
 
 
-def _get_parser() -> tree_sitter.Parser:
-    global _language, _parser
-    if _parser is None:
-        _language = tree_sitter.Language(tree_sitter_javascript.language())
-        _parser = tree_sitter.Parser(_language)
-    return _parser
+def source_language(filename: str | None = None, language: str | None = None) -> str:
+    if language:
+        normalized = language.lower()
+        if normalized in {"typescript", "tsx"}:
+            return normalized
+        return "javascript"
+    suffix = (filename or "").lower()
+    if suffix.endswith(".tsx"):
+        return "tsx"
+    if suffix.endswith(TYPESCRIPT_EXTENSIONS):
+        return "typescript"
+    return "javascript"
 
 
-def parse_source(source: str) -> tree_sitter.Tree:
-    return _get_parser().parse(source.encode("utf-8"))
+def _get_parser(language: str = "javascript") -> tree_sitter.Parser:
+    language = source_language(language=language)
+    if language not in _parsers:
+        if language == "javascript":
+            capsule = tree_sitter_javascript.language()
+        else:
+            if tree_sitter_typescript is None:
+                # Keep byte offsets aligned with the native source. This fallback is
+                # deliberately narrower than the real grammar and never changes the
+                # language/representation label used by matching policy.
+                return _get_parser("javascript")
+            capsule = (
+                tree_sitter_typescript.language_tsx()
+                if language == "tsx"
+                else tree_sitter_typescript.language_typescript()
+            )
+        grammar = tree_sitter.Language(capsule)
+        _languages[language] = grammar
+        _parsers[language] = tree_sitter.Parser(grammar)
+    return _parsers[language]
+
+
+def parse_source(
+    source: str, *, filename: str | None = None, language: str | None = None
+) -> tree_sitter.Tree:
+    selected = source_language(filename, language)
+    parse_input = (
+        _typescript_fallback(source, preserve_width=True)
+        if selected != "javascript" and tree_sitter_typescript is None
+        else source
+    )
+    return _get_parser(selected).parse(parse_input.encode("utf-8"))
+
+
+def is_parse_valid(source: str, *, filename: str | None = None, language: str | None = None) -> bool:
+    try:
+        return not parse_source(source, filename=filename, language=language).root_node.has_error
+    except (RuntimeError, ValueError):
+        return False
 
 
 def _function_name(node: tree_sitter.Node) -> str | None:
@@ -71,8 +143,11 @@ def get_node_text(node: tree_sitter.Node, source_bytes: bytes) -> str:
     return source_bytes[node.start_byte : node.end_byte].decode("utf-8")
 
 
-def extract_function_units(source: str) -> list[FunctionUnit]:
-    tree = parse_source(source)
+def extract_function_units(
+    source: str, *, filename: str | None = None, language: str | None = None
+) -> list[FunctionUnit]:
+    selected_language = source_language(filename, language)
+    tree = parse_source(source, language=selected_language)
     source_bytes = source.encode("utf-8")
     units: list[FunctionUnit] = []
 
@@ -96,6 +171,7 @@ def extract_function_units(source: str) -> list[FunctionUnit]:
                         start_byte=node.start_byte,
                         end_byte=node.end_byte,
                         source=get_node_text(node, source_bytes),
+                        language=selected_language,
                     )
                 )
         for child in node.children:
@@ -103,6 +179,42 @@ def extract_function_units(source: str) -> list[FunctionUnit]:
 
     walk(tree.root_node)
     return units
+
+
+def type_erase_source(source: str, *, filename: str | None = None) -> str:
+    """Return a deterministic JS-like representation used only for TS-to-JS retrieval.
+
+    Tree-sitter byte ranges are removed from right to left, preserving executable text.
+    This is deliberately not emitted as runnable JavaScript and never upgrades a match
+    to exact: native source remains the authoritative representation.
+    """
+    language = source_language(filename)
+    if language == "javascript":
+        return source
+    if tree_sitter_typescript is None:
+        return _typescript_fallback(source, preserve_width=False)
+    tree = parse_source(source, language=language)
+    removable = {
+        "type_annotation", "type_arguments", "type_parameters", "interface_declaration",
+        "type_alias_declaration", "declare_statement", "accessibility_modifier",
+        "abstract_modifier", "readonly_type",
+    }
+    ranges: list[tuple[int, int, str]] = []
+
+    def walk(node: tree_sitter.Node) -> None:
+        if node.type in removable:
+            ranges.append((node.start_byte, node.end_byte, ""))
+            return
+        if node.type == "as_expression":
+            expression = node.child_by_field_name("expression")
+            if expression is not None:
+                ranges.append((node.start_byte, node.end_byte, expression.text.decode("utf-8")))
+                return
+        for child in node.children:
+            walk(child)
+
+    walk(tree.root_node)
+    return _apply_replacements(source, ranges)
 
 
 def find_enclosing_function(
@@ -158,10 +270,10 @@ def _collapse_whitespace(source: str) -> list[str]:
     return lines
 
 
-def normalize_source(source: str) -> list[str]:
+def normalize_source(source: str, *, language: str | None = None) -> list[str]:
     """Strips comments (via tree-sitter's `comment` node type, immune to false positives like `//` inside a
     template literal) and collapses whitespace, returning non-empty normalized lines."""
-    tree = parse_source(source)
+    tree = parse_source(source, language=language)
     comment_ranges = _find_comment_ranges(tree.root_node)
     stripped = _apply_replacements(source, [(start, end, "") for start, end in comment_ranges])
     return _collapse_whitespace(stripped)
@@ -243,7 +355,9 @@ def is_container_node_type(node_type: str) -> bool:
     return node_type in _BLOCK_LIKE_NODE_TYPES or node_type in _FIELD_BASED_CHILD_TYPES
 
 
-def normalize_source_with_lines(source: str) -> list[tuple[int, str]]:
+def normalize_source_with_lines(
+    source: str, *, language: str | None = None
+) -> list[tuple[int, str]]:
     """Like normalize_source, but pairs each surviving normalized line with its raw
     0-indexed line number in `source`. Needed by callers (module 7) that must map an
     alignment index back to DiagnosticLine.vulnerable_line/patched_line, which are raw
@@ -257,7 +371,7 @@ def normalize_source_with_lines(source: str) -> list[tuple[int, str]]:
     replaced with an equivalent run of "\n" characters -- preserving line positions --
     so raw line numbers can be recovered directly from enumerate(stripped.splitlines()).
     """
-    tree = parse_source(source)
+    tree = parse_source(source, language=language)
     comment_ranges = _find_comment_ranges(tree.root_node)
     source_bytes = source.encode("utf-8")
     replacements = [

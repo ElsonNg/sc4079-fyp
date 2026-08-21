@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from corpus.models.github import CWE
 
@@ -32,10 +32,24 @@ class CorpusEntry(BaseModel):
     affected_versions: list[str] = []
     fixed_versions: list[str] = []
     osv_confirmed: bool = False
+    source_language: str = "javascript"
+    vulnerable_runtime: str | None = None
+    patched_runtime: str | None = None
+    patch_hunk: str = ""
+    native_hash: str = ""
+    normalized_hash: str = ""
+    runtime_hash: str = ""
+    ast_hash: str = ""
+    release_boundary: dict = Field(default_factory=dict)
+    high_impact: bool = False
+    impact_metadata: dict = Field(default_factory=dict)
+    evidence_label: str = "strictly evidence-attributed vulnerable origin"
+    primary_evidence: bool = True
+    advisory_aliases: list[dict] = Field(default_factory=list)
 
 
 class AttritionReport(BaseModel):
-    package: str
+    package: str = "all npm packages"
     advisories_found: int = 0
     advisories_wrong_package: int = 0
     advisories_withdrawn: int = 0
@@ -50,3 +64,23 @@ class AttritionReport(BaseModel):
     function_pairs_skipped_identical: int = 0
     function_pairs_extracted: int = 0
     corpus_entries_final: int = 0
+    quarantined: int = 0
+    duplicates_removed: int = 0
+    high_impact_entries: int = 0
+
+
+class QuarantineRecord(BaseModel):
+    reason_code: str
+    ghsa_id: str
+    package_name: str = ""
+    repo: str = ""
+    fix_commit_sha: str = ""
+    file_path: str = ""
+    detail: str = ""
+
+
+class BuildResult(BaseModel):
+    entries: list[CorpusEntry] = Field(default_factory=list)
+    reports: list[AttritionReport] = Field(default_factory=list)
+    quarantine: list[QuarantineRecord] = Field(default_factory=list)
+    source_manifest: dict = Field(default_factory=dict)

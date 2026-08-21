@@ -395,10 +395,12 @@ def extract_vulnerability_regions(
     # exclude them from paired region retrieval/verification.
     if not entry.vulnerable_function.strip() or not entry.patched_function.strip():
         return []
+    vulnerable_source = entry.vulnerable_runtime or entry.vulnerable_function
+    patched_source = entry.patched_runtime or entry.patched_function
     vulnerable_lines = [line.vulnerable_line for line in entry.diagnostic_lines if line.vulnerable_line is not None]
     patched_lines = [line.patched_line for line in entry.diagnostic_lines if line.patched_line is not None]
-    vulnerable = _regions_for_anchor(entry.vulnerable_function, vulnerable_lines, f"{entry.ghsa_id}:v")
-    patched = _regions_for_anchor(entry.patched_function, patched_lines, f"{entry.ghsa_id}:p")
+    vulnerable = _regions_for_anchor(vulnerable_source, vulnerable_lines, f"{entry.ghsa_id}:v")
+    patched = _regions_for_anchor(patched_source, patched_lines, f"{entry.ghsa_id}:p")
     vulnerable_digest = hashlib.sha256(entry.vulnerable_function.encode("utf-8")).hexdigest()
     patched_digest = hashlib.sha256(entry.patched_function.encode("utf-8")).hexdigest()
 
@@ -451,6 +453,8 @@ def extract_vulnerability_regions(
                 fix_signature_tokens=fix_signature,
                 vulnerable_source_sha256=vulnerable_digest,
                 patched_source_sha256=patched_digest,
+                source_language=entry.source_language,
+                representation="type_erased" if entry.source_language != "javascript" else "native",
             )
         )
     return pairs

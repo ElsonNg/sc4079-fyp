@@ -8,19 +8,21 @@ import math
 import os
 import subprocess
 import sys
+import shutil
 from collections import Counter
 from pathlib import Path
 
 import numpy as np
 
-from corpus.controller.build import build_corpus, print_attrition_report
+from corpus.controller.build import build_corpus_result, print_attrition_report
+from corpus.controller.snapshot import DEFAULT_SNAPSHOTS_DIR, promote_snapshot
 from corpus.controller.klaban import (
     DEFAULT_KLABAN_PATH,
     KLABAN_ID_PREFIX,
     parse_klaban_corpus,
     print_klaban_report,
 )
-from corpus.controller.store import load_entries, replace_entries_by_ghsa_prefix, save_entries
+from corpus.controller.store import DEFAULT_DB_PATH, load_entries, replace_entries_by_ghsa_prefix, save_entries
 from pipeline.controller import embedding
 from pipeline.controller.embedding import DEFAULT_MODEL_ID, EMBEDDING_DEVICE_ENV
 from pipeline.controller.region_extraction import extract_corpus_region_pairs
@@ -81,9 +83,9 @@ def _scan_progress(event: dict) -> None:
     """Render live scan progress without contaminating JSON stdout."""
     phase = event["phase"]
     if phase == "snapshot_start":
-        message = f"scan: discovering JavaScript files in {event['root']}..."
+        message = f"scan: discovering JavaScript/TypeScript files in {event['root']}..."
     elif phase == "snapshot_complete":
-        message = f"scan: found {event['total_files']} JavaScript file(s)"
+        message = f"scan: found {event['total_files']} JavaScript/TypeScript file(s)"
     elif phase == "detector_start":
         message = "detector: loading model and AST-region index..."
     elif phase == "detector_ready":
@@ -123,10 +125,13 @@ def _scan_progress(event: dict) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="provtrail", description="Detect JavaScript vulnerability clones")
+    parser = argparse.ArgumentParser(
+        prog="provtrail",
+        description="Detect JavaScript vulnerability clones and TypeScript vulnerability clones",
+    )
     commands = parser.add_subparsers(dest="command", required=True)
 
-    scan = commands.add_parser("scan", help="Scan a JavaScript codebase")
+    scan = commands.add_parser("scan", help="Scan a JavaScript/TypeScript codebase")
     scan.add_argument("path", type=Path)
     _add_db_path(scan)
     scan.add_argument("--state-path", type=Path, default=None)
@@ -179,6 +184,7 @@ def build_parser() -> argparse.ArgumentParser:
     build = corpus_commands.add_parser("build", help="Build the corpus from advisory sources")
     build.add_argument("--package", action="append", dest="packages", default=None)
     _add_db_path(build)
+    build.add_argument("--snapshots-dir", type=Path, default=DEFAULT_SNAPSHOTS_DIR)
     stats = corpus_commands.add_parser("stats", help="Show corpus size and metadata coverage")
     _add_db_path(stats)
     ingest_klaban = corpus_commands.add_parser(
@@ -299,12 +305,18 @@ def _report(args: argparse.Namespace) -> int:
 
 
 def _corpus_build(args: argparse.Namespace) -> int:
-    packages = tuple(args.packages) if args.packages else ("axios", "express")
-    entries, reports = build_corpus(packages=packages)
-    save_entries(entries, args.db_path) if args.db_path else save_entries(entries)
-    for report in reports:
+    packages = tuple(args.packages) if args.packages else None
+    result = build_corpus_result(packages=packages)
+    snapshot = promote_snapshot(result, args.snapshots_dir)
+    database = args.db_path or DEFAULT_DB_PATH
+    database.parent.mkdir(parents=True, exist_ok=True)
+    temporary = database.with_name(f".{database.name}.tmp")
+    shutil.copyfile(snapshot / "corpus.db", temporary)
+    temporary.replace(database)
+    for report in result.reports:
         print_attrition_report(report)
-    print(f"Saved {len(entries)} corpus entries")
+    print(f"Promoted immutable snapshot {snapshot.name} with {len(result.entries)} entries")
+    print(f"Active corpus database: {database}")
     return 0
 
 
@@ -312,12 +324,18 @@ def _corpus_stats(args: argparse.Namespace) -> int:
     entries = load_entries(args.db_path) if args.db_path else load_entries()
     packages = Counter(entry.package_name for entry in entries)
     confirmed = sum(entry.osv_confirmed for entry in entries)
+    high_impact = sum(entry.high_impact for entry in entries)
+    languages = Counter(entry.source_language for entry in entries)
     print(f"Corpus entries: {len(entries)}")
     print(f"OSV-confirmed:  {confirmed}")
+    print(f"High impact:    {high_impact}")
     print(f"Corpus version: {corpus_fingerprint(entries)}")
     print("Packages:")
     for package, count in sorted(packages.items()):
         print(f"  {package}: {count}")
+    print("Languages:")
+    for language, count in sorted(languages.items()):
+        print(f"  {language}: {count}")
     return 0
 
 
