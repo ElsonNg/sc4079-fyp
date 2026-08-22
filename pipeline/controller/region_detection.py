@@ -43,6 +43,24 @@ from pipeline.models.regions import (
 
 AdvisoryIdentity = tuple[str, ...]
 
+# Canonical filename per language, used as a language hint for the type-erasure and
+# hash helpers (which read language from a filename) without disturbing candidate_id.
+_LANGUAGE_FILENAME = {
+    "javascript": "candidate.js",
+    "typescript": "candidate.ts",
+    "tsx": "candidate.tsx",
+}
+
+
+def resolve_candidate_language(candidate_id: str | None, language: str | None) -> str:
+    """Language for a detection candidate. Prefer an explicit ``language`` from the
+    caller; otherwise derive it from ``candidate_id``, stripping any ``::start:end``
+    span suffix first so a scan id like "src/a.ts::10:20" is read as TypeScript rather
+    than silently falling back to JavaScript."""
+    if language:
+        return source_language(language=language)
+    return source_language((candidate_id or "").split("::", 1)[0])
+
 
 def _hash_identity(match) -> AdvisoryIdentity:
     if match.lineage_id:
@@ -119,12 +137,20 @@ class RegionDetector:
         self,
         candidate_source: str,
         candidate_id: str | None = None,
+        language: str | None = None,
         _candidate_regions=None,
         _matches=None,
     ) -> RegionDetectionResult:
-        candidate_language = source_language(candidate_id)
+        # ``candidate_id`` doubles as a unique identity and, historically, the only
+        # language hint -- but a scan passes ids like "src/a.ts::10:20" whose ``::``
+        # span suffix hides the extension, so TypeScript was silently analysed as
+        # JavaScript (no type erasure; type-annotated bodies failed to parse). Prefer
+        # an explicit ``language`` from the caller and fall back to the id only when it
+        # is absent, deriving language from the path before any ``::`` span marker.
+        candidate_language = resolve_candidate_language(candidate_id, language)
+        language_filename = _LANGUAGE_FILENAME.get(candidate_language, "candidate.js")
         analysis_source = (
-            type_erase_source(candidate_source, filename=candidate_id)
+            type_erase_source(candidate_source, filename=language_filename)
             if candidate_language != "javascript"
             else candidate_source
         )
@@ -137,7 +163,7 @@ class RegionDetector:
                 parser_supported=False,
                 message="Candidate syntax is unsupported or could not be parsed safely",
             )
-        hash_matches = lookup(candidate_source, self.hash_index, filename=candidate_id)
+        hash_matches = lookup(candidate_source, self.hash_index, filename=language_filename)
         hash_types = sorted({match.match_type for match in hash_matches})
         if hash_matches:
             lineage_ids = sorted({match.lineage_id for match in hash_matches if match.lineage_id})

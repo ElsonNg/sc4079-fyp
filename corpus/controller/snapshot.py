@@ -23,6 +23,14 @@ def _canonical_json(value: object) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+def _entry_identity(entry) -> list[str | None]:
+    """The full row identity: matches corpus_entries' UNIQUE constraint in store.py."""
+    return [
+        entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name,
+        entry.package_name, entry.release_boundary.get("last_affected"), entry.release_boundary.get("first_fixed"),
+    ]
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -34,7 +42,7 @@ def _sha256(path: Path) -> str:
 def _snapshot_id(result: BuildResult) -> str:
     evidence = [
         {
-            "identity": [e.ghsa_id, e.fix_commit_sha, e.file_path, e.function_name],
+            "identity": _entry_identity(e),
             "native": e.native_hash,
             "runtime": e.runtime_hash,
             "boundary": e.release_boundary,
@@ -74,6 +82,10 @@ def _verify_snapshot(directory: Path, expected_entries: int) -> dict[str, str]:
 
 def promote_snapshot(result: BuildResult, snapshots_dir: Path = DEFAULT_SNAPSHOTS_DIR) -> Path:
     """Build in a sibling staging directory and publish only after all checks pass."""
+    if not result.entries:
+        raise SnapshotIntegrityError(
+            "refusing to promote an empty corpus snapshot; inspect the quarantine ledger"
+        )
     snapshots_dir.mkdir(parents=True, exist_ok=True)
     snapshot_id = _snapshot_id(result)
     destination = snapshots_dir / snapshot_id
@@ -90,22 +102,22 @@ def promote_snapshot(result: BuildResult, snapshots_dir: Path = DEFAULT_SNAPSHOT
                 "languages": {language: sum(e.source_language == language for e in result.entries) for language in sorted({e.source_language for e in result.entries})},
             })
             _write_json(stage / "source-hashes.json", [
-                {"identity": [e.ghsa_id, e.fix_commit_sha, e.file_path, e.function_name], "native_sha256": e.native_hash, "runtime_sha256": e.runtime_hash, "patch_sha256": hashlib.sha256(e.patch_hunk.encode()).hexdigest(), "advisory_sha256": hashlib.sha256(_canonical_json({"title": e.advisory_title, "description": e.advisory_description, "references": e.advisory_references, "affected": e.affected_versions, "fixed": e.fixed_versions}).encode()).hexdigest()}
+                {"identity": _entry_identity(e), "native_sha256": e.native_hash, "runtime_sha256": e.runtime_hash, "patch_sha256": hashlib.sha256(e.patch_hunk.encode()).hexdigest(), "advisory_sha256": hashlib.sha256(_canonical_json({"title": e.advisory_title, "description": e.advisory_description, "references": e.advisory_references, "affected": e.affected_versions, "fixed": e.fixed_versions}).encode()).hexdigest()}
                 for e in result.entries
             ])
             (stage / "indexes").mkdir()
             _write_json(stage / "indexes" / "native.json", [
-                {"hash": entry.native_hash, "identity": [entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name]}
+                {"hash": entry.native_hash, "identity": _entry_identity(entry)}
                 for entry in result.entries
             ])
             _write_json(stage / "indexes" / "type-erased.json", [
-                {"hash": entry.runtime_hash, "identity": [entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name], "maximum_label": "Flagged (Inferred)"}
+                {"hash": entry.runtime_hash, "identity": _entry_identity(entry), "maximum_label": "Flagged (Inferred)"}
                 for entry in result.entries
             ])
             _write_json(stage / "retrieval-index.json", {
                 "schema": "native-runtime-hash-v1",
                 "entries": [
-                    {"identity": [e.ghsa_id, e.fix_commit_sha, e.file_path, e.function_name], "language": e.source_language, "native_hash": e.native_hash, "runtime_hash": e.runtime_hash, "native_match_label": "Flagged (Exact)", "cross_language_match_label": "Flagged (Inferred)"}
+                    {"identity": _entry_identity(e), "language": e.source_language, "native_hash": e.native_hash, "runtime_hash": e.runtime_hash, "native_match_label": "Flagged (Exact)", "cross_language_match_label": "Flagged (Inferred)"}
                     for e in result.entries
                 ],
             })

@@ -13,9 +13,11 @@ from collections import Counter
 from pathlib import Path
 
 import numpy as np
+import requests
 
-from corpus.controller.build import build_corpus_result, print_attrition_report
-from corpus.controller.snapshot import DEFAULT_SNAPSHOTS_DIR, promote_snapshot
+from corpus.controller.build import build_corpus_result, print_attrition_report, probe_packages
+from corpus.controller.deduplication import deduplicate_entries
+from corpus.controller.snapshot import DEFAULT_SNAPSHOTS_DIR, SnapshotIntegrityError, promote_snapshot
 from corpus.controller.klaban import (
     DEFAULT_KLABAN_PATH,
     KLABAN_ID_PREFIX,
@@ -185,6 +187,17 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--package", action="append", dest="packages", default=None)
     _add_db_path(build)
     build.add_argument("--snapshots-dir", type=Path, default=DEFAULT_SNAPSHOTS_DIR)
+    build.add_argument(
+        "--append",
+        action="store_true",
+        help="Merge admitted entries into the current corpus instead of replacing it",
+    )
+    probe = corpus_commands.add_parser(
+        "probe", help="List npm packages ranked by reviewed advisory coverage"
+    )
+    probe.add_argument("--limit", type=int, default=None, help="Show only the first N ranked packages")
+    probe.add_argument("--output", type=Path, default=None, help="Write the probe JSON to this path")
+    probe.add_argument("--include-withdrawn", action="store_true")
     stats = corpus_commands.add_parser("stats", help="Show corpus size and metadata coverage")
     _add_db_path(stats)
     ingest_klaban = corpus_commands.add_parser(
@@ -304,11 +317,62 @@ def _report(args: argparse.Namespace) -> int:
     return report_exit_code(payload)
 
 
+def _corpus_build_progress(event: dict) -> None:
+    phase = event.get("phase")
+    if phase == "discovery_complete":
+        print(f"corpus: discovered {event['advisories']} reviewed advisory record(s)", file=sys.stderr, flush=True)
+    elif phase == "advisory_start":
+        print(
+            f"corpus: advisory {event['index']}/{event['total']} {event['ghsa_id']}",
+            file=sys.stderr, flush=True,
+        )
+    elif phase == "package_start":
+        print(f"  package: {event['package']} ({event['ghsa_id']})", file=sys.stderr, flush=True)
+    elif phase == "candidate_start":
+        print(
+            f"    resolve: {event['repo']}@{event['commit'][:12]}",
+            file=sys.stderr, flush=True,
+        )
+    elif phase == "candidate_quarantined":
+        print(
+            f"    quarantine: {event['reason']} — {event['repo']}@{event['commit'][:12]}",
+            file=sys.stderr, flush=True,
+        )
+    elif phase == "candidate_admitted":
+        print(
+            f"    admitted: {event['pairs']} function pair(s) from {event['repo']}@{event['commit'][:12]}",
+            file=sys.stderr, flush=True,
+        )
+
+
 def _corpus_build(args: argparse.Namespace) -> int:
     packages = tuple(args.packages) if args.packages else None
-    result = build_corpus_result(packages=packages)
-    snapshot = promote_snapshot(result, args.snapshots_dir)
+    try:
+        result = build_corpus_result(packages=packages, progress_callback=_corpus_build_progress)
+    except requests.RequestException as exc:
+        print(f"Corpus discovery failed before candidate processing: {exc}", file=sys.stderr)
+        print("No snapshot was promoted and the active corpus was not changed.", file=sys.stderr)
+        return 2
     database = args.db_path or DEFAULT_DB_PATH
+    if args.append and database.exists():
+        existing = load_entries(database)
+        result.entries, removed = deduplicate_entries(existing + result.entries)
+        result.source_manifest["append_base_entries"] = len(existing)
+        result.source_manifest["append_duplicates_removed"] = removed
+        for report in result.reports:
+            report.corpus_entries_final = len(result.entries)
+            report.duplicates_removed += removed
+            report.high_impact_entries = sum(entry.high_impact for entry in result.entries)
+    if not result.entries:
+        for report in result.reports:
+            print_attrition_report(report)
+        print("No corpus entries were admitted; active corpus was not changed.", file=sys.stderr)
+        return 2
+    try:
+        snapshot = promote_snapshot(result, args.snapshots_dir)
+    except SnapshotIntegrityError as exc:
+        print(f"Corpus snapshot was not promoted: {exc}", file=sys.stderr)
+        return 2
     database.parent.mkdir(parents=True, exist_ok=True)
     temporary = database.with_name(f".{database.name}.tmp")
     shutil.copyfile(snapshot / "corpus.db", temporary)
@@ -317,6 +381,36 @@ def _corpus_build(args: argparse.Namespace) -> int:
         print_attrition_report(report)
     print(f"Promoted immutable snapshot {snapshot.name} with {len(result.entries)} entries")
     print(f"Active corpus database: {database}")
+    return 0
+
+
+def _corpus_probe(args: argparse.Namespace) -> int:
+    try:
+        payload = probe_packages(include_withdrawn=args.include_withdrawn)
+    except requests.RequestException as exc:
+        print(f"Package probe failed: {exc}", file=sys.stderr)
+        return 2
+    all_packages = payload["packages"]
+    packages = all_packages
+    if args.limit is not None:
+        if args.limit < 1:
+            print("--limit must be greater than zero", file=sys.stderr)
+            return 2
+        packages = packages[: args.limit]
+    payload["all_packages"] = all_packages
+    payload["packages"] = packages
+    payload["selected_packages"] = [item["package"] for item in packages]
+    payload["selected_count"] = len(packages)
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        print(f"Wrote package probe to {args.output}")
+    else:
+        print(f"Advisories found: {payload['advisories_found']}")
+        print(f"Packages found:   {payload['package_count']}")
+        print("Rank  Advisories  Package")
+        for item in packages:
+            print(f"{item['rank']:>4}  {item['advisories']:>10}  {item['package']}")
     return 0
 
 
@@ -435,6 +529,8 @@ def main(argv: list[str] | None = None) -> int:
         return _report(args)
     if args.corpus_command == "build":
         return _corpus_build(args)
+    if args.corpus_command == "probe":
+        return _corpus_probe(args)
     if args.corpus_command == "stats":
         return _corpus_stats(args)
     if args.corpus_command == "index":

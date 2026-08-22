@@ -44,7 +44,9 @@ CREATE TABLE IF NOT EXISTS corpus_entries (
     evidence_label TEXT NOT NULL DEFAULT 'strictly evidence-attributed vulnerable origin',
     primary_evidence INTEGER NOT NULL DEFAULT 1,
     advisory_aliases TEXT NOT NULL DEFAULT '[]',
-    UNIQUE (ghsa_id, fix_commit_sha, file_path, function_name)
+    boundary_last_affected TEXT NOT NULL DEFAULT '',
+    boundary_first_fixed TEXT NOT NULL DEFAULT '',
+    UNIQUE (ghsa_id, fix_commit_sha, file_path, function_name, package_name, boundary_last_affected, boundary_first_fixed)
 );
 """
 
@@ -56,9 +58,10 @@ INSERT INTO corpus_entries (
     patched_function, diagnostic_lines, affected_versions, fixed_versions, osv_confirmed,
     source_language, vulnerable_runtime, patched_runtime, patch_hunk, native_hash,
     normalized_hash, runtime_hash, ast_hash, release_boundary, high_impact,
-    impact_metadata, evidence_label, primary_evidence, advisory_aliases
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (ghsa_id, fix_commit_sha, file_path, function_name) DO UPDATE SET
+    impact_metadata, evidence_label, primary_evidence, advisory_aliases,
+    boundary_last_affected, boundary_first_fixed
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (ghsa_id, fix_commit_sha, file_path, function_name, package_name, boundary_last_affected, boundary_first_fixed) DO UPDATE SET
     cve_id=excluded.cve_id, osv_id=excluded.osv_id,
     advisory_title=excluded.advisory_title,
     advisory_description=excluded.advisory_description,
@@ -104,6 +107,7 @@ def _entry_values(e: CorpusEntry) -> tuple:
         json.dumps(e.release_boundary, sort_keys=True), int(e.high_impact),
         json.dumps(e.impact_metadata, sort_keys=True), e.evidence_label, int(e.primary_evidence),
         json.dumps(e.advisory_aliases, sort_keys=True),
+        e.release_boundary.get("last_affected") or "", e.release_boundary.get("first_fixed") or "",
     )
 
 
@@ -132,12 +136,42 @@ def get_connection(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
         "evidence_label": "TEXT NOT NULL DEFAULT 'strictly evidence-attributed vulnerable origin'",
         "primary_evidence": "INTEGER NOT NULL DEFAULT 1",
         "advisory_aliases": "TEXT NOT NULL DEFAULT '[]'",
+        "boundary_last_affected": "TEXT NOT NULL DEFAULT ''",
+        "boundary_first_fixed": "TEXT NOT NULL DEFAULT ''",
     }
     for column, declaration in migrations.items():
         if column not in columns:
             conn.execute(f"ALTER TABLE corpus_entries ADD COLUMN {column} {declaration}")
+    _migrate_unique_constraint(conn)
     conn.commit()
     return conn
+
+
+def _migrate_unique_constraint(conn: sqlite3.Connection) -> None:
+    """Rebuild corpus_entries if its UNIQUE index predates package/boundary-scoped identity.
+
+    Older databases were created with UNIQUE (ghsa_id, fix_commit_sha, file_path,
+    function_name) only, which silently collapsed distinct entries that share a fix
+    commit but differ by package or release boundary (e.g. the same backport commit
+    referenced by several version-range advisories). ALTER TABLE cannot change a
+    UNIQUE constraint in place, so the table is recreated with the current schema.
+    """
+    unique_columns: set[str] = set()
+    for index_row in conn.execute("PRAGMA index_list(corpus_entries)"):
+        if not index_row[2]:  # index_row[2] is the "unique" flag
+            continue
+        unique_columns |= {info_row[2] for info_row in conn.execute(f"PRAGMA index_info({index_row[1]})")}
+    if "boundary_first_fixed" in unique_columns:
+        return
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(corpus_entries)")]
+    column_list = ", ".join(columns)
+    conn.execute("ALTER TABLE corpus_entries RENAME TO corpus_entries_pre_identity_fix")
+    conn.execute(SCHEMA)
+    conn.execute(
+        f"INSERT INTO corpus_entries ({column_list}) "
+        f"SELECT {column_list} FROM corpus_entries_pre_identity_fix"
+    )
+    conn.execute("DROP TABLE corpus_entries_pre_identity_fix")
 
 
 def save_entries(entries: list[CorpusEntry], db_path: Path | str = DEFAULT_DB_PATH) -> None:

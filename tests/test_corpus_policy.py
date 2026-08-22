@@ -101,3 +101,14 @@ def test_snapshot_is_integrity_checked_and_versioned(tmp_path):
     assert (snapshot / "quarantine.json").exists()
     pointer = json.loads((tmp_path / "current.json").read_text(encoding="utf-8"))
     assert pointer["snapshot_id"] == snapshot.name
+
+
+def test_snapshot_promotes_same_commit_entries_with_distinct_boundaries(tmp_path):
+    """Regression: a fix commit referenced by several version-range advisories (e.g. tar's
+    3.x/4.x/5.x/6.x backports) produces entries that share ghsa_id/fix_commit_sha/file_path/
+    function_name and differ only by release_boundary. These must not collapse to one DB row.
+    """
+    first = fingerprint_entry(_entry({"last_affected": "1.0.0", "first_fixed": "1.1.0"}))
+    second = fingerprint_entry(_entry({"last_affected": "2.0.0", "first_fixed": "2.1.0"}))
+    snapshot = promote_snapshot(BuildResult(entries=[first, second], source_manifest={"policy": "test"}), tmp_path)
+    assert len(load_entries(snapshot / "corpus.db")) == 2

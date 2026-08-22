@@ -49,7 +49,7 @@ def _typescript_fallback(source: str, *, preserve_width: bool) -> str:
         r"\b(?:interface|type)\s+[A-Za-z_$][\w$]*(?:\s*<[^>\n]+>)?\s*(?:=\s*[^;\n]+;?|\{[^{}]*\})",
         r"(?<=[A-Za-z0-9_$])<\s*[A-Za-z_$][^>\n]*>(?=\s*\()",
         r":\s*(?:string|number|boolean|unknown|any|never|void|object|[A-Z_$][\w$]*)(?:\s*<[^;=(){}\n]+>)?(?:\[\])?(?:\s*\|\s*[A-Za-z_$][\w$]*(?:\[\])?)*(?=\s*[,)=;{}])",
-        r"\s+as\s+(?:const|[A-Za-z_$][\w$]*(?:\s*<[^;,){}\n]+>)?(?:\[\])?)(?=\s*[,);}\]])",
+        r"\s+as\s+(?:const|[A-Za-z_$][\w$]*(?:\s*<[^;,){}\n]+>)?(?:\[\])?)(?=\s*[,;)}\]])",
         r"\b(?:public|private|protected|readonly|abstract|declare)\s+",
     )
 
@@ -207,6 +207,10 @@ def type_erase_source(source: str, *, filename: str | None = None) -> str:
             return
         if node.type == "as_expression":
             expression = node.child_by_field_name("expression")
+            if expression is None and node.named_children:
+                # tree-sitter-typescript names this field ``left`` in some grammar
+                # releases and leaves it unnamed in others.
+                expression = node.named_children[0]
             if expression is not None:
                 ranges.append((node.start_byte, node.end_byte, expression.text.decode("utf-8")))
                 return

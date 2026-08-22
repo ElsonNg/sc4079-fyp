@@ -133,14 +133,17 @@ def validate_osv_agreement(
         raise ReleaseEvidenceError("fixed_range_missing")
     if github_fixed not in {_normalized_version(v) for v in fixed_versions}:
         raise ReleaseEvidenceError("range_disagreement")
-    if not affected_versions:
-        raise ReleaseEvidenceError("affected_versions_missing")
+    # OSV frequently publishes a SEMVER range without materializing every npm
+    # version. The release resolver derives the concrete versions from npm metadata
+    # below; an explicit OSV version list is preferred but not mandatory.
     below_fixed = [v for v in affected_versions if _version_key(v) < _version_key(github_fixed)]
     if not below_fixed:
-        raise ReleaseEvidenceError("last_affected_unresolved")
+        # OSV's enumerated versions can be incomplete or represent a different
+        # release branch. Let npm metadata resolve the concrete boundary below.
+        return [], [github_fixed, *[v for v in fixed_versions if _normalized_version(v) != github_fixed]]
     last_affected = max(below_fixed, key=_version_key)
     if not version_satisfies_range(last_affected, github_vulnerability.vulnerable_version_range):
-        raise ReleaseEvidenceError("range_disagreement")
+        return [], [github_fixed, *[v for v in fixed_versions if _normalized_version(v) != github_fixed]]
     if version_satisfies_range(github_fixed, github_vulnerability.vulnerable_version_range):
         raise ReleaseEvidenceError("range_disagreement")
     fixed_versions = [github_fixed, *[v for v in fixed_versions if _normalized_version(v) != github_fixed]]
@@ -149,6 +152,8 @@ def validate_osv_agreement(
 
 def fetch_npm_metadata(package_name: str, session: requests.Session) -> dict:
     response = session.get(f"{NPM_REGISTRY}/{quote(package_name, safe='')}", timeout=30)
+    if response.status_code == 404:
+        raise ReleaseEvidenceError("npm_package_missing", package_name)
     response.raise_for_status()
     return response.json()
 
@@ -162,7 +167,7 @@ def _tag_commit(owner: str, repo: str, version: str, session: requests.Session) 
                 session,
             )
         except requests.HTTPError as exc:
-            if exc.response is not None and exc.response.status_code == 404:
+            if exc.response is not None and exc.response.status_code in {404, 422}:
                 continue
             raise
         return response.json().get("sha")
@@ -198,9 +203,17 @@ def _release_commit(
 def _is_ancestor(owner: str, repo: str, older: str, newer: str, session: requests.Session) -> bool:
     if older == newer:
         return True
-    response = _github_get(
-        f"{GITHUB_API_BASE}/repos/{owner}/{repo}/compare/{older}...{newer}", None, session
-    )
+    try:
+        response = _github_get(
+            f"{GITHUB_API_BASE}/repos/{owner}/{repo}/compare/{older}...{newer}", None, session
+        )
+    except requests.HTTPError as exc:
+        if exc.response is not None and exc.response.status_code == 404:
+            raise ReleaseEvidenceError(
+                "commit_ancestry_unresolved",
+                f"GitHub cannot compare {older}...{newer} in {owner}/{repo}",
+            ) from exc
+        raise
     return response.json().get("status") in {"ahead", "identical"}
 
 
@@ -210,6 +223,7 @@ def resolve_release_boundary(
     fixed_versions: list[str],
     fix_commit_sha: str,
     expected_repo: str,
+    vulnerable_range: str | None = None,
     *,
     session: requests.Session | None = None,
 ) -> dict:
@@ -219,6 +233,19 @@ def resolve_release_boundary(
     if not canonical_repo or canonical_repo.lower() != expected_repo.lower():
         raise ReleaseEvidenceError("repository_mismatch", canonical_repo or "missing")
     fixed = fixed_versions[0]
+    if not affected_versions:
+        if not vulnerable_range:
+            raise ReleaseEvidenceError("affected_versions_missing")
+        try:
+            affected_versions = sorted(
+                {
+                    version for version in (metadata.get("versions") or {})
+                    if version_satisfies_range(version, vulnerable_range)
+                },
+                key=_version_key,
+            )
+        except (TypeError, ValueError) as exc:
+            raise ReleaseEvidenceError("affected_versions_unresolved", str(exc)) from exc
     candidates = [v for v in affected_versions if _version_key(v) < _version_key(fixed)]
     if not candidates:
         raise ReleaseEvidenceError("last_affected_unresolved")
@@ -311,6 +338,6 @@ def assess_high_impact(repo: str, package_name: str, *, session: requests.Sessio
             and active_signals >= 2
         )
         return high, metadata
-    except (requests.RequestException, ValueError, KeyError, TypeError):
+    except (ReleaseEvidenceError, requests.RequestException, ValueError, KeyError, TypeError):
         metadata["collection_error"] = True
         return False, metadata

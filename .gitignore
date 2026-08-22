@@ -15,3 +15,9 @@ corpus/data/region_embeddings/*
 .provtrail/
 corpus/data/cache/
 corpus/data/raw/
+corpus/data/snapshots/
+
+# Tier-1/2 evaluation scratch (downloaded packages, scan results)
+eval/tier1_sandbox/
+eval/llm_transformed_results.json
+eval/tier1_release_results.json
