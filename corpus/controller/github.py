@@ -1,5 +1,6 @@
 import base64
 import os
+from pathlib import PurePosixPath
 from urllib.parse import quote
 
 import requests
@@ -138,3 +139,50 @@ def fetch_file_content(
     if data.get("encoding") != "base64":
         raise ValueError(f"Unexpected encoding for {path}@{ref}: {data.get('encoding')}")
     return base64.b64decode(data["content"]).decode("utf-8")
+
+
+def fetch_source_tree(
+    owner: str,
+    repo: str,
+    ref: str,
+    *,
+    package_path: str = "",
+    session: requests.Session | None = None,
+) -> dict[str, str]:
+    """Fetch eligible JS/TS source files from a repository tree at ``ref``.
+
+    The tree and blobs are fetched through the GitHub REST API. Generated output,
+    dependencies, tests, examples, and documentation are excluded because Tier 1
+    uses them only as package-background noise controls when they are library code.
+    """
+    session = session or _get_github_session()
+    response = _github_get(
+        f"{GITHUB_API_BASE}/repos/{owner}/{repo}/git/trees/{quote(ref, safe='')}"
+        f"?recursive=1", None, session
+    )
+    tree_payload = response.json()
+    if tree_payload.get("truncated"):
+        raise ValueError(f"GitHub source tree is truncated for {owner}/{repo}@{ref}")
+    raw_tree = tree_payload.get("tree", [])
+    extensions = {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
+    excluded = {
+        "node_modules", "dist", "build", "coverage", "vendor", "generated",
+        "__tests__", "tests", "test", "spec", "examples", "docs", "documentation",
+    }
+    prefix = package_path.strip("/")
+    candidates: list[str] = []
+    for item in raw_tree:
+        path = str(item.get("path") or "")
+        if item.get("type") != "blob" or PurePosixPath(path).suffix.lower() not in extensions:
+            continue
+        if prefix and not (path == prefix or path.startswith(prefix + "/")):
+            continue
+        if any(part.lower() in excluded for part in PurePosixPath(path).parts):
+            continue
+        candidates.append(path)
+    result: dict[str, str] = {}
+    for path in candidates:
+        content = fetch_file_content(owner, repo, path, ref, session=session)
+        if content is not None:
+            result[path] = content
+    return result

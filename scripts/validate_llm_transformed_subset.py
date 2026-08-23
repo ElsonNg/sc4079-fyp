@@ -18,6 +18,12 @@ from pathlib import Path
 
 from corpus.controller.store import load_entries
 from eval.common import DEFAULT_SNAPSHOT_DB, extension_for
+from eval.metrics import (
+    classification_outcome,
+    detection_rank,
+    expected_retrieval_fields,
+    summarize_evaluation,
+)
 from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
 
 POSITIVE_INPUT = Path(__file__).resolve().parent.parent / "eval" / "llm_transformed_positive.jsonl"
@@ -29,16 +35,6 @@ def _load(path: Path) -> list[dict]:
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-
-
-def _outcome(expected: str, priority: str) -> str:
-    if expected == "flagged":
-        if priority == "automatic_vulnerability":
-            return "true_positive"
-        return "abstained_positive" if priority == "manual_review" else "false_negative"
-    if priority == "automatic_vulnerability":
-        return "false_positive"
-    return "abstained_negative" if priority == "manual_review" else "true_negative"
 
 
 def _has_language_scoped_ghsa(detection, ghsa_id: str, language: str) -> bool:
@@ -96,13 +92,15 @@ def main() -> int:
             language=record["source_language"],
         )
         priority = detection.priority
-        outcome = _outcome(expected, priority)
+        outcome = classification_outcome(expected, priority)
         confusion[outcome] += 1
         stratum = f"{record.get('clone_type', 'na')}/{record['source_language']}"
         by_stratum[stratum][outcome] += 1
 
         expected_ghsa = record["corpus_entry"]["ghsa_id"]
         retrieved = _has_language_scoped_ghsa(detection, expected_ghsa, record["source_language"])
+        expected_fields = expected_retrieval_fields(record)
+        rank = detection_rank(detection, expected_fields, detector.pairs)
         results.append({
             "candidate_id": record["candidate_id"],
             "expected_status": expected,
@@ -113,34 +111,24 @@ def main() -> int:
             "priority": priority,
             "outcome": outcome,
             "expected_ghsa_retrieved": retrieved,
+            "retrieval_rank": rank,
+            "hash_retrieval_hit": bool(detection.hash_match_types),
             "hash_match_types": detection.hash_match_types,
         })
         print(f"[{index}/{len(records)}] {record['candidate_id']:6s} {stratum:16s} "
               f"expected={expected:8s} priority={priority:22s} -> {outcome}")
 
-    positives = [r for r in results if r["expected_status"] == "flagged"]
-    negatives = [r for r in results if r["expected_status"] == "cleared"]
-
-    def _rate(rows, predicate):
-        return (sum(predicate(r) for r in rows) / len(rows)) if rows else None
-
     summary = {
         "candidate_count": len(results),
-        "positive_count": len(positives),
-        "negative_count": len(negatives),
+        "positive_count": sum(r["expected_status"] == "flagged" for r in results),
+        "negative_count": sum(r["expected_status"] == "cleared" for r in results),
         "corpus_entry_count": len(entries),
         "region_pair_count": len(detector.region_index.pairs),
-        "outcome_counts": dict(confusion),
-        "outcomes_by_stratum": {k: dict(v) for k, v in sorted(by_stratum.items())},
-        "positive_recall_automatic": _rate(positives, lambda r: r["outcome"] == "true_positive"),
-        "positive_recall_including_abstain": _rate(
-            positives, lambda r: r["outcome"] in {"true_positive", "abstained_positive"}
-        ),
-        "positive_retrieval_hit_rate": _rate(positives, lambda r: r["expected_ghsa_retrieved"]),
-        "negative_false_positive_rate": _rate(negatives, lambda r: r["outcome"] == "false_positive"),
+        **summarize_evaluation(results, strata=("clone_type", "source_language")),
     }
     output = {
-        "schema": "llm_transformed_tier2_v2",
+        "schema": "evaluation_results_v3",
+        "tier": "tier2",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "positive_input": str(args.positive),
         "negative_input": str(args.negative),

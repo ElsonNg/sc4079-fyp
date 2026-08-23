@@ -1,0 +1,58 @@
+{
+  "schema": "tier1_source_selfcheck_v4",
+  "generated_at_utc": "2026-08-23T05:41:11.461570+00:00",
+  "labels_input": "C:\\Programming\\GitHub\\sc4079-fyp\\eval\\tier1_release_labels.jsonl",
+  "summary": {
+    "label_rows": 2,
+    "unique_source_targets": 2,
+    "source_fetch_failures": 0,
+    "outcome_counts": {
+      "true_positive": 1,
+      "false_positive": 1
+    },
+    "target_presence_counts": {
+      "source_present": 2
+    },
+    "outcomes_by_language": {
+      "typescript": {
+        "true_positive": 1,
+        "false_positive": 1
+      }
+    },
+    "vulnerable_recall_automatic": 1.0,
+    "vulnerable_recall_including_abstain": 1.0,
+    "fixed_false_positive_rate": 1.0
+  },
+  "results": [
+    {
+      "ghsa_id": "GHSA-2v8p-3f2j-5mp7",
+      "package_name": "mermaid",
+      "kind": "vulnerable",
+      "version": "10.9.6",
+      "source_language": "typescript",
+      "category": "templating",
+      "expected_status": "flagged",
+      "outcome": "true_positive",
+      "target_presence": "source_present",
+      "source_repo": "mermaid-js/mermaid",
+      "source_commit": "dd351a7cef45b70638147a5e000f1ee8bfd35637",
+      "source_path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "target_function": null
+    },
+    {
+      "ghsa_id": "GHSA-2v8p-3f2j-5mp7",
+      "package_name": "mermaid",
+      "kind": "fixed",
+      "version": "10.9.8",
+      "source_language": "typescript",
+      "category": "templating",
+      "expected_status": "cleared",
+      "outcome": "false_positive",
+      "target_presence": "source_present",
+      "source_repo": "mermaid-js/mermaid",
+      "source_commit": "49c1a1c7d1faa995b07cc7224543bd0d9a7a9e70",
+      "source_path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "target_function": null
+    }
+  ]
+}

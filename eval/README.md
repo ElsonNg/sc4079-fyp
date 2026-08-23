@@ -50,14 +50,15 @@ Run the real-release evaluation with:
 PYTHONPATH=. .venv/bin/python -u scripts/validate_tier1_releases.py
 ```
 
-Tier 1 checks whether each labeled source path is shipped in the npm tarball in its
-original language. A TypeScript label is scorable only when the release contains the
-labeled TypeScript source; a compiled JavaScript artifact does not satisfy it.
-Compiled-only releases are reported as `source_absent` and excluded from detector
-accuracy metrics.
+Tier 1 fetches the eligible same-language source tree from the package repository at
+the exact vulnerable or fixed release commit. TypeScript labels therefore remain
+TypeScript and JavaScript labels remain JavaScript; compiled npm artifacts are not
+used for the primary metric.
 
-The validator logs and records whether each target was `source_present` or
-`source_absent`. Tier 1 and Tier 2 both use same-language evidence: TypeScript
+The validator scores the labelled evidence target for the primary metrics and reports
+unrelated detections from the rest of the package as background noise. Tier 1 and
+Tier 2 both use same-language evidence: TypeScript
 candidates are evaluated against TypeScript corpus entries, and JavaScript
 candidates against JavaScript entries. Results use schema
-`tier1_release_selfcheck_v3`.
+`evaluation_results_v3`, including ranked retrieval metrics, verification metrics,
+abstention rate, and optional LLM metrics.

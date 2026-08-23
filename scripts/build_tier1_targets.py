@@ -12,6 +12,7 @@ Run from the repo root:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -74,6 +75,7 @@ def _rows_for(entry):
         ("vulnerable", rb["vulnerable_tarball"], rb["vulnerable_artifact_sha256"], rb["last_affected"], "flagged"),
         ("fixed", rb["fixed_tarball"], rb["fixed_artifact_sha256"], rb["first_fixed"], "cleared"),
     ):
+        source_commit = rb.get("last_affected_commit" if kind == "vulnerable" else "first_fixed_commit")
         yield {
             "ghsa_id": entry.ghsa_id,
             "package_name": entry.package_name,
@@ -84,9 +86,14 @@ def _rows_for(entry):
             "tarball_url": tarball,
             "expected_sha256": sha,
             "expected_status": status,
+            "source_repo": entry.repo,
+            "source_commit": source_commit,
             "tier1_applicable": _tier1_applicable(entry.file_path),
             "corpus_file_path": entry.file_path,
             "corpus_entry": corpus_key,
+            "target_source_sha256": hashlib.sha256(
+                (entry.vulnerable_function if kind == "vulnerable" else entry.patched_function).encode("utf-8")
+            ).hexdigest(),
         }
 
 

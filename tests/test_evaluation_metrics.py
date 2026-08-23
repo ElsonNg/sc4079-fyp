@@ -1,4 +1,5 @@
 from pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
+from eval.metrics import classification_outcome, retrieval_metrics, verification_metrics
 
 
 EXPECTED = ("GHSA-test", "fix-test", "lib/request.js", "request")
@@ -72,3 +73,26 @@ def test_vulnerable_origin_accepts_expected_advisory_alias_on_same_boundary():
     assert stages["origin_shortlisted"] is True
     assert stages["origin_verified"] is True
     assert stages["origin_visible"] is True
+
+
+def test_shared_metrics_compute_ranked_retrieval_and_verification_rates():
+    rows = [
+        {"expected_status": "flagged", "outcome": "true_positive", "retrieval_rank": 1},
+        {"expected_status": "flagged", "outcome": "abstained_positive", "retrieval_rank": 6},
+        {"expected_status": "cleared", "outcome": "false_positive", "retrieval_rank": None},
+        {"expected_status": "cleared", "outcome": "true_negative", "retrieval_rank": 3},
+    ]
+    retrieval = retrieval_metrics(rows)
+    verification = verification_metrics(rows)
+    assert retrieval["recall_at_1"] == 0.25
+    assert retrieval["recall_at_5"] == 0.5
+    assert retrieval["mrr"] == (1.0 + 1 / 6 + 1 / 3) / 4
+    assert verification["vulnerable_recall"] == 0.5
+    assert verification["vulnerable_recall_including_abstain"] == 1.0
+    assert verification["patched_false_positive_rate"] == 0.5
+    assert verification["abstention_rate"] == 0.25
+
+
+def test_shared_outcome_mapping_keeps_abstentions_explicit():
+    assert classification_outcome("flagged", "manual_review") == "abstained_positive"
+    assert classification_outcome("cleared", "automatic_vulnerability") == "false_positive"

@@ -1,10 +1,9 @@
-"""Tier-1 self-check: fetch, verify, extract and statically scan real npm releases.
+"""Tier-1 self-check: scan exact same-language source at release commits.
 
-For every label row, the corresponding npm tarball is downloaded, its sha256 is
-verified against the corpus digest, it is unpacked with the guarded extractor, and
-scanned with the 301-entry corpus. No package code is executed. A vulnerable
-release should flag its GHSA (true positive); the fixed release should not (true
-negative). Tarballs shared by several advisories are scanned once.
+For every label row, the source file is fetched from the package repository at the
+recorded vulnerable or fixed release commit and scanned against the corpus. Only
+the labeled source file/function contributes to the expected GHSA outcome. No
+package code is executed.
 
 Run from the repo root:
     $env:PYTHONPATH="."; .venv\\Scripts\\python.exe scripts\\validate_tier1_releases.py
@@ -13,28 +12,28 @@ Run from the repo root:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import shutil
 import sys
 import time
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+import requests
+from dotenv import load_dotenv
 
-from corpus.controller.sandbox_fetch import (
-    SandboxFetchError,
-    download_release,
-    prune_built_artifacts,
-    safe_extract_tarball,
-)
+from corpus.controller.github import fetch_source_tree
 from corpus.controller.store import load_entries
 from eval.common import DEFAULT_SNAPSHOT_DB, extract_ghsa_ids
-from pipeline.controller.parsing import SUPPORTED_SOURCE_EXTENSIONS, extract_function_units
+from eval.metrics import classification_outcome, detection_rank, expected_retrieval_fields, summarize_evaluation
 from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
+from pipeline.controller.parsing import SUPPORTED_SOURCE_EXTENSIONS, extract_function_units
 from pipeline.controller.scanning import ScanConfig, corpus_fingerprint, scan_directory
 
 DEFAULT_LABELS = Path(__file__).resolve().parent.parent / "eval" / "tier1_release_labels.jsonl"
 DEFAULT_OUTPUT = Path(__file__).resolve().parent.parent / "eval" / "tier1_release_results.json"
-SANDBOX_ROOT = Path(__file__).resolve().parent.parent / "eval" / "tier1_sandbox"
+SANDBOX_ROOT = Path(__file__).resolve().parent.parent / "eval" / "tier1_source_sandbox"
 
 
 def _load(path: Path) -> list[dict]:
@@ -51,13 +50,14 @@ def _log(message: str) -> None:
 
 def _count_functions(path: Path) -> int:
     try:
-        source = path.read_text(encoding="utf-8")
-        return len(extract_function_units(source, filename=str(path)))
+        return len(extract_function_units(path.read_text(encoding="utf-8"), filename=str(path)))
     except (OSError, RuntimeError, ValueError):
         return 0
 
 
-def _apply_function_cap(dest: Path, target_paths: set[str], max_functions: int) -> tuple[int, int]:
+def _apply_function_cap_legacy(dest: Path, target_paths: set[str], max_functions: int) -> tuple[int, int]:
+    """Deprecated compatibility helper; Tier 1 now scans the eligible source tree."""
+    # The implementation is retained for callers importing the old helper.
     """Delete source files so at most ~max_functions functions remain, but ALWAYS keep
     files matching a target advisory's corpus file_path (so recall is never lost to the
     cap). Returns (kept_functions, removed_files). Purely deletes files — runs nothing.
@@ -122,41 +122,58 @@ def _make_scan_progress(label: str):
     return callback
 
 
-def _present_target_files(dest: Path, target_paths: set[str]) -> set[str]:
-    """Return labeled source paths that are shipped with the same language."""
-    if not target_paths:
-        return set()
-
-    source_files = [
-        str(p).replace("\\", "/")
-        for p in dest.rglob("*")
-        if p.is_file() and p.suffix.lower() in SUPPORTED_SOURCE_EXTENSIONS
-    ]
-    present = set()
-    for target in target_paths:
-        normalized = target.replace("\\", "/")
-        if any(path.endswith(normalized) for path in source_files):
-            present.add(target)
-    return present
+def _finding_matches_target(
+    finding: dict,
+    source_path: str,
+    function_name: str | None,
+    target_source_sha256: str | None = None,
+) -> bool:
+    if finding.get("path", "").replace("\\", "/") != source_path.replace("\\", "/"):
+        return False
+    if function_name is not None:
+        return finding.get("name") == function_name
+    if target_source_sha256:
+        return finding.get("function_hash") == target_source_sha256
+    return True
 
 
-def _scan_tarball(url, sha, dest, detector, entries, corpus_version, label="",
-                  target_paths=None, max_functions=None):
-    """Download+verify+extract+scan one tarball. Returns
-    (flagged, review, function_count, present_targets) or raises SandboxFetchError."""
+def _package_path(source_path: str) -> str:
+    parts = source_path.replace("\\", "/").split("/")
+    if len(parts) >= 2 and parts[0] in {"packages", "package", "plugins", "apps"}:
+        return "/".join(parts[:2])
+    return ""
+
+
+def _scan_source_package(source_repo, source_commit, source_path, function_name,
+                         target_source_sha256, dest, detector, entries, corpus_version,
+                         label=""):
+    """Fetch and scan the eligible same-language source package at one commit."""
     started = time.time()
-    _log(f"    [{label}] downloading {url.rsplit('/', 1)[-1]} ...")
-    data = download_release(url, sha)
-    report = safe_extract_tarball(data, dest)
-    pruned = prune_built_artifacts(dest)
-    cap_note = ""
-    if max_functions is not None:
-        kept_fns, capped_files = _apply_function_cap(dest, target_paths or set(), max_functions)
-        cap_note = f"; capped to ~{kept_fns} fn (dropped {capped_files} file(s), vuln file always kept)"
-    _log(
-        f"    [{label}] extracted {report.files_written} file(s), "
-        f"pruned {len(pruned.removed_dirs)} dir(s)/{len(pruned.removed_files)} file(s){cap_note}; scanning..."
+    if "/" not in source_repo:
+        raise ValueError(f"invalid GitHub repository: {source_repo}")
+    owner, repo = source_repo.split("/", 1)
+    _log(f"    [{label}] fetching source tree {source_repo}@{source_commit} "
+         f"(target {source_path})")
+    if dest.exists():
+        shutil.rmtree(dest)
+    sources = fetch_source_tree(owner, repo, source_commit, package_path=_package_path(source_path))
+    if source_path not in sources:
+        raise FileNotFoundError(f"source path not found at commit: {source_path}")
+    target_units = extract_function_units(sources[source_path], filename=source_path)
+    hash_present = any(
+        target_source_sha256 and hashlib.sha256(unit.source.encode("utf-8")).hexdigest() == target_source_sha256
+        for unit in target_units
     )
+    target_locator_hash = target_source_sha256 if hash_present else None
+    function_present = any(
+        (function_name is not None and unit.name == function_name)
+        or (target_locator_hash and hashlib.sha256(unit.source.encode("utf-8")).hexdigest() == target_locator_hash)
+        for unit in target_units
+    ) if function_name is not None or target_locator_hash else True
+    for relative_path, source in sources.items():
+        target = dest / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(source, encoding="utf-8")
     summary = scan_directory(
         dest,
         detector=detector,
@@ -165,16 +182,27 @@ def _scan_tarball(url, sha, dest, detector, entries, corpus_version, label="",
         progress_callback=_make_scan_progress(label),
     )
     _log(f"    [{label}] scan finished in {time.time() - started:.0f}s")
-    present_targets = _present_target_files(dest, target_paths or set())
-    flagged, review = set(), set()
+    flagged, review, noise = set(), set(), []
+    target_findings = []
     for finding in summary.findings:
         result = finding["result"]
         ghsas = extract_ghsa_ids(result)
-        if result.get("priority") == "automatic_vulnerability":
-            flagged |= ghsas
-        elif result.get("priority") == "manual_review":
-            review |= ghsas
-    return flagged, review, summary.total_functions, present_targets
+        is_target = _finding_matches_target(
+            finding, source_path, function_name, target_locator_hash
+        )
+        if is_target:
+            target_findings.append(finding)
+            if result.get("priority") == "automatic_vulnerability":
+                flagged |= ghsas
+            elif result.get("priority") == "manual_review":
+                review |= ghsas
+        elif ghsas:
+            noise.append({
+                "path": finding.get("path"), "name": finding.get("name"),
+                "function_hash": finding.get("function_hash"),
+                "priority": result.get("priority"), "ghsa_ids": sorted(ghsas),
+            })
+    return flagged, review, summary.total_functions, function_present, noise, target_findings
 
 
 def _result_identity(row: dict) -> dict:
@@ -186,17 +214,41 @@ def _result_identity(row: dict) -> dict:
     }
 
 
+def _source_fields(row: dict, entries: list) -> tuple[str | None, str | None, str, str | None, str | None]:
+    """Return repo, commit, path, target function, and target source hash."""
+    if row.get("source_repo") and row.get("source_commit"):
+        return (
+            row["source_repo"], row["source_commit"], row["corpus_file_path"],
+            row.get("corpus_entry", {}).get("function_name"), row.get("target_source_sha256")
+        )
+    identity = row.get("corpus_entry", {})
+    entry = next(
+        (
+            item for item in entries
+            if item.ghsa_id == row.get("ghsa_id")
+            and item.file_path == row.get("corpus_file_path")
+            and item.function_name == identity.get("function_name")
+        ),
+        None,
+    )
+    if entry is None:
+        return None, None, row.get("corpus_file_path", ""), identity.get("function_name"), row.get("target_source_sha256")
+    rb = entry.release_boundary or {}
+    commit_key = "last_affected_commit" if row.get("kind") == "vulnerable" else "first_fixed_commit"
+    source = entry.vulnerable_function if row.get("kind") == "vulnerable" else entry.patched_function
+    return entry.repo, rb.get(commit_key), entry.file_path, entry.function_name, hashlib.sha256(source.encode("utf-8")).hexdigest()
+
+
 def main() -> int:
+    # Load the repository .env before any GitHub request so GITHUB_TOKEN is used
+    # for authenticated API calls and the higher GitHub rate limit.
+    load_dotenv()
     parser = argparse.ArgumentParser()
     parser.add_argument("--labels", type=Path, default=DEFAULT_LABELS)
     parser.add_argument("--snapshot", type=Path, default=DEFAULT_SNAPSHOT_DB)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument(
-        "--max-functions", type=int, default=None,
-        help="Cap total functions scanned per package (the vuln file is always kept in full). "
-             "Bounds the cost of large packages; omit to scan the whole package.",
-    )
+    parser.add_argument("--max-functions", type=int, default=None, help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     rows = _load(args.labels)
@@ -216,96 +268,130 @@ def main() -> int:
     )
     print(f"Detector ready: {len(detector.region_index.pairs)} region pairs")
 
-    # Scan each unique tarball once; a version often covers several advisories.
-    by_url: dict[str, list[dict]] = defaultdict(list)
-    for row in rows:
-        by_url[row["tarball_url"]].append(row)
+    grouped: dict[tuple, list[dict]] = defaultdict(list)
+    resolved_fields: dict[int, tuple[str | None, str | None, str, str | None, str | None]] = {}
+    for index, row in enumerate(rows):
+        fields = _source_fields(row, entries)
+        resolved_fields[index] = fields
+        grouped[fields].append(row)
 
-    scan_cache: dict[str, tuple[set, set, int, set[str]]] = {}
-    fetch_failures: dict[str, str] = {}
-    total_tarballs = len(by_url)
-    for index, (url, url_rows) in enumerate(by_url.items(), start=1):
-        sample = url_rows[0]
-        label = f"{index}/{total_tarballs} {sample['package_name']}@{sample['version']} {sample['kind']}"
-        dest = SANDBOX_ROOT / _safe_name(f"{sample['package_name']}@{sample['version']}-{sample['kind']}")
-        # Every advisory sharing this tarball contributes its vuln file, so the cap
-        # never drops a function we need to score.
-        target_paths = {row["corpus_file_path"] for row in url_rows if row.get("corpus_file_path")}
+    scan_cache: dict[tuple, tuple[set, set, int, bool, list, list]] = {}
+    fetch_failures: dict[tuple, str] = {}
+    total_sources = len(grouped)
+    for index, (key, source_rows) in enumerate(grouped.items(), start=1):
+        source_repo, source_commit, source_path, function_name, target_source_sha256 = key
+        sample = source_rows[0]
+        label = f"{index}/{total_sources} {sample['package_name']}@{sample['version']} {sample['kind']}"
+        dest = SANDBOX_ROOT / _safe_name(
+            f"{sample['package_name']}@{sample['version']}-{sample['kind']}-{source_path}"
+        )
         try:
-            scan_cache[url] = _scan_tarball(
-                url, sample["expected_sha256"], dest, detector, entries, corpus_version, label=label,
-                target_paths=target_paths, max_functions=args.max_functions,
+            if not source_repo or not source_commit:
+                raise ValueError("source release commit is unavailable")
+            scan_cache[key] = _scan_source_package(
+                source_repo, source_commit, source_path, function_name, target_source_sha256,
+                dest, detector, entries, corpus_version, label=label,
             )
-            present_targets = scan_cache[url][3]
             print(
-                f"scanned [{label}]: {len(scan_cache[url][0])} flagged ghsa, "
-                f"{scan_cache[url][2]} fns, source_targets={len(present_targets)}/{len(target_paths)}",
+                f"scanned [{label}]: flagged={len(scan_cache[key][0])}, "
+                f"review={len(scan_cache[key][1])}, functions={scan_cache[key][2]}, "
+                f"target_function_present={scan_cache[key][3]}, "
+                f"background_noise={len(scan_cache[key][4])}",
                 flush=True,
             )
-        except SandboxFetchError as exc:
-            fetch_failures[url] = exc.reason_code
-            print(f"FETCH FAIL [{label}]: {exc.reason_code}", flush=True)
+        except (OSError, ValueError, requests.RequestException) as exc:
+            fetch_failures[key] = type(exc).__name__
+            print(f"SOURCE FAIL [{label}]: {type(exc).__name__}: {exc}", flush=True)
 
     confusion: Counter = Counter()
     by_language: dict[str, Counter] = defaultdict(Counter)
     results = []
-    for row in rows:
-        url = row["tarball_url"]
+    for row_index, row in enumerate(rows):
         expected = row["expected_status"]
         ghsa = row["ghsa_id"]
+        key = resolved_fields[row_index]
+        target_presence = "unknown"
+        retrieval_rank = None
+        hash_retrieval_hit = False
         if not row.get("tier1_applicable", True):
             outcome = "not_applicable"
-        elif url in fetch_failures:
-            outcome = "fetch_error"
+            target_presence = "not_applicable"
+        elif key in fetch_failures:
+            outcome = "source_fetch_error"
+            target_presence = "source_unavailable"
         else:
-            flagged, review, _, present_targets = scan_cache[url]
-            target_file = row.get("corpus_file_path")
-            if target_file and target_file not in present_targets:
-                outcome = "source_absent"
+            flagged, review, _, function_present, _, target_findings = scan_cache[key]
+            if not function_present:
+                outcome = "function_absent"
+                target_presence = "source_present_function_absent"
                 confusion[outcome] += 1
                 by_language[row["source_language"]][outcome] += 1
                 results.append({**_result_identity(row), "outcome": outcome,
-                                "target_presence": "source_absent",
-                                "original_source_path": target_file})
+                                "target_presence": target_presence,
+                                "source_repo": key[0], "source_commit": key[1],
+                                "source_path": key[2], "target_function": key[3],
+                                "target_source_sha256": key[4],
+                                "retrieval_rank": retrieval_rank,
+                                "hash_retrieval_hit": hash_retrieval_hit})
                 continue
+            target_presence = "source_present"
             present_flagged = ghsa in flagged
             present_review = ghsa in review
-            if expected == "flagged":
-                outcome = "true_positive" if present_flagged else (
-                    "abstained_positive" if present_review else "false_negative")
-            else:
-                outcome = "false_positive" if present_flagged else (
-                    "abstained_negative" if present_review else "true_negative")
+            priority = "automatic_vulnerability" if present_flagged else (
+                "manual_review" if present_review else "none")
+            outcome = classification_outcome(expected, priority)
+            expected_fields = expected_retrieval_fields(row)
+            target_ranks = [
+                detection_rank(finding["result"], expected_fields, detector.pairs)
+                for finding in target_findings
+                if ghsa in extract_ghsa_ids(finding["result"])
+            ]
+            target_ranks = [rank for rank in target_ranks if rank is not None]
+            retrieval_rank = min(target_ranks) if target_ranks else None
+            hash_retrieval_hit = any(
+                bool(finding["result"].get("hash_matches"))
+                for finding in target_findings
+                if ghsa in extract_ghsa_ids(finding["result"])
+            )
         confusion[outcome] += 1
         by_language[row["source_language"]][outcome] += 1
         results.append({**_result_identity(row), "outcome": outcome,
-                        "target_presence": "source_present",
-                        "original_source_path": row.get("corpus_file_path")})
+                        "target_presence": target_presence,
+                        "source_repo": key[0], "source_commit": key[1],
+                        "source_path": key[2], "target_function": key[3],
+                        "target_source_sha256": key[4],
+                        "retrieval_rank": retrieval_rank,
+                        "hash_retrieval_hit": hash_retrieval_hit})
 
-    _excluded = {"fetch_error", "not_applicable", "source_absent"}
+    _excluded = {"source_fetch_error", "not_applicable", "source_absent", "function_absent"}
     vulnerable_rows = [r for r in results if r["expected_status"] == "flagged" and r["outcome"] not in _excluded]
     fixed_rows = [r for r in results if r["expected_status"] == "cleared" and r["outcome"] not in _excluded]
 
     def _rate(rows_, predicate):
         return (sum(predicate(r) for r in rows_) / len(rows_)) if rows_ else None
 
+    noise = [item for key, value in scan_cache.items() for item in value[4]]
     summary = {
         "label_rows": len(rows),
-        "unique_tarballs": len(by_url),
-        "fetch_failures": len(fetch_failures),
+        "unique_source_targets": len(grouped),
+        "source_fetch_failures": len(fetch_failures),
         "outcome_counts": dict(confusion),
         "target_presence_counts": dict(Counter(result.get("target_presence", "unknown") for result in results)),
         "outcomes_by_language": {k: dict(v) for k, v in sorted(by_language.items())},
-        "vulnerable_recall_automatic": _rate(vulnerable_rows, lambda r: r["outcome"] == "true_positive"),
-        "vulnerable_recall_including_abstain": _rate(
-            vulnerable_rows, lambda r: r["outcome"] in {"true_positive", "abstained_positive"}),
-        "fixed_false_positive_rate": _rate(fixed_rows, lambda r: r["outcome"] == "false_positive"),
+        **summarize_evaluation(results, strata=("source_language",)),
+        "background_noise": {
+            "finding_count": len(noise),
+            "ghsa_count": len({ghsa for item in noise for ghsa in item["ghsa_ids"]}),
+            "priority_counts": dict(Counter(item["priority"] for item in noise)),
+        },
     }
     output = {
-        "schema": "tier1_release_selfcheck_v3",
+        "schema": "evaluation_results_v3",
+        "tier": "tier1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "labels_input": str(args.labels),
         "summary": summary,
+        "background_noise": noise,
         "results": results,
     }
     args.output.write_text(json.dumps(output, indent=2), encoding="utf-8")
