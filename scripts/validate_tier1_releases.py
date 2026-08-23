@@ -79,6 +79,8 @@ def _apply_function_cap(dest: Path, target_paths: set[str], max_functions: int) 
     kept = set(targets)
     total = sum(counts[p] for p in targets)
     for path in others:  # smallest files first, until the budget is used up
+        if counts[path] == 0:
+            continue  # a file with no functions yields nothing to scan -- drop it
         if total >= max_functions:
             break
         kept.add(path)
@@ -120,10 +122,29 @@ def _make_scan_progress(label: str):
     return callback
 
 
+def _present_target_files(dest: Path, target_paths: set[str]) -> set[str]:
+    """Of the requested corpus file_paths, which actually exist in the extracted
+    release. A package that ships only compiled/bundled code (e.g. next, vite) won't
+    contain its source-level vuln file, so scoring it as a miss would be misleading."""
+    if not target_paths:
+        return set()
+    source_files = [
+        str(p).replace("\\", "/")
+        for p in dest.rglob("*")
+        if p.is_file() and p.suffix.lower() in SUPPORTED_SOURCE_EXTENSIONS
+    ]
+    present = set()
+    for target in target_paths:
+        normalized = target.replace("\\", "/")
+        if any(s.endswith(normalized) for s in source_files):
+            present.add(target)
+    return present
+
+
 def _scan_tarball(url, sha, dest, detector, entries, corpus_version, label="",
                   target_paths=None, max_functions=None):
-    """Download+verify+extract+scan one tarball. Returns (flagged, review) ghsa sets
-    or raises SandboxFetchError."""
+    """Download+verify+extract+scan one tarball. Returns
+    (flagged, review, function_count, present_target_paths) or raises SandboxFetchError."""
     started = time.time()
     _log(f"    [{label}] downloading {url.rsplit('/', 1)[-1]} ...")
     data = download_release(url, sha)
@@ -145,6 +166,7 @@ def _scan_tarball(url, sha, dest, detector, entries, corpus_version, label="",
         progress_callback=_make_scan_progress(label),
     )
     _log(f"    [{label}] scan finished in {time.time() - started:.0f}s")
+    present = _present_target_files(dest, target_paths or set())
     flagged, review = set(), set()
     for finding in summary.findings:
         result = finding["result"]
@@ -153,7 +175,7 @@ def _scan_tarball(url, sha, dest, detector, entries, corpus_version, label="",
             flagged |= ghsas
         elif result.get("priority") == "manual_review":
             review |= ghsas
-    return flagged, review, summary.total_functions
+    return flagged, review, summary.total_functions, present
 
 
 def main() -> int:
@@ -186,7 +208,7 @@ def main() -> int:
     for row in rows:
         by_url[row["tarball_url"]].append(row)
 
-    scan_cache: dict[str, tuple[set, set, int]] = {}
+    scan_cache: dict[str, tuple[set, set, int, set]] = {}
     fetch_failures: dict[str, str] = {}
     total_tarballs = len(by_url)
     for index, (url, url_rows) in enumerate(by_url.items(), start=1):
@@ -218,7 +240,17 @@ def main() -> int:
         elif url in fetch_failures:
             outcome = "fetch_error"
         else:
-            flagged, review, _ = scan_cache[url]
+            flagged, review, _, present_targets = scan_cache[url]
+            target_file = row.get("corpus_file_path")
+            if target_file and target_file not in present_targets:
+                # Vuln source not shipped in this release (e.g. compiled-only package).
+                outcome = "source_absent"
+                confusion[outcome] += 1
+                by_language[row["source_language"]][outcome] += 1
+                results.append({**{k: row[k] for k in ("ghsa_id", "package_name", "kind", "version",
+                                                        "source_language", "category", "expected_status")},
+                                "outcome": outcome})
+                continue
             present_flagged = ghsa in flagged
             present_review = ghsa in review
             if expected == "flagged":
@@ -233,7 +265,7 @@ def main() -> int:
                                                "source_language", "category", "expected_status")},
                         "outcome": outcome})
 
-    _excluded = {"fetch_error", "not_applicable"}
+    _excluded = {"fetch_error", "not_applicable", "source_absent"}
     vulnerable_rows = [r for r in results if r["expected_status"] == "flagged" and r["outcome"] not in _excluded]
     fixed_rows = [r for r in results if r["expected_status"] == "cleared" and r["outcome"] not in _excluded]
 

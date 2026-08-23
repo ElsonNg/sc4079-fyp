@@ -91,6 +91,8 @@ _NON_LIBRARY_DIR_NAMES = {
     "example", "examples", "demo", "demos", "sample", "samples",
     "integration", "integration-testing", "benchmark", "benchmarks", "bench",
     "fixture", "fixtures", "coverage", "docs", "doc", "website", "scripts",
+    # Third-party code bundled into a release: never the package's own vuln surface.
+    "vendor", "vendored", "third_party", "third-party",
 }
 # A .js/.ts line longer than this is almost certainly bundled/minified, not authored.
 _BUNDLE_LINE_THRESHOLD = 2000
