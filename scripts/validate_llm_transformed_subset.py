@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from corpus.controller.store import load_entries
-from eval.common import DEFAULT_SNAPSHOT_DB, extension_for, extract_ghsa_ids
+from eval.common import DEFAULT_SNAPSHOT_DB, extension_for
 from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
 
 POSITIVE_INPUT = Path(__file__).resolve().parent.parent / "eval" / "llm_transformed_positive.jsonl"
@@ -41,6 +41,22 @@ def _outcome(expected: str, priority: str) -> str:
     return "abstained_negative" if priority == "manual_review" else "true_negative"
 
 
+def _has_language_scoped_ghsa(detection, ghsa_id: str, language: str) -> bool:
+    """Require the expected advisory to appear in same-language evidence."""
+    payload = detection.model_dump(mode="json")
+
+    def walk(node) -> bool:
+        if isinstance(node, dict):
+            if node.get("ghsa_id") == ghsa_id and node.get("source_language") == language:
+                return True
+            return any(walk(value) for value in node.values())
+        if isinstance(node, list):
+            return any(walk(value) for value in node)
+        return False
+
+    return walk(payload)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--positive", type=Path, default=POSITIVE_INPUT)
@@ -58,7 +74,12 @@ def main() -> int:
     print(f"Corpus: {len(entries)} entries; candidates: {len(records)}")
     detector = build_region_detector(
         entries,
-        config=RegionDetectorConfig(retrieval_top_k=10, retrieval_threshold=0.0, max_verification_candidates=10),
+        config=RegionDetectorConfig(
+            retrieval_top_k=10,
+            retrieval_threshold=0.0,
+            max_verification_candidates=10,
+            same_language_only=True,
+        ),
     )
     print(f"Detector ready: {len(detector.region_index.pairs)} region pairs")
 
@@ -69,7 +90,11 @@ def main() -> int:
     for index, record in enumerate(records, start=1):
         expected = record["expected_status"]
         cid = f"{record['candidate_id']}{extension_for(record['source_language'])}"
-        detection = detector.detect(record["candidate_source"], candidate_id=cid)
+        detection = detector.detect(
+            record["candidate_source"],
+            candidate_id=cid,
+            language=record["source_language"],
+        )
         priority = detection.priority
         outcome = _outcome(expected, priority)
         confusion[outcome] += 1
@@ -77,7 +102,7 @@ def main() -> int:
         by_stratum[stratum][outcome] += 1
 
         expected_ghsa = record["corpus_entry"]["ghsa_id"]
-        retrieved = expected_ghsa in extract_ghsa_ids(detection.model_dump(mode="json"))
+        retrieved = _has_language_scoped_ghsa(detection, expected_ghsa, record["source_language"])
         results.append({
             "candidate_id": record["candidate_id"],
             "expected_status": expected,
@@ -115,7 +140,7 @@ def main() -> int:
         "negative_false_positive_rate": _rate(negatives, lambda r: r["outcome"] == "false_positive"),
     }
     output = {
-        "schema": "llm_transformed_tier2_v1",
+        "schema": "llm_transformed_tier2_v2",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "positive_input": str(args.positive),
         "negative_input": str(args.negative),

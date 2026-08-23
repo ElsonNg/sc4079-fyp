@@ -123,11 +123,10 @@ def _make_scan_progress(label: str):
 
 
 def _present_target_files(dest: Path, target_paths: set[str]) -> set[str]:
-    """Of the requested corpus file_paths, which actually exist in the extracted
-    release. A package that ships only compiled/bundled code (e.g. next, vite) won't
-    contain its source-level vuln file, so scoring it as a miss would be misleading."""
+    """Return labeled source paths that are shipped with the same language."""
     if not target_paths:
         return set()
+
     source_files = [
         str(p).replace("\\", "/")
         for p in dest.rglob("*")
@@ -136,7 +135,7 @@ def _present_target_files(dest: Path, target_paths: set[str]) -> set[str]:
     present = set()
     for target in target_paths:
         normalized = target.replace("\\", "/")
-        if any(s.endswith(normalized) for s in source_files):
+        if any(path.endswith(normalized) for path in source_files):
             present.add(target)
     return present
 
@@ -144,7 +143,7 @@ def _present_target_files(dest: Path, target_paths: set[str]) -> set[str]:
 def _scan_tarball(url, sha, dest, detector, entries, corpus_version, label="",
                   target_paths=None, max_functions=None):
     """Download+verify+extract+scan one tarball. Returns
-    (flagged, review, function_count, present_target_paths) or raises SandboxFetchError."""
+    (flagged, review, function_count, present_targets) or raises SandboxFetchError."""
     started = time.time()
     _log(f"    [{label}] downloading {url.rsplit('/', 1)[-1]} ...")
     data = download_release(url, sha)
@@ -166,7 +165,7 @@ def _scan_tarball(url, sha, dest, detector, entries, corpus_version, label="",
         progress_callback=_make_scan_progress(label),
     )
     _log(f"    [{label}] scan finished in {time.time() - started:.0f}s")
-    present = _present_target_files(dest, target_paths or set())
+    present_targets = _present_target_files(dest, target_paths or set())
     flagged, review = set(), set()
     for finding in summary.findings:
         result = finding["result"]
@@ -175,7 +174,16 @@ def _scan_tarball(url, sha, dest, detector, entries, corpus_version, label="",
             flagged |= ghsas
         elif result.get("priority") == "manual_review":
             review |= ghsas
-    return flagged, review, summary.total_functions, present
+    return flagged, review, summary.total_functions, present_targets
+
+
+def _result_identity(row: dict) -> dict:
+    return {
+        k: row[k]
+        for k in ("ghsa_id", "package_name", "kind", "version",
+                  "source_language", "category", "expected_status")
+        if k in row
+    }
 
 
 def main() -> int:
@@ -199,7 +207,12 @@ def main() -> int:
     print(f"Corpus: {len(entries)} entries; label rows: {len(rows)}")
     detector = build_region_detector(
         entries,
-        config=RegionDetectorConfig(retrieval_top_k=10, retrieval_threshold=0.0, max_verification_candidates=10),
+        config=RegionDetectorConfig(
+            retrieval_top_k=10,
+            retrieval_threshold=0.0,
+            max_verification_candidates=10,
+            same_language_only=True,
+        ),
     )
     print(f"Detector ready: {len(detector.region_index.pairs)} region pairs")
 
@@ -208,7 +221,7 @@ def main() -> int:
     for row in rows:
         by_url[row["tarball_url"]].append(row)
 
-    scan_cache: dict[str, tuple[set, set, int, set]] = {}
+    scan_cache: dict[str, tuple[set, set, int, set[str]]] = {}
     fetch_failures: dict[str, str] = {}
     total_tarballs = len(by_url)
     for index, (url, url_rows) in enumerate(by_url.items(), start=1):
@@ -223,7 +236,12 @@ def main() -> int:
                 url, sample["expected_sha256"], dest, detector, entries, corpus_version, label=label,
                 target_paths=target_paths, max_functions=args.max_functions,
             )
-            print(f"scanned [{label}]: {len(scan_cache[url][0])} flagged ghsa, {scan_cache[url][2]} fns", flush=True)
+            present_targets = scan_cache[url][3]
+            print(
+                f"scanned [{label}]: {len(scan_cache[url][0])} flagged ghsa, "
+                f"{scan_cache[url][2]} fns, source_targets={len(present_targets)}/{len(target_paths)}",
+                flush=True,
+            )
         except SandboxFetchError as exc:
             fetch_failures[url] = exc.reason_code
             print(f"FETCH FAIL [{label}]: {exc.reason_code}", flush=True)
@@ -243,13 +261,12 @@ def main() -> int:
             flagged, review, _, present_targets = scan_cache[url]
             target_file = row.get("corpus_file_path")
             if target_file and target_file not in present_targets:
-                # Vuln source not shipped in this release (e.g. compiled-only package).
                 outcome = "source_absent"
                 confusion[outcome] += 1
                 by_language[row["source_language"]][outcome] += 1
-                results.append({**{k: row[k] for k in ("ghsa_id", "package_name", "kind", "version",
-                                                        "source_language", "category", "expected_status")},
-                                "outcome": outcome})
+                results.append({**_result_identity(row), "outcome": outcome,
+                                "target_presence": "source_absent",
+                                "original_source_path": target_file})
                 continue
             present_flagged = ghsa in flagged
             present_review = ghsa in review
@@ -261,9 +278,9 @@ def main() -> int:
                     "abstained_negative" if present_review else "true_negative")
         confusion[outcome] += 1
         by_language[row["source_language"]][outcome] += 1
-        results.append({**{k: row[k] for k in ("ghsa_id", "package_name", "kind", "version",
-                                               "source_language", "category", "expected_status")},
-                        "outcome": outcome})
+        results.append({**_result_identity(row), "outcome": outcome,
+                        "target_presence": "source_present",
+                        "original_source_path": row.get("corpus_file_path")})
 
     _excluded = {"fetch_error", "not_applicable", "source_absent"}
     vulnerable_rows = [r for r in results if r["expected_status"] == "flagged" and r["outcome"] not in _excluded]
@@ -277,6 +294,7 @@ def main() -> int:
         "unique_tarballs": len(by_url),
         "fetch_failures": len(fetch_failures),
         "outcome_counts": dict(confusion),
+        "target_presence_counts": dict(Counter(result.get("target_presence", "unknown") for result in results)),
         "outcomes_by_language": {k: dict(v) for k, v in sorted(by_language.items())},
         "vulnerable_recall_automatic": _rate(vulnerable_rows, lambda r: r["outcome"] == "true_positive"),
         "vulnerable_recall_including_abstain": _rate(
@@ -284,7 +302,7 @@ def main() -> int:
         "fixed_false_positive_rate": _rate(fixed_rows, lambda r: r["outcome"] == "false_positive"),
     }
     output = {
-        "schema": "tier1_release_selfcheck_v1",
+        "schema": "tier1_release_selfcheck_v3",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "labels_input": str(args.labels),
         "summary": summary,

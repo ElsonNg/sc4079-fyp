@@ -67,8 +67,8 @@ def _pick_pilot_entries(entries):
     return [picked[k] for k in ("javascript", "typescript") if k in picked]
 
 
-def _scored_priority(detector, source: str, candidate_id: str):
-    result = detector.detect(source, candidate_id=candidate_id)
+def _scored_priority(detector, source: str, candidate_id: str, language: str):
+    result = detector.detect(source, candidate_id=candidate_id, language=language)
     return result.priority, result
 
 
@@ -107,7 +107,7 @@ def run_tier2(entry, transformer, detector) -> None:
         if not gate.passed:
             print(f"    {clone_type:7s} {side:10s} GATE FAIL: {gate.reason}")
             continue
-        priority, _ = _scored_priority(detector, code, f"{cid_base}{ext}")
+        priority, _ = _scored_priority(detector, code, f"{cid_base}{ext}", lang)
         if expected == "flagged":
             verdict = "TP" if priority == "automatic_vulnerability" else (
                 "abstain" if priority == "manual_review" else "FN")
@@ -198,7 +198,12 @@ def main() -> int:
     print("Building region detector over the snapshot corpus (loads embedding model)...")
     detector = build_region_detector(
         entries,
-        config=RegionDetectorConfig(retrieval_top_k=10, retrieval_threshold=0.0, max_verification_candidates=10),
+        config=RegionDetectorConfig(
+            retrieval_top_k=10,
+            retrieval_threshold=0.0,
+            max_verification_candidates=10,
+            same_language_only=True,
+        ),
         progress_callback=lambda done, total: print(f"  indexed regions: {done}/{total}", file=sys.stderr)
         if done == total or done % 400 == 0 else None,
     )

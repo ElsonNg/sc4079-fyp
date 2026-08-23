@@ -41,3 +41,23 @@ Its raw output is `candidate_subset_30_current_results.json`. The baseline verif
 the expected retrieved corpus entry, matching the correctness scope of the existing
 worst-case validator; it does not verify every wrong entry in the shortlist for
 false-positive attribution analysis.
+
+## Tier 1 release self-check
+
+Run the real-release evaluation with:
+
+```text
+PYTHONPATH=. .venv/bin/python -u scripts/validate_tier1_releases.py
+```
+
+Tier 1 checks whether each labeled source path is shipped in the npm tarball in its
+original language. A TypeScript label is scorable only when the release contains the
+labeled TypeScript source; a compiled JavaScript artifact does not satisfy it.
+Compiled-only releases are reported as `source_absent` and excluded from detector
+accuracy metrics.
+
+The validator logs and records whether each target was `source_present` or
+`source_absent`. Tier 1 and Tier 2 both use same-language evidence: TypeScript
+candidates are evaluated against TypeScript corpus entries, and JavaScript
+candidates against JavaScript entries. Results use schema
+`tier1_release_selfcheck_v3`.

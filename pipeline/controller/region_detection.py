@@ -110,6 +110,10 @@ class RegionDetectorConfig:
     max_candidate_regions: int = 96
     max_verification_candidates: int = 5
     max_verification_regions_per_pair: int = 3
+    # Evaluation-only guard: compare candidates only with corpus evidence written
+    # in the same source language. Production keeps this disabled to retain the
+    # existing type-erased cross-language matching behavior.
+    same_language_only: bool = False
     # Kept for a later alignment ablation; inactive while the verifier uses
     # the simpler AST/token/semantic score.
     use_embedding_alignment_fallback: bool = False
@@ -164,6 +168,11 @@ class RegionDetector:
                 message="Candidate syntax is unsupported or could not be parsed safely",
             )
         hash_matches = lookup(candidate_source, self.hash_index, filename=language_filename)
+        if self.config.same_language_only:
+            hash_matches = [
+                match for match in hash_matches
+                if match.source_language == candidate_language
+            ]
         hash_types = sorted({match.match_type for match in hash_matches})
         if hash_matches:
             lineage_ids = sorted({match.lineage_id for match in hash_matches if match.lineage_id})
@@ -228,6 +237,11 @@ class RegionDetector:
             top_k=self.config.retrieval_top_k,
             threshold=self.config.retrieval_threshold,
         )
+        if self.config.same_language_only:
+            matches = [
+                match for match in matches
+                if match.source_language == candidate_language
+            ]
         grouped = aggregate_region_hits(matches)
         aggregates: list[RegionAggregate] = []
         for pair_id, pair_matches in grouped:

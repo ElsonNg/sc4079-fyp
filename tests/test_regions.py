@@ -370,6 +370,58 @@ def test_region_detector_uses_region_path_when_hash_path_is_empty(monkeypatch):
     assert result.lineages[0].associated_advisories[0].ghsa_id == entry.ghsa_id
 
 
+def test_same_language_scope_excludes_cross_language_region_matches(monkeypatch):
+    vulnerable = """function checkValue(value) {
+  if (value) {
+    return value;
+  }
+  return null;
+}"""
+    patched = """function checkValue(value) {
+  if (value && typeof value === 'string') {
+    return value;
+  }
+  return null;
+}"""
+    diagnostics = [DiagnosticLine(kind="replacement", vulnerable_line=1, patched_line=1, text="guard")]
+    javascript_entry = _entry(vulnerable, patched, diagnostics)
+    typescript_entry = javascript_entry.model_copy(update={
+        "ghsa_id": "GHSA-test-typescript",
+        "source_language": "typescript",
+        "file_path": "lib/test.ts",
+    })
+    pairs = extract_vulnerability_regions(javascript_entry) + extract_vulnerability_regions(typescript_entry)
+
+    def fake_encode(_model_id, texts, batch_size=32):
+        vectors = np.ones((len(texts), 8), dtype=np.float32)
+        return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
+    monkeypatch.setattr("pipeline.controller.embedding.encode", fake_encode)
+    index = faiss.IndexFlatIP(8)
+    index.add(np.ones((len(pairs), 8), dtype=np.float32) / np.sqrt(8))
+    detector = RegionDetector(
+        [javascript_entry, typescript_entry],
+        RegionRetrievalIndex(model_id="fake", index=index, pairs=pairs, fingerprint="test"),
+        HashIndex(),
+        RegionDetectorConfig(
+            model_id="fake",
+            retrieval_top_k=8,
+            max_candidate_regions=24,
+            same_language_only=True,
+        ),
+    )
+
+    result = detector.detect(
+        vulnerable.replace("function checkValue(value)", "function checkValue(value: string)"),
+        candidate_id="C-ts.ts",
+        language="typescript",
+    )
+
+    matches = [match for aggregate in result.aggregates for match in aggregate.top_matches]
+    assert matches
+    assert all(match.source_language == "typescript" for match in matches)
+
+
 def test_hash_verdicts_are_scoped_and_exact_patch_beats_same_identity_region_path():
     patched_snapshot = """
 function transfer(sender, receiver, amount) {
