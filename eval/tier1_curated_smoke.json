@@ -1,0 +1,1265 @@
+{
+  "schema": "evaluation_results_v3",
+  "tier": "tier1",
+  "generated_at_utc": "2026-08-23T11:59:28.250239+00:00",
+  "labels_input": "eval\\tier1_curated_labels.jsonl",
+  "summary": {
+    "label_rows": 2,
+    "unique_source_targets": 2,
+    "source_fetch_failures": 0,
+    "outcome_counts": {
+      "true_positive": 1,
+      "true_negative": 1
+    },
+    "target_presence_counts": {
+      "source_present": 2
+    },
+    "outcomes_by_language": {
+      "typescript": {
+        "true_positive": 1,
+        "true_negative": 1
+      }
+    },
+    "retrieval": {
+      "sample_count": 2,
+      "recall_at_1": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr": 1.0,
+      "ranked_misses": 0,
+      "hash_retrieval_hits": 2,
+      "ranked_only": {
+        "sample_count": 0,
+        "recall_at_1": null,
+        "recall_at_5": null,
+        "recall_at_10": null,
+        "mrr": null
+      }
+    },
+    "verification": {
+      "sample_count": 2,
+      "scored_count": 2,
+      "true_positive": 1,
+      "false_negative": 0,
+      "patched_false_positive": 0,
+      "patched_true_negative": 1,
+      "vulnerable_recall": 1.0,
+      "vulnerable_recall_including_abstain": 1.0,
+      "patched_false_positive_rate": 0.0,
+      "abstention_rate": 0.0,
+      "outcome_counts": {
+        "true_positive": 1,
+        "true_negative": 1
+      }
+    },
+    "llm": {
+      "llm_sample_count": 0,
+      "llm_non_abstained_count": 0,
+      "llm_abstention_count": 0,
+      "llm_decision_accuracy": null,
+      "llm_adjusted_vulnerable_recall": null
+    },
+    "by_stratum": {
+      "typescript": {
+        "retrieval": {
+          "sample_count": 2,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "mrr": 1.0,
+          "ranked_misses": 0,
+          "hash_retrieval_hits": 2,
+          "ranked_only": {
+            "sample_count": 0,
+            "recall_at_1": null,
+            "recall_at_5": null,
+            "recall_at_10": null,
+            "mrr": null
+          }
+        },
+        "verification": {
+          "sample_count": 2,
+          "scored_count": 2,
+          "true_positive": 1,
+          "false_negative": 0,
+          "patched_false_positive": 0,
+          "patched_true_negative": 1,
+          "vulnerable_recall": 1.0,
+          "vulnerable_recall_including_abstain": 1.0,
+          "patched_false_positive_rate": 0.0,
+          "abstention_rate": 0.0,
+          "outcome_counts": {
+            "true_positive": 1,
+            "true_negative": 1
+          }
+        },
+        "llm": {
+          "llm_sample_count": 0,
+          "llm_non_abstained_count": 0,
+          "llm_abstention_count": 0,
+          "llm_decision_accuracy": null,
+          "llm_adjusted_vulnerable_recall": null
+        }
+      }
+    },
+    "background_noise": {
+      "finding_count": 87,
+      "ghsa_count": 39,
+      "priority_counts": {
+        "manual_review": 68,
+        "none": 14,
+        "automatic_vulnerability": 4,
+        "informational_lineage": 1
+      },
+      "capped_package_count": 2,
+      "max_functions_per_package": 50
+    }
+  },
+  "background_noise": [
+    {
+      "path": "packages/mermaid/scripts/update-release-version.mts",
+      "name": "main",
+      "function_hash": "c233ee1996ddf1477e144825fcaf1d0c26257be1127d4b6a5147d14162b31747",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-4c39-4ccg-62r3",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-v93f-fgjr-hjrj",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/dagre-wrapper/intersect/intersect-circle.js",
+      "name": "intersectCircle",
+      "function_hash": "3aaacbd4251d19f41a4531ac0b81e7c160bcda52aeafad0dc15c41138620533e",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-62hf-57xw-28j9",
+        "GHSA-fjgf-rc76-4x9p",
+        "GHSA-mfj6-6p54-m98c",
+        "GHSA-v52c-386h-88mc",
+        "GHSA-vh95-rmgr-6w4m",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/dagre-wrapper/intersect/intersect-ellipse.js",
+      "name": "intersectEllipse",
+      "function_hash": "3cb635b2458f711a72d873dc3d21347b33df16d39da63be76bdcce04422c854b",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-f2jv-r9rf-7988",
+        "GHSA-mfj6-6p54-m98c",
+        "GHSA-v3r7-h72x-cjcm"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/dagre-wrapper/intersect/intersect-node.js",
+      "name": "intersectNode",
+      "function_hash": "2e9e2b05079cd362223635e3ccaede458c85def1f803ff0ec3f7c26e6e004866",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-4xc9-xhrj-v574",
+        "GHSA-f2jv-r9rf-7988",
+        "GHSA-mfj6-6p54-m98c",
+        "GHSA-q42p-pg8m-cqh6",
+        "GHSA-vh95-rmgr-6w4m",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/dagre-wrapper/intersect/intersect-rect.js",
+      "name": "intersectRect",
+      "function_hash": "77323504f416673d16399c53576c7f66872a8cba8323dc192c2ad03deee18179",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-58qx-3vcg-4xpx",
+        "GHSA-mfj6-6p54-m98c",
+        "GHSA-v3r7-h72x-cjcm",
+        "GHSA-v52c-386h-88mc"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagram-api/comments.ts",
+      "name": "cleanupComments",
+      "function_hash": "b4ae4e57a66f55d8196e833d8a3556478143147356929e80f0e629e05fee07de",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2q4g-w47c-4674",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagram-api/frontmatter.ts",
+      "name": "extractFrontMatter",
+      "function_hash": "6dcac0fe28e45ef37d4158679f11f4599a9fc9013b5bd1f899a389171115373b",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-45rm-2893-5f49",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-93m4-6634-74q7",
+        "GHSA-c9cv-mq2m-ppp3",
+        "GHSA-mmg9-6m6j-jqqx",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/block/blockUtils.ts",
+      "name": "prepareTextForParsing",
+      "function_hash": "35629f93b8f4b8e62cc29222a16bb31c5a51090cfa99367f2e5d8266d35d172f",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-55q2-fjhq-7xh7",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-fph2-r4qg-9576",
+        "GHSA-m983-v2ff-wq65",
+        "GHSA-mmg9-6m6j-jqqx",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/c4/c4Diagram.ts",
+      "name": "init",
+      "function_hash": "702f73ab4957ede89841ac26649a887c6edbb76e3be403a02b2141e85d6c34e6",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-c4c3-pg64-4m4v",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/class/classDiagram-v2.ts",
+      "name": "init",
+      "function_hash": "2d109c621c7c40950287353d04a5935786803488ad5fa784e4f4175b5237a651",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2q4g-w47c-4674",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-m3q2-p4fw-w38m"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/class/classDiagram.ts",
+      "name": "init",
+      "function_hash": "2d109c621c7c40950287353d04a5935786803488ad5fa784e4f4175b5237a651",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2q4g-w47c-4674",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-m3q2-p4fw-w38m"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/class/styles.js",
+      "name": "getStyles",
+      "function_hash": "08a02237300644939e415972321a0b980f9043c5bb1e4a6b4bdf5e9ba3e97e05",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-8qr4-xgw6-wmr3",
+        "GHSA-fjgf-rc76-4x9p",
+        "GHSA-v52c-386h-88mc",
+        "GHSA-vh95-rmgr-6w4m",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/er/erMarkers.js",
+      "name": "insertMarkers",
+      "function_hash": "b750cb6e4949fa40ff19fac71646349c1c217fffe9b07cf336e0e643fab7788c",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-62hf-57xw-28j9",
+        "GHSA-8qr4-xgw6-wmr3",
+        "GHSA-9965-vmph-33xx",
+        "GHSA-fjgf-rc76-4x9p",
+        "GHSA-q42p-pg8m-cqh6",
+        "GHSA-v52c-386h-88mc",
+        "GHSA-vh95-rmgr-6w4m",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/error/errorDiagram.ts",
+      "name": "parse",
+      "function_hash": "880514497537a80ef034cc2db98d35513d8a179c9a2035e895aeb6dc1032a1f6",
+      "priority": "automatic_vulnerability",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/error/errorRenderer.ts",
+      "name": "draw",
+      "function_hash": "ccc36515d218bf5571703fb6e7e7021d79d88e8a8eb63b1a6b2b64a9c85f0e45",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/flowchart/elk/render-utils.ts",
+      "name": "findCommonAncestor",
+      "function_hash": "9efb0b4d45ee6695026c00e3e8df24006cb774249bb046031eebdaf3d3309b20",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-45rm-2893-5f49",
+        "GHSA-4c39-4ccg-62r3",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-v93f-fgjr-hjrj",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/flowchart/flowDiagram-v2.ts",
+      "name": "init",
+      "function_hash": "4203e8149e9a8e3d3b92db1847f15c2e35f33dda2a4031c9ce6c6c08e7e2734b",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-c4c3-pg64-4m4v",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/flowchart/flowDiagram.ts",
+      "name": "init",
+      "function_hash": "aef9feb3b7ddb3c429c558da2173a320be450be5b54b1affe646930754169b4b",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-c4c3-pg64-4m4v",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/gantt/styles.js",
+      "name": "getStyles",
+      "function_hash": "f4d68423f1b71880632ced85cc1a3f0e60fb211d59efda1c21d8858d0be3e3ff",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-8qr4-xgw6-wmr3"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/git/layout.js",
+      "name": null,
+      "function_hash": "ab2f00206ffaec7b1dc413f6ccf2e2d76a3d17193bbd6c25ba6da6b36abf6a70",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-58qx-3vcg-4xpx",
+        "GHSA-5v72-xg48-5rpm",
+        "GHSA-f2jv-r9rf-7988",
+        "GHSA-hv9c-qwqg-qj3v",
+        "GHSA-mfj6-6p54-m98c",
+        "GHSA-vh95-rmgr-6w4m",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/info/infoRenderer.ts",
+      "name": "draw",
+      "function_hash": "bca2f718970fd553007a2626bff1de2fd7f6af02eaf624233f2a372dd68b0066",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/pie/pieStyles.ts",
+      "name": "getStyles",
+      "function_hash": "251cac989ae2ac6fa533509a4459209775b1d73f50a5b39f5a9d539dd1e53eb1",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": null,
+      "function_hash": "4dbb79ff3af1f97f90c07045195013cbfacff598983edc9076971ea08a33b76a",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "getChartDefaultThemeConfig",
+      "function_hash": "7d4f00179bb84fabed66991b74d70af1edf8558a4d5c6de1008baa878b39c739",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-4c39-4ccg-62r3",
+        "GHSA-6qh5-m6g3-xhq6",
+        "GHSA-f82v-jwr5-mffw",
+        "GHSA-mmg9-6m6j-jqqx",
+        "GHSA-v93f-fgjr-hjrj",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "getChartDefaultConfig",
+      "function_hash": "06ae849f37f6e5a21a321fab04451ca1608061aa428364edef25944d44f39651",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-6qh5-m6g3-xhq6",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-c4c3-pg64-4m4v",
+        "GHSA-f82v-jwr5-mffw",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "getChartDefaultData",
+      "function_hash": "6fef754cbd305a298f837d1507dd29cc329b60ba63f26b8ffb9fb47e08ca8c7e",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-45rm-2893-5f49",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-93m4-6634-74q7",
+        "GHSA-c9cv-mq2m-ppp3",
+        "GHSA-rv5g-f82m-qrvv"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "textSanitizer",
+      "function_hash": "bef41b48f6c69f808b7fba0b3029ef730011ec1f982166f2d6aa95596b83d219",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-45rm-2893-5f49",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-93m4-6634-74q7",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setTmpSVGG",
+      "function_hash": "15e7d0e76858eda943da742cb8a6b688ab8fe48acb37d5740feba30ffcae7124",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2q4g-w47c-4674",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-87f9-hvmw-gh4p",
+        "GHSA-c9cv-mq2m-ppp3",
+        "GHSA-g357-x5c3-c72p"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setOrientation",
+      "function_hash": "8e35fcf66a44e09a35611bdda49b26d83a076aef40fe2243e092c4dd8a67a9b5",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-6x64-9x62-f2gx",
+        "GHSA-c4c3-pg64-4m4v",
+        "GHSA-m3q2-p4fw-w38m"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setXAxisTitle",
+      "function_hash": "99e8f9ee2002e8e6436c75c6fc8845972689da0ff37f687e38b87fbd6b765754",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setXAxisRangeData",
+      "function_hash": "ee62fbde5bb763c05c4182e0e5e64cb2131c84bcee8e21778a7534b1e6188c89",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-6x64-9x62-f2gx",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setXAxisBand",
+      "function_hash": "f2a540fb93ac39187992f41aead74dbe5c0effac081c0cd3b852a025eecff21d",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": null,
+      "function_hash": "1303bd936433bcc6652676f67dc7485d9bc3776b860dd1007a744fc12c629142",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setYAxisTitle",
+      "function_hash": "ff2ff664a91d19c537e2684f3241eaf2b2ac5691f4fbd82873c5da5a412f0b00",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setYAxisRangeData",
+      "function_hash": "2a63f4ec7da5c5e499275717d3cc3c0e7fac4fc2378e7c2d457d4c2e52a475e2",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-6x64-9x62-f2gx",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setYAxisRangeFromPlotData",
+      "function_hash": "3773fb05a7b471c5e42f3796563f186cf403d040893ea8c537b97ed13e00fac6",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "transformDataWithoutCategory",
+      "function_hash": "02ede3849f840f2f9a0e053a1a81dd4aa68e96ff224d462804085135dd909f6a",
+      "priority": "automatic_vulnerability",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "getPlotColorFromPalette",
+      "function_hash": "5923cc4c62ccd3f3655716546a6a2e5b34ba8e067da4d01fc9540e23cff2bf9b",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-45rm-2893-5f49",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-87f9-hvmw-gh4p",
+        "GHSA-93m4-6634-74q7",
+        "GHSA-c9cv-mq2m-ppp3",
+        "GHSA-rv5g-f82m-qrvv"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setLineData",
+      "function_hash": "921937998d880f4058232faa1eb79d9c67d96bdfd24d8f1c03f3525fc29478cb",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-mmg9-6m6j-jqqx",
+        "GHSA-v93f-fgjr-hjrj"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setBarData",
+      "function_hash": "e67315cb40c8015d953b5108d9b1ea93d0cebf437c0a1793d501ddf063d40f60",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-mmg9-6m6j-jqqx",
+        "GHSA-v93f-fgjr-hjrj"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "getDrawableElem",
+      "function_hash": "2301213bcfc4099681ac431e2e0d96dffae3e54adf6930c7601d0a65150f59d6",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-6x64-9x62-f2gx",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-c9cv-mq2m-ppp3",
+        "GHSA-jqfw-vq24-v9c3",
+        "GHSA-m3q2-p4fw-w38m"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "clear",
+      "function_hash": "694ad448e4441e43c665ae3ec942a5fdead4391b9a2bc29f8d44d126afcf0a3d",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2q4g-w47c-4674",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": null,
+      "function_hash": "4dbb79ff3af1f97f90c07045195013cbfacff598983edc9076971ea08a33b76a",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/scripts/update-release-version.mts",
+      "name": "main",
+      "function_hash": "c233ee1996ddf1477e144825fcaf1d0c26257be1127d4b6a5147d14162b31747",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-4c39-4ccg-62r3",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-v93f-fgjr-hjrj",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/dagre-wrapper/intersect/intersect-circle.js",
+      "name": "intersectCircle",
+      "function_hash": "3aaacbd4251d19f41a4531ac0b81e7c160bcda52aeafad0dc15c41138620533e",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-62hf-57xw-28j9",
+        "GHSA-fjgf-rc76-4x9p",
+        "GHSA-mfj6-6p54-m98c",
+        "GHSA-v52c-386h-88mc",
+        "GHSA-vh95-rmgr-6w4m",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/dagre-wrapper/intersect/intersect-ellipse.js",
+      "name": "intersectEllipse",
+      "function_hash": "3cb635b2458f711a72d873dc3d21347b33df16d39da63be76bdcce04422c854b",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-f2jv-r9rf-7988",
+        "GHSA-mfj6-6p54-m98c",
+        "GHSA-v3r7-h72x-cjcm"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/dagre-wrapper/intersect/intersect-node.js",
+      "name": "intersectNode",
+      "function_hash": "2e9e2b05079cd362223635e3ccaede458c85def1f803ff0ec3f7c26e6e004866",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-4xc9-xhrj-v574",
+        "GHSA-f2jv-r9rf-7988",
+        "GHSA-mfj6-6p54-m98c",
+        "GHSA-q42p-pg8m-cqh6",
+        "GHSA-vh95-rmgr-6w4m",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/dagre-wrapper/intersect/intersect-rect.js",
+      "name": "intersectRect",
+      "function_hash": "77323504f416673d16399c53576c7f66872a8cba8323dc192c2ad03deee18179",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-58qx-3vcg-4xpx",
+        "GHSA-mfj6-6p54-m98c",
+        "GHSA-v3r7-h72x-cjcm",
+        "GHSA-v52c-386h-88mc"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagram-api/comments.ts",
+      "name": "cleanupComments",
+      "function_hash": "b4ae4e57a66f55d8196e833d8a3556478143147356929e80f0e629e05fee07de",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2q4g-w47c-4674",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagram-api/frontmatter.ts",
+      "name": "extractFrontMatter",
+      "function_hash": "6dcac0fe28e45ef37d4158679f11f4599a9fc9013b5bd1f899a389171115373b",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-45rm-2893-5f49",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-93m4-6634-74q7",
+        "GHSA-c9cv-mq2m-ppp3",
+        "GHSA-mmg9-6m6j-jqqx",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/block/blockUtils.ts",
+      "name": "prepareTextForParsing",
+      "function_hash": "35629f93b8f4b8e62cc29222a16bb31c5a51090cfa99367f2e5d8266d35d172f",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-55q2-fjhq-7xh7",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-fph2-r4qg-9576",
+        "GHSA-m983-v2ff-wq65",
+        "GHSA-mmg9-6m6j-jqqx",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/c4/c4Diagram.ts",
+      "name": "init",
+      "function_hash": "702f73ab4957ede89841ac26649a887c6edbb76e3be403a02b2141e85d6c34e6",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-c4c3-pg64-4m4v",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/class/classDiagram-v2.ts",
+      "name": "init",
+      "function_hash": "2d109c621c7c40950287353d04a5935786803488ad5fa784e4f4175b5237a651",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2q4g-w47c-4674",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-m3q2-p4fw-w38m"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/class/classDiagram.ts",
+      "name": "init",
+      "function_hash": "2d109c621c7c40950287353d04a5935786803488ad5fa784e4f4175b5237a651",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2q4g-w47c-4674",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-m3q2-p4fw-w38m"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/class/styles.js",
+      "name": "getStyles",
+      "function_hash": "08a02237300644939e415972321a0b980f9043c5bb1e4a6b4bdf5e9ba3e97e05",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-8qr4-xgw6-wmr3",
+        "GHSA-fjgf-rc76-4x9p",
+        "GHSA-v52c-386h-88mc",
+        "GHSA-vh95-rmgr-6w4m",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/er/erMarkers.js",
+      "name": "insertMarkers",
+      "function_hash": "b750cb6e4949fa40ff19fac71646349c1c217fffe9b07cf336e0e643fab7788c",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-62hf-57xw-28j9",
+        "GHSA-8qr4-xgw6-wmr3",
+        "GHSA-9965-vmph-33xx",
+        "GHSA-fjgf-rc76-4x9p",
+        "GHSA-q42p-pg8m-cqh6",
+        "GHSA-v52c-386h-88mc",
+        "GHSA-vh95-rmgr-6w4m",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/error/errorDiagram.ts",
+      "name": "parse",
+      "function_hash": "880514497537a80ef034cc2db98d35513d8a179c9a2035e895aeb6dc1032a1f6",
+      "priority": "automatic_vulnerability",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/error/errorRenderer.ts",
+      "name": "draw",
+      "function_hash": "ccc36515d218bf5571703fb6e7e7021d79d88e8a8eb63b1a6b2b64a9c85f0e45",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/flowchart/elk/render-utils.ts",
+      "name": "findCommonAncestor",
+      "function_hash": "9efb0b4d45ee6695026c00e3e8df24006cb774249bb046031eebdaf3d3309b20",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-45rm-2893-5f49",
+        "GHSA-4c39-4ccg-62r3",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-v93f-fgjr-hjrj",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/flowchart/flowDiagram-v2.ts",
+      "name": "init",
+      "function_hash": "4203e8149e9a8e3d3b92db1847f15c2e35f33dda2a4031c9ce6c6c08e7e2734b",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-c4c3-pg64-4m4v",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/flowchart/flowDiagram.ts",
+      "name": "init",
+      "function_hash": "aef9feb3b7ddb3c429c558da2173a320be450be5b54b1affe646930754169b4b",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-c4c3-pg64-4m4v",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/gantt/styles.js",
+      "name": "getStyles",
+      "function_hash": "f4d68423f1b71880632ced85cc1a3f0e60fb211d59efda1c21d8858d0be3e3ff",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-8qr4-xgw6-wmr3"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/git/layout.js",
+      "name": null,
+      "function_hash": "ab2f00206ffaec7b1dc413f6ccf2e2d76a3d17193bbd6c25ba6da6b36abf6a70",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-58qx-3vcg-4xpx",
+        "GHSA-5v72-xg48-5rpm",
+        "GHSA-f2jv-r9rf-7988",
+        "GHSA-hv9c-qwqg-qj3v",
+        "GHSA-mfj6-6p54-m98c",
+        "GHSA-vh95-rmgr-6w4m",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/info/infoRenderer.ts",
+      "name": "draw",
+      "function_hash": "bca2f718970fd553007a2626bff1de2fd7f6af02eaf624233f2a372dd68b0066",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/pie/pieStyles.ts",
+      "name": "getStyles",
+      "function_hash": "251cac989ae2ac6fa533509a4459209775b1d73f50a5b39f5a9d539dd1e53eb1",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": null,
+      "function_hash": "4dbb79ff3af1f97f90c07045195013cbfacff598983edc9076971ea08a33b76a",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "getChartDefaultThemeConfig",
+      "function_hash": "7d4f00179bb84fabed66991b74d70af1edf8558a4d5c6de1008baa878b39c739",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-4c39-4ccg-62r3",
+        "GHSA-6qh5-m6g3-xhq6",
+        "GHSA-f82v-jwr5-mffw",
+        "GHSA-mmg9-6m6j-jqqx",
+        "GHSA-v93f-fgjr-hjrj",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "getChartDefaultConfig",
+      "function_hash": "06ae849f37f6e5a21a321fab04451ca1608061aa428364edef25944d44f39651",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-6qh5-m6g3-xhq6",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-c4c3-pg64-4m4v",
+        "GHSA-f82v-jwr5-mffw",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "getChartDefaultData",
+      "function_hash": "6fef754cbd305a298f837d1507dd29cc329b60ba63f26b8ffb9fb47e08ca8c7e",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-45rm-2893-5f49",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-93m4-6634-74q7",
+        "GHSA-c9cv-mq2m-ppp3",
+        "GHSA-rv5g-f82m-qrvv"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "textSanitizer",
+      "function_hash": "bef41b48f6c69f808b7fba0b3029ef730011ec1f982166f2d6aa95596b83d219",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-45rm-2893-5f49",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-93m4-6634-74q7",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setTmpSVGG",
+      "function_hash": "15e7d0e76858eda943da742cb8a6b688ab8fe48acb37d5740feba30ffcae7124",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2q4g-w47c-4674",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-87f9-hvmw-gh4p",
+        "GHSA-c9cv-mq2m-ppp3",
+        "GHSA-g357-x5c3-c72p"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setOrientation",
+      "function_hash": "8e35fcf66a44e09a35611bdda49b26d83a076aef40fe2243e092c4dd8a67a9b5",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-6x64-9x62-f2gx",
+        "GHSA-c4c3-pg64-4m4v",
+        "GHSA-m3q2-p4fw-w38m"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setXAxisTitle",
+      "function_hash": "99e8f9ee2002e8e6436c75c6fc8845972689da0ff37f687e38b87fbd6b765754",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setXAxisRangeData",
+      "function_hash": "ee62fbde5bb763c05c4182e0e5e64cb2131c84bcee8e21778a7534b1e6188c89",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-6x64-9x62-f2gx",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setXAxisBand",
+      "function_hash": "f2a540fb93ac39187992f41aead74dbe5c0effac081c0cd3b852a025eecff21d",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": null,
+      "function_hash": "1303bd936433bcc6652676f67dc7485d9bc3776b860dd1007a744fc12c629142",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setYAxisTitle",
+      "function_hash": "ff2ff664a91d19c537e2684f3241eaf2b2ac5691f4fbd82873c5da5a412f0b00",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setYAxisRangeData",
+      "function_hash": "2a63f4ec7da5c5e499275717d3cc3c0e7fac4fc2378e7c2d457d4c2e52a475e2",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-6x64-9x62-f2gx",
+        "GHSA-p6jq-8vc4-79f6",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setYAxisRangeFromPlotData",
+      "function_hash": "3773fb05a7b471c5e42f3796563f186cf403d040893ea8c537b97ed13e00fac6",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "transformDataWithoutCategory",
+      "function_hash": "953c02ecf62aa8cdadb494a00329a656116e2e6437c20a72beeec89e0632803d",
+      "priority": "informational_lineage",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": null,
+      "function_hash": "4d23eed421db2a6a02991ad452511f6320ef0134d2a6d3000431ff6beff6af8f",
+      "priority": "automatic_vulnerability",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "getPlotColorFromPalette",
+      "function_hash": "5923cc4c62ccd3f3655716546a6a2e5b34ba8e067da4d01fc9540e23cff2bf9b",
+      "priority": "none",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-45rm-2893-5f49",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-87f9-hvmw-gh4p",
+        "GHSA-93m4-6634-74q7",
+        "GHSA-c9cv-mq2m-ppp3",
+        "GHSA-rv5g-f82m-qrvv"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setLineData",
+      "function_hash": "921937998d880f4058232faa1eb79d9c67d96bdfd24d8f1c03f3525fc29478cb",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-mmg9-6m6j-jqqx",
+        "GHSA-v93f-fgjr-hjrj"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "setBarData",
+      "function_hash": "e67315cb40c8015d953b5108d9b1ea93d0cebf437c0a1793d501ddf063d40f60",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-mmg9-6m6j-jqqx",
+        "GHSA-v93f-fgjr-hjrj"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "getDrawableElem",
+      "function_hash": "2301213bcfc4099681ac431e2e0d96dffae3e54adf6930c7601d0a65150f59d6",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2v8p-3f2j-5mp7",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-6x64-9x62-f2gx",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-c9cv-mq2m-ppp3",
+        "GHSA-jqfw-vq24-v9c3",
+        "GHSA-m3q2-p4fw-w38m"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": "clear",
+      "function_hash": "694ad448e4441e43c665ae3ec942a5fdead4391b9a2bc29f8d44d126afcf0a3d",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-2q4g-w47c-4674",
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-934w-87qh-qr26",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    },
+    {
+      "path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "name": null,
+      "function_hash": "4dbb79ff3af1f97f90c07045195013cbfacff598983edc9076971ea08a33b76a",
+      "priority": "manual_review",
+      "ghsa_ids": [
+        "GHSA-534h-c3cw-v3h9",
+        "GHSA-rv5g-f82m-qrvv",
+        "GHSA-vp58-j275-797x"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "ghsa_id": "GHSA-2v8p-3f2j-5mp7",
+      "package_name": "mermaid",
+      "kind": "vulnerable",
+      "version": "10.9.6",
+      "source_language": "typescript",
+      "category": "templating",
+      "expected_status": "flagged",
+      "outcome": "true_positive",
+      "target_presence": "source_present",
+      "source_repo": "mermaid-js/mermaid",
+      "source_commit": "dd351a7cef45b70638147a5e000f1ee8bfd35637",
+      "source_path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "target_function": null,
+      "target_source_sha256": "4d23eed421db2a6a02991ad452511f6320ef0134d2a6d3000431ff6beff6af8f",
+      "retrieval_rank": null,
+      "ranked_retrieval_rank": null,
+      "hash_retrieval_hit": true
+    },
+    {
+      "ghsa_id": "GHSA-2v8p-3f2j-5mp7",
+      "package_name": "mermaid",
+      "kind": "fixed",
+      "version": "10.9.8",
+      "source_language": "typescript",
+      "category": "templating",
+      "expected_status": "cleared",
+      "outcome": "true_negative",
+      "target_presence": "source_present",
+      "source_repo": "mermaid-js/mermaid",
+      "source_commit": "49c1a1c7d1faa995b07cc7224543bd0d9a7a9e70",
+      "source_path": "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "target_function": null,
+      "target_source_sha256": "86238b925d04caa04d74f02ee5067f445a766a4a21d65ae4015c53ae4113b309",
+      "retrieval_rank": null,
+      "ranked_retrieval_rank": null,
+      "hash_retrieval_hit": true
+    }
+  ]
+}
