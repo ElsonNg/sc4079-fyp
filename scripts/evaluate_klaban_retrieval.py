@@ -103,7 +103,7 @@ def main() -> None:
     if is_stale(args.model, index_entries, dir_path=args.index_dir):
         raise SystemExit(
             "Embedding index is missing or stale. Rebuild it first with: "
-            f"PYTHONPATH=. .venv/bin/python -m cli corpus index --model {args.model} "
+            f"PYTHONPATH=. .venv/bin/python -m cli corpus index --embed-model {args.model} "
             "--skip-region-index"
         )
     retrieval_index = load_index(args.model, dir_path=args.index_dir)

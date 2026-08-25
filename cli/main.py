@@ -144,11 +144,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Write the self-contained HTML report to this path",
     )
-    scan.add_argument("--model", default=None)
+    scan.add_argument("--embed-model", dest="model", default=None)
     scan.add_argument("--top-k", type=int, default=10)
     scan.add_argument("--retrieval-threshold", type=float, default=0.0)
-    scan.add_argument("--minimum-vulnerable-score", type=float, default=0.75)
-    scan.add_argument("--minimum-margin", type=float, default=0.08)
+    scan.add_argument(
+        "--min-vulnerable-score",
+        dest="minimum_vulnerable_score",
+        type=float,
+        default=0.75,
+    )
+    scan.add_argument(
+        "--min-margin",
+        dest="minimum_margin",
+        type=float,
+        default=0.08,
+    )
     scan.add_argument(
         "--explain-review",
         action="store_true",
@@ -206,7 +216,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ingest_klaban.add_argument("path", nargs="?", type=Path, default=DEFAULT_KLABAN_PATH)
     _add_db_path(ingest_klaban)
-    ingest_klaban.add_argument("--model", default=DEFAULT_MODEL_ID)
+    ingest_klaban.add_argument("--embed-model", dest="model", default=DEFAULT_MODEL_ID)
     ingest_klaban.add_argument(
         "--device", choices=("cpu", "mps", "cuda"), default=None,
         help=f"Embedding device (also configurable with {EMBEDDING_DEVICE_ENV})",
@@ -220,7 +230,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     index = corpus_commands.add_parser("index", help="Build function and AST-region embedding indexes")
     _add_db_path(index)
-    index.add_argument("--model", default=DEFAULT_MODEL_ID)
+    index.add_argument("--embed-model", dest="model", default=DEFAULT_MODEL_ID)
     index.add_argument(
         "--device", choices=("cpu", "mps", "cuda"), default=None,
         help=f"Embedding device (also configurable with {EMBEDDING_DEVICE_ENV})",
