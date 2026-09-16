@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 
 from pipeline.controller.parsing import normalize_source
+from pipeline.controller.edit_distance import EditDistanceEvidence, fuzzy_substring_similarity
 from pipeline.models.regions import (
     AstRegion,
     LineageConfidence,
@@ -17,6 +18,7 @@ from pipeline.models.regions import (
 )
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
+_API_ANCHOR_SEPARATOR_RE = re.compile(r"\?\.|\.")
 _KEYWORDS = {
     "if", "else", "for", "while", "do", "switch", "case", "return", "throw", "try",
     "catch", "finally", "const", "let", "var", "new", "function", "class", "await",
@@ -28,20 +30,22 @@ _KEYWORDS = {
 class RegionVerifierConfig:
     """Initial provisional gates; calibration replaces these on held-out advisories.
 
-    Local alignment remains available as an explicit later ablation, but is
-    disabled for the active verifier while the simpler three-signal score is
-    being evaluated.
+    Local alignment remains available as an explicit later ablation. The active
+    verifier uses staged structure, token, and patch-local edit gates.
     """
 
-    minimum_vulnerable_score: float = 0.75
-    minimum_margin: float = 0.08
+    minimum_structure_score: float = 0.70
+    minimum_token_score: float = 0.70
+    minimum_edit_side_score: float = 0.90
+    minimum_edit_margin: float = 0.10
     minimum_supporting_regions: int = 2
     minimum_consensus_ratio: float = 0.60
     contradiction_margin: float = 0.08
-    patched_margin: float = 0.08
     signature_threshold: float = 0.65
     local_alignment_trigger: float = 0.72
     include_local_alignment: bool = False
+    minimum_containment_coverage: float = 0.50
+    include_containment_fallback: bool = True
 
 
 def _ratio(left: list[str], right: list[str]) -> float:
@@ -49,7 +53,40 @@ def _ratio(left: list[str], right: list[str]) -> float:
         return 1.0
     if not left or not right:
         return 0.0
-    return difflib.SequenceMatcher(a=left, b=right, autojunk=False).ratio()
+    if left == right:
+        return 1.0
+
+    # Large generated/bundled functions commonly differ in only a tiny interior
+    # region. Running SequenceMatcher with autojunk disabled over the complete
+    # 100k+ token/shape sequences can become effectively quadratic. Peel off the
+    # guaranteed identical edges, compare only the changed core, then fold the
+    # common elements back into the standard 2*M/(len(a)+len(b)) ratio.
+    prefix = 0
+    shared_limit = min(len(left), len(right))
+    while prefix < shared_limit and left[prefix] == right[prefix]:
+        prefix += 1
+
+    suffix = 0
+    suffix_limit = shared_limit - prefix
+    while suffix < suffix_limit and left[-1 - suffix] == right[-1 - suffix]:
+        suffix += 1
+
+    left_end = len(left) - suffix if suffix else len(left)
+    right_end = len(right) - suffix if suffix else len(right)
+    left_core = left[prefix:left_end]
+    right_core = right[prefix:right_end]
+    core_total = len(left_core) + len(right_core)
+    core_ratio = (
+        difflib.SequenceMatcher(
+            a=left_core,
+            b=right_core,
+            autojunk=core_total > 4096,
+        ).ratio()
+        if core_total
+        else 1.0
+    )
+    common_matches = prefix + suffix
+    return (2 * common_matches + core_ratio * core_total) / (len(left) + len(right))
 
 
 def _jaccard(left: list[str], right: list[str]) -> float | None:
@@ -71,6 +108,15 @@ def _role_tokens(region: AstRegion) -> list[str]:
             tokens.append("ID")
         else:
             tokens.append(token)
+    # A regular expression is executable matching logic rather than an opaque
+    # data literal. Keep its complete pattern and flags as an explicit token so
+    # security fixes such as ``[^)]`` -> ``[^()]`` survive role normalization.
+    # Ordinary strings and numbers continue to collapse to LIT above.
+    tokens.extend(
+        f"REGEX:{value}"
+        for value in region.literals
+        if value.startswith("/")
+    )
     return tokens
 
 
@@ -85,9 +131,41 @@ def _token_score(candidate: AstRegion, reference: AstRegion) -> float:
     return role_score
 
 
-def _semantic_score(candidate: AstRegion, reference: AstRegion) -> float | None:
-    calls = _jaccard(candidate.calls, reference.calls)
-    members = _jaccard(candidate.member_accesses, reference.member_accesses)
+def _containment_score(left: list[str], right: list[str]) -> tuple[float, float]:
+    """Score the shorter sequence inside the longer, guarded by size coverage."""
+    if not left or not right:
+        return 0.0, 0.0
+    shorter, longer = (left, right) if len(left) <= len(right) else (right, left)
+    return fuzzy_substring_similarity(shorter, longer), len(shorter) / len(longer)
+
+
+def _containment_components(candidate: AstRegion, reference: AstRegion) -> tuple[float, float, float]:
+    shape, shape_coverage = _containment_score(candidate.ast_shape, reference.ast_shape)
+    path, path_coverage = _containment_score(candidate.ast_path, reference.ast_path)
+    token, token_coverage = _containment_score(_role_tokens(candidate), _role_tokens(reference))
+    return 0.5 * shape + 0.5 * path, token, min(shape_coverage, path_coverage, token_coverage)
+
+
+def _normalize_api_anchor(value: str) -> str:
+    """Ignore a renameable receiver while retaining the API/property path."""
+    compact = re.sub(r"\s+", "", value)
+    parts = _API_ANCHOR_SEPARATOR_RE.split(compact)
+    if len(parts) >= 2 and all(_IDENTIFIER_RE.match(part) for part in parts):
+        if parts[0] not in {"this", "super"}:
+            parts[0] = "ID"
+        return ".".join(parts)
+    return compact
+
+
+def _api_anchor_score(candidate: AstRegion, reference: AstRegion) -> float | None:
+    calls = _jaccard(
+        [_normalize_api_anchor(value) for value in candidate.calls],
+        [_normalize_api_anchor(value) for value in reference.calls],
+    )
+    members = _jaccard(
+        [_normalize_api_anchor(value) for value in candidate.member_accesses],
+        [_normalize_api_anchor(value) for value in reference.member_accesses],
+    )
     available = [score for score in (calls, members) if score is not None]
     return sum(available) / len(available) if available else None
 
@@ -114,10 +192,11 @@ def _side_score(
     config: RegionVerifierConfig,
     model_id: str | None,
     use_embedding_alignment: bool,
+    language: str,
 ) -> tuple[float, float, float, float | None, float | None, bool]:
     structural = _structural_score(candidate, reference)
     token = _token_score(candidate, reference)
-    semantic = _semantic_score(candidate, reference)
+    api_anchor = _api_anchor_score(candidate, reference)
     local: float | None = None
     fallback = False
     if config.include_local_alignment:
@@ -128,16 +207,11 @@ def _side_score(
                 fallback = True
             except Exception:
                 fallback = True
-        weighted = [(structural, 0.40), (token, 0.30), (local, 0.10)]
-        if semantic is not None:
-            weighted.append((semantic, 0.20))
-        score = sum(value * weight for value, weight in weighted) / sum(weight for _, weight in weighted)
+        score = min(structural, token, local)
     else:
-        available = [structural, token]
-        if semantic is not None:
-            available.append(semantic)
-        score = sum(available) / len(available)
-    return score, structural, token, semantic, local, fallback
+        # A compatibility summary of the staged gates, not an averaged score.
+        score = min(structural, token)
+    return score, structural, token, api_anchor, local, fallback
 
 
 def verify_region_pair(
@@ -147,22 +221,62 @@ def verify_region_pair(
     config: RegionVerifierConfig | None = None,
     model_id: str | None = None,
     use_embedding_alignment: bool = False,
+    language: str = "javascript",
+    candidate_function_name: str | None = None,
 ) -> RegionVerificationEvidence:
     config = config or RegionVerifierConfig()
-    vuln_score, vuln_struct, vuln_token, vuln_semantic, vuln_local, vuln_fallback = _side_score(
+    vuln_score, vuln_struct, vuln_token, vuln_api_anchor, vuln_local, vuln_fallback = _side_score(
         candidate_region,
         pair.vulnerable_region,
         config,
         model_id,
         use_embedding_alignment,
+        language,
     )
-    patch_score, patch_struct, patch_token, patch_semantic, patch_local, patch_fallback = _side_score(
+    patch_score, patch_struct, patch_token, patch_api_anchor, patch_local, patch_fallback = _side_score(
         candidate_region,
         pair.patched_region,
         config,
         model_id,
         use_embedding_alignment,
+        language,
     )
+    containment_vuln_struct, containment_vuln_token, containment_vuln_coverage = (
+        _containment_components(candidate_region, pair.vulnerable_region)
+    )
+    containment_patch_struct, containment_patch_token, containment_patch_coverage = (
+        _containment_components(candidate_region, pair.patched_region)
+    )
+    containment_vuln_attempted = (
+        config.include_containment_fallback
+        and not (
+            vuln_struct >= config.minimum_structure_score
+            and vuln_token >= config.minimum_token_score
+        )
+    )
+    containment_vuln_used = (
+        containment_vuln_attempted
+        and containment_vuln_coverage >= config.minimum_containment_coverage
+        and containment_vuln_struct >= config.minimum_structure_score
+        and containment_vuln_token >= config.minimum_token_score
+    )
+    containment_patch_attempted = (
+        config.include_containment_fallback
+        and not (
+            patch_struct >= config.minimum_structure_score
+            and patch_token >= config.minimum_token_score
+        )
+    )
+    containment_patch_used = (
+        containment_patch_attempted
+        and containment_patch_coverage >= config.minimum_containment_coverage
+        and containment_patch_struct >= config.minimum_structure_score
+        and containment_patch_token >= config.minimum_token_score
+    )
+    if containment_vuln_used:
+        vuln_score = min(containment_vuln_struct, containment_vuln_token)
+    if containment_patch_used:
+        patch_score = min(containment_patch_struct, containment_patch_token)
     margin = vuln_score - patch_score
     coverage = min(
         len(candidate_region.ast_shape),
@@ -188,19 +302,34 @@ def verify_region_pair(
         structural_patched=patch_struct,
         token_vulnerable=vuln_token,
         token_patched=patch_token,
-        semantic_vulnerable=vuln_semantic,
-        semantic_patched=patch_semantic,
+        api_anchor_vulnerable=vuln_api_anchor,
+        api_anchor_patched=patch_api_anchor,
         local_alignment_vulnerable=vuln_local,
         local_alignment_patched=patch_local,
         vulnerable_score=vuln_score,
         patched_score=patch_score,
+        correspondence_score=max(vuln_score, patch_score),
         vulnerable_minus_patched=margin,
         ast_coverage=coverage,
         candidate_span=candidate_region.span,
         candidate_granularity=candidate_region.granularity,
+        reference_granularity=pair.vulnerable_region.granularity,
+        containment_structural_vulnerable=containment_vuln_struct,
+        containment_structural_patched=containment_patch_struct,
+        containment_token_vulnerable=containment_vuln_token,
+        containment_token_patched=containment_patch_token,
+        containment_coverage_vulnerable=containment_vuln_coverage,
+        containment_coverage_patched=containment_patch_coverage,
+        containment_fallback_vulnerable=containment_vuln_used,
+        containment_fallback_patched=containment_patch_used,
+        containment_fallback_attempted_vulnerable=containment_vuln_attempted,
+        containment_fallback_attempted_patched=containment_patch_attempted,
+        candidate_function_name=candidate_function_name,
         fix_signature_coverage=signature_coverage(pair.fix_signature_tokens),
         vulnerable_signature_coverage=signature_coverage(pair.vulnerable_signature_tokens),
-        fallback_used=vuln_fallback or patch_fallback,
+        fallback_used=(
+            vuln_fallback or patch_fallback or containment_vuln_used or containment_patch_used
+        ),
     )
 
 
@@ -216,17 +345,53 @@ def _overlap(left: RegionVerificationEvidence, right: RegionVerificationEvidence
     )
 
 
+def _effective_components(
+    item: RegionVerificationEvidence,
+    side: str,
+) -> tuple[float, float]:
+    if side == "vulnerable":
+        if item.containment_fallback_vulnerable:
+            return (
+                item.containment_structural_vulnerable or 0.0,
+                item.containment_token_vulnerable or 0.0,
+            )
+        return item.structural_vulnerable, item.token_vulnerable
+    if item.containment_fallback_patched:
+        return (
+            item.containment_structural_patched or 0.0,
+            item.containment_token_patched or 0.0,
+        )
+    return item.structural_patched, item.token_patched
+
+
 def deduplicate_evidence(
     evidence: list[RegionVerificationEvidence],
+    side: str | None = None,
 ) -> list[RegionVerificationEvidence]:
-    """Collapse overlapping AST windows so nesting cannot manufacture support."""
+    """Keep the strongest coherent alignment for each overlapping source area.
+
+    Reference granularities are alternative explanations of one candidate span.
+    Prefer actual S/T correspondence before using granularity or directional
+    margin, so a slightly more decisive mismatch cannot displace an exact match.
+    """
+
+    def correspondence(item: RegionVerificationEvidence) -> float:
+        vulnerable = min(_effective_components(item, "vulnerable"))
+        patched = min(_effective_components(item, "patched"))
+        if side == "vulnerable":
+            return vulnerable
+        if side == "patched":
+            return patched
+        return max(vulnerable, patched)
 
     ordered = sorted(
         evidence,
         key=lambda item: (
+            -correspondence(item),
+            -(item.reference_granularity == item.candidate_granularity),
             -_GRANULARITY_WEIGHT[item.candidate_granularity],
             -item.ast_coverage,
-            -abs(item.vulnerable_minus_patched),
+            -item.retrieval_similarity,
             item.candidate_region_id,
         ),
     )
@@ -254,6 +419,7 @@ def classify_boundary(
     evidence: list[RegionVerificationEvidence],
     pair: VulnerableRegionPair,
     config: RegionVerifierConfig | None = None,
+    edit: EditDistanceEvidence | None = None,
 ) -> VulnerabilityState:
     """Classify one fix boundary from independent, changed-region-led evidence."""
 
@@ -265,34 +431,170 @@ def classify_boundary(
             fix_boundary_id=pair.fix_boundary_id,
             fix_commit_sha=pair.fix_commit_sha,
             status="uncertain",
+            abstention_reason="NO_EVIDENCE",
             advisories=pair.advisories,
         )
-    weighted = [
-        (
-            item.vulnerable_minus_patched,
-            _GRANULARITY_WEIGHT[item.candidate_granularity] * max(item.ast_coverage, 0.1),
+    vulnerable_independent = deduplicate_evidence(evidence, side="vulnerable")
+    patched_independent = deduplicate_evidence(evidence, side="patched")
+    best_vulnerable = max(
+        vulnerable_independent,
+        key=lambda item: (
+            min(_effective_components(item, "vulnerable")),
+            item.reference_granularity == item.candidate_granularity,
+            item.ast_coverage,
+            item.retrieval_similarity,
+        ),
+    )
+    best_patched = max(
+        patched_independent,
+        key=lambda item: (
+            min(_effective_components(item, "patched")),
+            item.reference_granularity == item.candidate_granularity,
+            item.ast_coverage,
+            item.retrieval_similarity,
+        ),
+    )
+    # S and T must come from one real observation. Independent component
+    # medians could synthesize a gate result that no candidate region achieved.
+    structural_vulnerable, token_vulnerable = _effective_components(
+        best_vulnerable, "vulnerable"
+    )
+    structural_patched, token_patched = _effective_components(best_patched, "patched")
+    vulnerable_correspondence = (
+        structural_vulnerable >= config.minimum_structure_score
+        and token_vulnerable >= config.minimum_token_score
+    )
+    patched_correspondence = (
+        structural_patched >= config.minimum_structure_score
+        and token_patched >= config.minimum_token_score
+    )
+    raw_vulnerable = edit.raw_vulnerable if edit is not None else None
+    raw_patched = edit.raw_patched if edit is not None else None
+    raw_contrast = (
+        raw_vulnerable - raw_patched
+        if raw_vulnerable is not None and raw_patched is not None
+        else 0.0
+    )
+    raw_decisive = bool(
+        (vulnerable_correspondence or patched_correspondence)
+        and raw_vulnerable is not None
+        and raw_patched is not None
+        and (
+            (
+                raw_vulnerable >= config.minimum_edit_side_score
+                and raw_contrast >= config.minimum_edit_margin
+            )
+            or (
+                raw_patched >= config.minimum_edit_side_score
+                and raw_contrast <= -config.minimum_edit_margin
+            )
         )
-        for item in independent
-    ]
-    contrast = _weighted_median(weighted)
-    vulnerable_score = _weighted_median([
-        (item.vulnerable_score, weight) for item, (_value, weight) in zip(independent, weighted)
-    ])
-    patched_score = _weighted_median([
-        (item.patched_score, weight) for item, (_value, weight) in zip(independent, weighted)
-    ])
+    )
+    use_contrastive = bool(edit is not None and edit.contrastive_used and not raw_decisive)
+    vulnerable_score = (
+        edit.vulnerable if use_contrastive
+        else raw_vulnerable if raw_vulnerable is not None
+        else edit.vulnerable if edit is not None
+        else 0.0
+    )
+    patched_score = (
+        edit.patched if use_contrastive
+        else raw_patched if raw_patched is not None
+        else edit.patched if edit is not None
+        else 0.0
+    )
+    contrast = vulnerable_score - patched_score
     fix_coverage = max(item.fix_signature_coverage for item in independent)
     vulnerable_coverage = max(item.vulnerable_signature_coverage for item in independent)
     fix_present = fix_coverage >= config.signature_threshold
     vulnerable_present = vulnerable_coverage >= config.signature_threshold
+    signature_state = (
+        "both" if fix_present and vulnerable_present
+        else "fix_only" if fix_present
+        else "vulnerable_only" if vulnerable_present
+        else "neither"
+    )
     vulnerable_signal = (
-        vulnerable_score >= config.minimum_vulnerable_score
-        and contrast >= config.minimum_margin
-        and (vulnerable_present or fix_coverage < config.signature_threshold)
+        (vulnerable_correspondence or patched_correspondence)
+        and vulnerable_score >= config.minimum_edit_side_score
+        and contrast >= config.minimum_edit_margin
     )
     patched_signal = (
-        contrast <= -config.patched_margin or fix_present
-    ) and patched_score >= config.minimum_vulnerable_score
+        (vulnerable_correspondence or patched_correspondence)
+        and patched_score >= config.minimum_edit_side_score
+        and contrast <= -config.minimum_edit_margin
+    )
+    vulnerable_correspondence_score = min(structural_vulnerable, token_vulnerable)
+    patched_correspondence_score = min(structural_patched, token_patched)
+    generic_contrast_conflict = bool(
+        edit is not None
+        and use_contrastive
+        and (
+            (
+                vulnerable_signal
+                and edit.contrastive_vulnerable_anchor_has_identity is False
+                and patched_correspondence_score > vulnerable_correspondence_score
+            )
+            or (
+                patched_signal
+                and edit.contrastive_patched_anchor_has_identity is False
+                and vulnerable_correspondence_score > patched_correspondence_score
+            )
+        )
+    )
+    if generic_contrast_conflict:
+        vulnerable_signal = False
+        patched_signal = False
+    vulnerable_context = any(
+        item.candidate_granularity in {"block", "context", "function"}
+        and _effective_components(item, "vulnerable")[0] >= config.minimum_structure_score
+        and _effective_components(item, "vulnerable")[1] >= config.minimum_token_score
+        for item in evidence
+    )
+    patched_context = any(
+        item.candidate_granularity in {"block", "context", "function"}
+        and _effective_components(item, "patched")[0] >= config.minimum_structure_score
+        and _effective_components(item, "patched")[1] >= config.minimum_token_score
+        for item in evidence
+    )
+    candidate_function_names = {
+        item.candidate_function_name
+        for item in evidence
+        if item.candidate_function_name
+    }
+    if not pair.function_name or not candidate_function_names:
+        function_identity_state = "unknown"
+    elif pair.function_name in candidate_function_names:
+        function_identity_state = "match"
+    else:
+        function_identity_state = "conflict"
+    vulnerable_anchor_has_identity = (
+        edit.contrastive_vulnerable_anchor_has_identity
+        if use_contrastive and edit is not None
+        else edit.raw_vulnerable_anchor_has_identity
+        if edit is not None and edit.raw_vulnerable_anchor_has_identity is not None
+        else edit.vulnerable_anchor_has_identity if edit is not None else None
+    )
+    patched_anchor_has_identity = (
+        edit.contrastive_patched_anchor_has_identity
+        if use_contrastive and edit is not None
+        else edit.raw_patched_anchor_has_identity
+        if edit is not None and edit.raw_patched_anchor_has_identity is not None
+        else edit.patched_anchor_has_identity if edit is not None else None
+    )
+    selected_anchor_has_identity = (
+        vulnerable_anchor_has_identity if vulnerable_signal
+        else patched_anchor_has_identity if patched_signal
+        else None
+    )
+    selected_context = vulnerable_context if vulnerable_signal else patched_context
+    boundary_identity_gate_passed = not (
+        (vulnerable_signal or patched_signal)
+        and not selected_context
+        and function_identity_state == "conflict"
+        and selected_anchor_has_identity is False
+    )
+    boundary_rejected = not boundary_identity_gate_passed
     contradictions: list[str] = []
     if vulnerable_signal and patched_signal:
         contradictions.append("vulnerable and fix-present evidence are both strong")
@@ -303,27 +605,132 @@ def classify_boundary(
         status = "vulnerable"
     else:
         status = "uncertain"
+    if status in {"vulnerable", "patched"} and not boundary_identity_gate_passed:
+        status = "uncertain"
+    structure_gate_passed = (
+        structural_vulnerable >= config.minimum_structure_score
+        or structural_patched >= config.minimum_structure_score
+    )
+    token_gate_passed = vulnerable_correspondence or patched_correspondence
+    edit_strategy = (
+        "contrastive" if use_contrastive else "raw" if edit is not None else "not_run"
+    )
+    abstention_reason = None
+    if status == "uncertain":
+        side_score = max(vulnerable_score, patched_score)
+        margin_strength = abs(contrast)
+        if boundary_rejected:
+            abstention_reason = "IDENTITY_REJECTED"
+        elif contradictions:
+            abstention_reason = "CONTRADICTORY_EVIDENCE"
+        elif generic_contrast_conflict:
+            abstention_reason = "CONTRASTIVE_CONFLICT"
+        elif not structure_gate_passed:
+            abstention_reason = "S_FAILED"
+        elif not token_gate_passed:
+            abstention_reason = "T_FAILED"
+        elif edit is None:
+            abstention_reason = "E_NOT_RUN"
+        elif (
+            side_score < config.minimum_edit_side_score
+            and margin_strength < config.minimum_edit_margin
+        ):
+            abstention_reason = "E_SIDE_AND_MARGIN_WEAK"
+        elif side_score < config.minimum_edit_side_score:
+            abstention_reason = "E_SIDE_WEAK"
+        elif margin_strength < config.minimum_edit_margin:
+            abstention_reason = "E_MARGIN_AMBIGUOUS"
+        else:
+            abstention_reason = "E_DIRECTION_UNRESOLVED"
     fix_evidence = []
-    if fix_present:
+    if signature_state == "both":
+        fix_evidence.append("both vulnerable and fix signatures present; treated as non-exclusive")
+    elif fix_present:
         fix_evidence.append("added fix signature present")
     elif pair.fix_signature_tokens:
         fix_evidence.append("added fix signature absent")
     if vulnerable_present:
         fix_evidence.append("removed vulnerable construct retained")
+    if not boundary_identity_gate_passed:
+        fix_evidence.append(
+            "boundary identity insufficient: generic edit anchor, no contextual "
+            "correspondence, and conflicting function name"
+        )
+    if generic_contrast_conflict:
+        fix_evidence.append(
+            "generic contrastive edit disagrees with stronger S/T correspondence"
+        )
+    vulnerable_support_count = sum(item.vulnerable_minus_patched > 0 for item in independent)
+    patched_support_count = sum(item.vulnerable_minus_patched < 0 for item in independent)
+    side_consensus_ratio = max(vulnerable_support_count, patched_support_count) / len(independent)
     return VulnerabilityState(
         lineage_id=pair.lineage_id or "",
         fix_boundary_id=pair.fix_boundary_id,
         fix_commit_sha=pair.fix_commit_sha,
         status=status,
+        abstention_reason=abstention_reason,
+        edit_strategy=edit_strategy,
         vulnerable_score=vulnerable_score,
         patched_score=patched_score,
+        correspondence_score=max(
+            min(structural_vulnerable, token_vulnerable),
+            min(structural_patched, token_patched),
+        ),
         contrast_score=contrast,
+        structural_vulnerable=structural_vulnerable,
+        structural_patched=structural_patched,
+        token_vulnerable=token_vulnerable,
+        token_patched=token_patched,
+        edit_vulnerable=vulnerable_score,
+        edit_patched=patched_score,
+        edit_margin=contrast,
+        edit_vulnerable_anchor_has_identity=(
+            vulnerable_anchor_has_identity
+        ),
+        edit_patched_anchor_has_identity=(
+            patched_anchor_has_identity
+        ),
+        edit_raw_vulnerable=edit.raw_vulnerable if edit is not None else None,
+        edit_raw_patched=edit.raw_patched if edit is not None else None,
+        edit_contrastive_vulnerable=(
+            edit.contrastive_vulnerable if edit is not None else None
+        ),
+        edit_contrastive_patched=(
+            edit.contrastive_patched if edit is not None else None
+        ),
+        edit_contrastive_used=use_contrastive,
+        structure_gate_passed=structure_gate_passed,
+        token_gate_passed=token_gate_passed,
+        context_correspondence_passed=(
+            vulnerable_context if vulnerable_signal
+            else patched_context if patched_signal
+            else vulnerable_context or patched_context
+        ),
+        function_identity_state=function_identity_state,
+        edit_anchor_has_identity=selected_anchor_has_identity,
+        boundary_identity_gate_passed=boundary_identity_gate_passed,
+        boundary_rejected=boundary_rejected,
+        containment_fallback_attempted=(
+            best_vulnerable.containment_fallback_attempted_vulnerable
+            or best_patched.containment_fallback_attempted_patched
+        ),
+        containment_fallback_used=(
+            best_vulnerable.containment_fallback_vulnerable
+            or best_patched.containment_fallback_patched
+        ),
         fix_signature_coverage=fix_coverage,
         vulnerable_signature_coverage=vulnerable_coverage,
+        signature_evidence_state=signature_state,
+        independent_region_count=len(independent),
+        vulnerable_support_count=vulnerable_support_count,
+        patched_support_count=patched_support_count,
+        side_consensus_ratio=side_consensus_ratio,
         fix_evidence=fix_evidence,
         contradictions=contradictions,
         advisories=pair.advisories,
-        evidence_pair_ids=sorted({item.pair_id for item in independent}),
+        evidence_pair_ids=sorted({
+            item.pair_id for item in [*independent, best_vulnerable, best_patched]
+        }),
     )
 
 
@@ -337,12 +744,14 @@ def classify_evidence(
         return "cleared", "none"
     passing = [
         item for item in evidence
-        if item.vulnerable_score >= config.minimum_vulnerable_score
-        and item.vulnerable_minus_patched >= config.minimum_margin
+        if item.structural_vulnerable >= config.minimum_structure_score
+        and item.token_vulnerable >= config.minimum_token_score
+        and item.vulnerable_minus_patched >= config.minimum_edit_margin
     ]
     contradicting = [
         item for item in evidence
-        if item.patched_score >= config.minimum_vulnerable_score
+        if item.structural_patched >= config.minimum_structure_score
+        and item.token_patched >= config.minimum_token_score
         and item.vulnerable_minus_patched <= -config.contradiction_margin
     ]
 
@@ -376,7 +785,7 @@ def classify_evidence(
     else:
         best = max(evidence, key=lambda item: (item.vulnerable_minus_patched, item.vulnerable_score))
         status = "manual_review"
-    if not passing and best.vulnerable_minus_patched <= -config.minimum_margin:
+    if not passing and best.vulnerable_minus_patched <= -config.minimum_edit_margin:
         status = "cleared"
 
     aggregate = next((item for item in aggregates if item.pair_id == best.pair_id), None)

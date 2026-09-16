@@ -10,4 +10,3 @@ class FunctionUnit(BaseModel):
     end_byte: int
     source: str
     language: str = "javascript"
-    runtime_source: str | None = None

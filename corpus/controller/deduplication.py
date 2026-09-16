@@ -1,4 +1,4 @@
-"""Stable multi-representation corpus deduplication."""
+"""Stable native-source corpus deduplication."""
 
 from __future__ import annotations
 
@@ -21,11 +21,8 @@ def _token_form(source: str) -> str:
 def fingerprint_entry(entry: CorpusEntry) -> CorpusEntry:
     entry.native_hash = _hash(entry.vulnerable_function)
     entry.normalized_hash = _hash(_token_form(" ".join(normalize_source(entry.vulnerable_function))))
-    runtime = entry.vulnerable_runtime or entry.vulnerable_function
-    entry.runtime_hash = _hash(_token_form(" ".join(normalize_source(runtime))))
-    # The normalized syntax representation is deterministic and conservative. It is
-    # intentionally separate from native and type-erased hashes for auditability.
-    entry.ast_hash = _hash(json.dumps(_token_form(runtime).split(), separators=(",", ":")))
+    # The normalized syntax representation remains native-language only.
+    entry.ast_hash = _hash(json.dumps(_token_form(entry.vulnerable_function).split(), separators=(",", ":")))
     if not entry.advisory_aliases:
         entry.advisory_aliases = [{
             "ghsa_id": entry.ghsa_id, "cve_id": entry.cve_id, "osv_id": entry.osv_id,

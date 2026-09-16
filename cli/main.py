@@ -147,17 +147,14 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--embed-model", dest="model", default=None)
     scan.add_argument("--top-k", type=int, default=10)
     scan.add_argument("--retrieval-threshold", type=float, default=0.0)
+    scan.add_argument("--min-structure-score", type=float, default=0.70)
+    scan.add_argument("--min-token-score", type=float, default=0.70)
+    scan.add_argument("--min-edit-side-score", type=float, default=0.90)
+    scan.add_argument("--min-edit-margin", type=float, default=0.10)
     scan.add_argument(
-        "--min-vulnerable-score",
-        dest="minimum_vulnerable_score",
-        type=float,
-        default=0.75,
-    )
-    scan.add_argument(
-        "--min-margin",
-        dest="minimum_margin",
-        type=float,
-        default=0.08,
+        "--experimental-local-correspondence",
+        action="store_true",
+        help="Enable the default-off bounded regex/guard/order fallback after S/T/E abstains.",
     )
     scan.add_argument(
         "--explain-review",
@@ -245,14 +242,17 @@ def build_parser() -> argparse.ArgumentParser:
 def _scan(args: argparse.Namespace) -> int:
     entries = load_entries(args.db_path) if args.db_path else load_entries()
     verifier = RegionVerifierConfig(
-        minimum_vulnerable_score=args.minimum_vulnerable_score,
-        minimum_margin=args.minimum_margin,
+        minimum_structure_score=args.min_structure_score,
+        minimum_token_score=args.min_token_score,
+        minimum_edit_side_score=args.min_edit_side_score,
+        minimum_edit_margin=args.min_edit_margin,
     )
     detector_config = RegionDetectorConfig(
         **({"model_id": args.model} if args.model else {}),
         retrieval_top_k=args.top_k,
         retrieval_threshold=args.retrieval_threshold,
         max_verification_candidates=10,
+        include_local_correspondence_fallback=args.experimental_local_correspondence,
         verifier=verifier,
     )
     scan_config = ScanConfig(

@@ -19,5 +19,6 @@ corpus/data/snapshots/
 
 # Tier-1/2 evaluation scratch (downloaded packages, scan results)
 eval/tier1_sandbox/
+eval/tier1_source_sandbox/
 eval/llm_transformed_results.json
 eval/tier1_release_results.json

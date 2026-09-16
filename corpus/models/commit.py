@@ -23,8 +23,6 @@ class ExtractedFunctionPair(BaseModel):
     vulnerable_function: str
     patched_function: str
     source_language: str = "javascript"
-    vulnerable_runtime: str | None = None
-    patched_runtime: str | None = None
     patch_hunk: str = ""
     substantive_changed_lines: int = 0
     removed_executable_nodes: int = 0

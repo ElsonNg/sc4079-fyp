@@ -9,6 +9,7 @@ from typing import Any
 
 ABSTAINED = {"abstained_positive", "abstained_negative"}
 EXCLUDED = {"not_applicable", "source_fetch_error", "source_absent", "function_absent"}
+METRICS_SCHEMA = "interim_report_chapter5_v1"
 
 
 def classification_outcome(expected_status: str, priority: str) -> str:
@@ -29,13 +30,49 @@ def _rate(rows: list[Mapping[str, Any]], predicate) -> float | None:
 
 
 def retrieval_rank(row: Mapping[str, Any]) -> int | None:
-    """Return the ranked aggregate position of the expected lineage.
-
-    Exact hash hits are deliberately reported separately and do not receive a
-    synthetic rank, so Recall@K/MRR remain metrics of ranked retrieval.
-    """
+    """Return the effective lineage rank, with expected hash evidence at rank 1."""
+    if row.get("hash_retrieval_hit"):
+        return 1
     value = row.get("retrieval_rank")
     return int(value) if value is not None else None
+
+
+def ranked_retrieval_rank(row: Mapping[str, Any]) -> int | None:
+    """Return only the aggregate-ranking rank, excluding exact hash hits."""
+    value = row.get("ranked_retrieval_rank", row.get("retrieval_rank"))
+    return int(value) if value is not None else None
+
+
+def expected_hash_match_types(
+    detection: Any,
+    expected: tuple[str, str, str, str | None],
+) -> set[str]:
+    """Return exact/abstracted hash types belonging to the expected lineage boundary."""
+
+    def field(value: Any, name: str, default: Any = None) -> Any:
+        return value.get(name, default) if isinstance(value, Mapping) else getattr(value, name, default)
+
+    expected_ghsa, expected_commit, expected_path, expected_function = expected
+    matched: set[str] = set()
+    for match in field(detection, "hash_matches", []) or []:
+        aliases = {
+            str(field(alias, "ghsa_id", "") or "")
+            for alias in (field(match, "advisories", []) or [])
+        }
+        identity_matches = (
+            str(field(match, "fix_commit_sha", "") or "") == expected_commit
+            and str(field(match, "file_path", "") or "").replace("\\", "/") == expected_path
+            and field(match, "function_name") == expected_function
+            and (
+                str(field(match, "ghsa_id", "") or "") == expected_ghsa
+                or expected_ghsa in aliases
+            )
+        )
+        if identity_matches:
+            match_type = str(field(match, "match_type", "") or "")
+            if match_type in {"exact", "abstracted"}:
+                matched.add(match_type)
+    return matched
 
 
 def expected_retrieval_fields(record: Mapping[str, Any]) -> tuple[str, str, str, str | None]:
@@ -78,14 +115,27 @@ def detection_rank(detection: Any, expected: tuple[str, str, str, str | None], p
 def retrieval_metrics(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     values = list(rows)
     ranks = [retrieval_rank(row) for row in values]
+    non_hash_values = [row for row in values if not row.get("hash_retrieval_hit")]
+    non_hash_ranks = [ranked_retrieval_rank(row) for row in non_hash_values]
+
+    def rank_metrics(scoped_values, scoped_ranks):
+        count = len(scoped_values)
+        return {
+            "sample_count": count,
+            "recall_at_1": sum(rank is not None and rank <= 1 for rank in scoped_ranks) / count if count else None,
+            "recall_at_5": sum(rank is not None and rank <= 5 for rank in scoped_ranks) / count if count else None,
+            "recall_at_10": sum(rank is not None and rank <= 10 for rank in scoped_ranks) / count if count else None,
+            "mrr": sum(1.0 / rank for rank in scoped_ranks if rank is not None) / count if count else None,
+            "misses": sum(rank is None for rank in scoped_ranks),
+        }
+
+    combined = rank_metrics(values, ranks)
     return {
-        "sample_count": len(values),
-        "recall_at_1": _rate(values, lambda row: retrieval_rank(row) is not None and retrieval_rank(row) <= 1),
-        "recall_at_5": _rate(values, lambda row: retrieval_rank(row) is not None and retrieval_rank(row) <= 5),
-        "recall_at_10": _rate(values, lambda row: retrieval_rank(row) is not None and retrieval_rank(row) <= 10),
-        "mrr": sum(1.0 / rank for rank in ranks if rank is not None) / len(values) if values else None,
-        "ranked_misses": sum(rank is None for rank in ranks),
+        **combined,
         "hash_retrieval_hits": sum(bool(row.get("hash_retrieval_hit")) for row in values),
+        "exact_hash_retrieval_hits": sum(bool(row.get("exact_hash_retrieval_hit")) for row in values),
+        "abstracted_hash_retrieval_hits": sum(bool(row.get("abstracted_hash_retrieval_hit")) for row in values),
+        "non_hash_retrieval": rank_metrics(non_hash_values, non_hash_ranks),
     }
 
 
@@ -94,49 +144,75 @@ def verification_metrics(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     scored = [row for row in values if row.get("outcome") not in EXCLUDED]
     vulnerable = [row for row in scored if row.get("expected_status") == "flagged"]
     patched = [row for row in scored if row.get("expected_status") == "cleared"]
+    true_positive = sum(row.get("outcome") == "true_positive" for row in vulnerable)
+    false_negative = sum(row.get("outcome") == "false_negative" for row in vulnerable)
+    vulnerable_abstained = sum(row.get("outcome") == "abstained_positive" for row in vulnerable)
+    patched_false_positive = sum(row.get("outcome") == "false_positive" for row in patched)
+    patched_true_negative = sum(row.get("outcome") == "true_negative" for row in patched)
+    patched_abstained = sum(row.get("outcome") == "abstained_negative" for row in patched)
+
+    def fraction(numerator: int, denominator: int) -> float | None:
+        return numerator / denominator if denominator else None
+
     return {
         "sample_count": len(values),
         "scored_count": len(scored),
-        "true_positive": sum(row.get("outcome") == "true_positive" for row in scored),
-        "false_negative": sum(row.get("outcome") == "false_negative" for row in scored),
-        "patched_false_positive": sum(row.get("outcome") == "false_positive" for row in patched),
-        "patched_true_negative": sum(row.get("outcome") == "true_negative" for row in patched),
-        "vulnerable_recall": _rate(vulnerable, lambda row: row.get("outcome") == "true_positive"),
-        "vulnerable_recall_including_abstain": _rate(
-            vulnerable, lambda row: row.get("outcome") in {"true_positive", "abstained_positive"}
+        "true_positive": true_positive,
+        "false_negative": false_negative,
+        "vulnerable_abstained": vulnerable_abstained,
+        "patched_false_positive": patched_false_positive,
+        "patched_true_negative": patched_true_negative,
+        "patched_abstained": patched_abstained,
+        "vulnerable_recall": fraction(true_positive, true_positive + false_negative),
+        "patched_false_positive_rate": fraction(
+            patched_false_positive, patched_false_positive + patched_true_negative
         ),
-        "patched_false_positive_rate": _rate(
-            patched, lambda row: row.get("outcome") == "false_positive"
+        "abstention_rate": fraction(
+            vulnerable_abstained + patched_abstained,
+            len(scored),
         ),
-        "abstention_rate": _rate(values, lambda row: row.get("outcome") in ABSTAINED),
         "outcome_counts": dict(Counter(row.get("outcome", "unknown") for row in values)),
     }
 
 
 def llm_metrics(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
-    values = [row for row in rows if row.get("llm_decision") is not None]
-    decisions = [row for row in values if row.get("llm_decision") not in {"abstained", "manual_review"}]
+    all_values = list(rows)
+    values = [row for row in all_values if row.get("llm_decision") is not None]
+    decisions = [
+        row for row in values
+        if row.get("llm_decision") not in {"abstained", "manual_review"}
+    ]
     correct = [
         row for row in decisions
         if (row.get("llm_decision") == "vulnerable") == (row.get("expected_status") == "flagged")
     ]
-    vulnerable = [row for row in values if row.get("expected_status") == "flagged"]
+    vulnerable = [
+        row for row in all_values
+        if row.get("expected_status") == "flagged" and row.get("outcome") not in EXCLUDED
+    ]
+    final_true_positives = sum(
+        row.get("outcome") == "true_positive" or row.get("llm_decision") == "vulnerable"
+        for row in vulnerable
+    )
     return {
         "llm_sample_count": len(values),
         "llm_non_abstained_count": len(decisions),
         "llm_abstention_count": len(values) - len(decisions),
         "llm_decision_accuracy": len(correct) / len(decisions) if decisions else None,
         "llm_adjusted_vulnerable_recall": (
-            sum(row.get("llm_decision") == "vulnerable" for row in vulnerable) / len(vulnerable)
-            if vulnerable else None
+            final_true_positives / len(vulnerable) if values and vulnerable else None
         ),
     }
 
 
 def summarize_evaluation(rows: Iterable[Mapping[str, Any]], *, strata: tuple[str, ...] = ()) -> dict[str, Any]:
     values = list(rows)
-    output = {"retrieval": retrieval_metrics(values), "verification": verification_metrics(values),
-              "llm": llm_metrics(values)}
+    output = {
+        "metrics_schema": METRICS_SCHEMA,
+        "retrieval": retrieval_metrics(values),
+        "verification": verification_metrics(values),
+        "llm": llm_metrics(values),
+    }
     by_stratum: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for row in values:
         key = "/".join(str(row.get(field, "na")) for field in strata) if strata else "all"

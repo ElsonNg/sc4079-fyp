@@ -11,6 +11,7 @@ from pathlib import Path
 
 from corpus.controller.store import load_entries
 from pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
+from pipeline.controller.edit_distance import EditDistanceEvidence
 from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector, derive_priority
 from pipeline.controller.region_verification import RegionVerifierConfig, classify_boundary
 
@@ -32,21 +33,18 @@ def _expected(record: dict) -> tuple[str, str, str, str | None]:
 
 def _configurations() -> list[tuple[str, RegionVerifierConfig]]:
     values: list[tuple[str, RegionVerifierConfig]] = []
-    for score in (0.75, 0.80, 0.85, 0.90):
-        for margin in (0.08, 0.12, 0.15, 0.20, 0.25):
-            for signature in (0.50, 0.65):
-                name = f"s{score:.2f}_m{margin:.2f}_sig{signature:.2f}"
-                values.append((name, RegionVerifierConfig(
-                    minimum_vulnerable_score=score,
-                    minimum_margin=margin,
-                    signature_threshold=signature,
-                )))
+    for score in (0.60, 0.70, 0.75, 0.80):
+        for margin in (0.08, 0.10, 0.15, 0.20):
+            name = f"st{score:.2f}_em{margin:.2f}"
+            values.append((name, RegionVerifierConfig(
+                minimum_structure_score=score,
+                minimum_token_score=score,
+                minimum_edit_margin=margin,
+            )))
     values.extend([
         ("baseline_support3", RegionVerifierConfig(minimum_supporting_regions=3)),
         ("baseline_support4", RegionVerifierConfig(minimum_supporting_regions=4)),
         ("baseline_consensus075", RegionVerifierConfig(minimum_consensus_ratio=0.75)),
-        ("baseline_patched_margin004", RegionVerifierConfig(patched_margin=0.04)),
-        ("baseline_patched_margin012", RegionVerifierConfig(patched_margin=0.12)),
     ])
     return values
 
@@ -58,9 +56,26 @@ def _reclassify(result, pairs: dict, verifier: RegionVerifierConfig):
     for evidence in result.evidence:
         grouped[pairs[evidence.pair_id].fix_boundary_id].append(evidence)
     states = []
+    previous_states = {
+        state.fix_boundary_id: state
+        for state in result.vulnerability_states
+    }
     for boundary_id, evidence in sorted(grouped.items()):
         pair = pairs[evidence[0].pair_id]
-        states.append(classify_boundary(evidence, pair, verifier))
+        previous = previous_states.get(boundary_id)
+        edit = (
+            EditDistanceEvidence(
+                previous.vulnerable_score,
+                previous.patched_score,
+                vulnerable_anchor_has_identity=previous.edit_vulnerable_anchor_has_identity,
+                patched_anchor_has_identity=previous.edit_patched_anchor_has_identity,
+            )
+            if previous is not None
+            and previous.vulnerable_score is not None
+            and previous.patched_score is not None
+            else None
+        )
+        states.append(classify_boundary(evidence, pair, verifier, edit=edit))
     priority = derive_priority(result.lineages, states, result.package_applicabilities)
     return result.model_copy(update={"vulnerability_states": states, "priority": priority})
 
@@ -130,10 +145,11 @@ def main() -> None:
         total_auto = positive_auto + negative_auto
         summary = {
             "name": name,
-            "minimum_vulnerable_score": verifier.minimum_vulnerable_score,
-            "minimum_margin": verifier.minimum_margin,
+            "minimum_structure_score": verifier.minimum_structure_score,
+            "minimum_token_score": verifier.minimum_token_score,
+            "minimum_edit_side_score": verifier.minimum_edit_side_score,
+            "minimum_edit_margin": verifier.minimum_edit_margin,
             "signature_threshold": verifier.signature_threshold,
-            "patched_margin": verifier.patched_margin,
             "minimum_supporting_regions": verifier.minimum_supporting_regions,
             "minimum_consensus_ratio": verifier.minimum_consensus_ratio,
             **vulnerable_origin_summary(origin_rows),

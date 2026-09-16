@@ -12,6 +12,22 @@ RegionGranularity = Literal["changed", "block", "context", "function"]
 RegionChangeKind = Literal["insertion", "deletion", "replacement", "movement", "mixed", "unknown"]
 LineageConfidence = Literal["high", "medium", "low", "none"]
 VulnerabilityStatus = Literal["vulnerable", "patched", "uncertain"]
+AbstentionReason = Literal[
+    "NO_EVIDENCE",
+    "S_FAILED",
+    "T_FAILED",
+    "E_NOT_RUN",
+    "E_SIDE_WEAK",
+    "E_MARGIN_AMBIGUOUS",
+    "E_SIDE_AND_MARGIN_WEAK",
+    "E_DIRECTION_UNRESOLVED",
+    "CONTRASTIVE_CONFLICT",
+    "IDENTITY_REJECTED",
+    "CONTRADICTORY_EVIDENCE",
+]
+EditStrategy = Literal["not_run", "raw", "contrastive"]
+SignatureEvidenceState = Literal["vulnerable_only", "fix_only", "both", "neither"]
+FunctionIdentityState = Literal["match", "conflict", "unknown"]
 ApplicabilityStatus = Literal["confirmed", "conflicting", "unknown"]
 FindingPriority = Literal[
     "automatic_vulnerability", "manual_review", "informational_lineage", "none"
@@ -74,7 +90,6 @@ class VulnerableRegionPair(BaseModel):
     vulnerable_source_sha256: str
     patched_source_sha256: str
     source_language: str = "javascript"
-    representation: Literal["native", "type_erased"] = "native"
 
 
 class CandidateRegion(BaseModel):
@@ -111,7 +126,6 @@ class RegionRetrievalMatch(BaseModel):
     file_path: str
     function_name: str | None = None
     source_language: str = "javascript"
-    representation: Literal["native", "type_erased"] = "native"
 
 
 class RegionAggregate(BaseModel):
@@ -135,16 +149,29 @@ class RegionVerificationEvidence(BaseModel):
     structural_patched: float
     token_vulnerable: float
     token_patched: float
-    semantic_vulnerable: float | None = None
-    semantic_patched: float | None = None
+    api_anchor_vulnerable: float | None = None
+    api_anchor_patched: float | None = None
     local_alignment_vulnerable: float | None = None
     local_alignment_patched: float | None = None
     vulnerable_score: float
     patched_score: float
+    correspondence_score: float | None = None
     vulnerable_minus_patched: float
     ast_coverage: float
     candidate_span: SourceSpan | None = None
     candidate_granularity: RegionGranularity = "function"
+    reference_granularity: RegionGranularity | None = None
+    containment_structural_vulnerable: float | None = None
+    containment_structural_patched: float | None = None
+    containment_token_vulnerable: float | None = None
+    containment_token_patched: float | None = None
+    containment_coverage_vulnerable: float | None = None
+    containment_coverage_patched: float | None = None
+    containment_fallback_vulnerable: bool = False
+    containment_fallback_patched: bool = False
+    containment_fallback_attempted_vulnerable: bool = False
+    containment_fallback_attempted_patched: bool = False
+    candidate_function_name: str | None = None
     fix_signature_coverage: float = 0.0
     vulnerable_signature_coverage: float = 0.0
     lineage_confidence: LineageConfidence = "none"
@@ -167,11 +194,48 @@ class VulnerabilityState(BaseModel):
     fix_boundary_id: str
     fix_commit_sha: str
     status: VulnerabilityStatus
+    abstention_reason: AbstentionReason | None = None
+    edit_strategy: EditStrategy = "not_run"
     vulnerable_score: float | None = None
     patched_score: float | None = None
+    correspondence_score: float | None = None
     contrast_score: float | None = None
+    structural_vulnerable: float | None = None
+    structural_patched: float | None = None
+    token_vulnerable: float | None = None
+    token_patched: float | None = None
+    edit_vulnerable: float | None = None
+    edit_patched: float | None = None
+    edit_margin: float | None = None
+    edit_vulnerable_anchor_has_identity: bool | None = None
+    edit_patched_anchor_has_identity: bool | None = None
+    edit_raw_vulnerable: float | None = None
+    edit_raw_patched: float | None = None
+    edit_contrastive_vulnerable: float | None = None
+    edit_contrastive_patched: float | None = None
+    edit_contrastive_used: bool = False
+    structure_gate_passed: bool = False
+    token_gate_passed: bool = False
+    context_correspondence_passed: bool = False
+    function_identity_state: FunctionIdentityState = "unknown"
+    edit_anchor_has_identity: bool | None = None
+    boundary_identity_gate_passed: bool = True
+    boundary_rejected: bool = False
+    containment_fallback_attempted: bool = False
+    containment_fallback_used: bool = False
+    local_correspondence_attempted: bool = False
+    local_correspondence_used: bool = False
+    local_correspondence_status: VulnerabilityStatus | None = None
+    local_correspondence_methods: list[str] = Field(default_factory=list)
+    local_correspondence_reason: str | None = None
+    local_correspondence_prior_abstention_reason: AbstentionReason | None = None
     fix_signature_coverage: float = 0.0
     vulnerable_signature_coverage: float = 0.0
+    signature_evidence_state: SignatureEvidenceState = "neither"
+    independent_region_count: int = 0
+    vulnerable_support_count: int = 0
+    patched_support_count: int = 0
+    side_consensus_ratio: float = 0.0
     fix_evidence: list[str] = Field(default_factory=list)
     contradictions: list[str] = Field(default_factory=list)
     advisories: list[AdvisoryAlias] = Field(default_factory=list)

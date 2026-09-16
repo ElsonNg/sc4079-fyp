@@ -60,5 +60,47 @@ unrelated detections from the rest of the package as background noise. Tier 1 an
 Tier 2 both use same-language evidence: TypeScript
 candidates are evaluated against TypeScript corpus entries, and JavaScript
 candidates against JavaScript entries. Results use schema
-`evaluation_results_v3`, including ranked retrieval metrics, verification metrics,
+`evaluation_results_v4`, including ranked retrieval metrics, verification metrics,
 abstention rate, and optional LLM metrics.
+
+The metric definitions follow Chapter 5 of the interim report. Primary lineage
+Recall@K and MRR include expected-lineage exact or abstracted hash hits at rank 1;
+missing lineages remain in the denominator and contribute zero reciprocal rank.
+`non_hash_retrieval` reports the aggregate retrieval path separately. Vulnerable
+recall is `TP / (TP + FN)`, patched false-positive rate is `FP / (FP + TN)`, and
+abstentions are excluded from those two denominators and reported independently.
+
+Tier 1 limits background scanning to 1,000 functions per package release by
+default, while always retaining the labelled target file. Use
+`--max-functions 0` for an unlimited scan.
+
+## Expanded Tier 2
+
+Build the balanced 600-sample Tier 2 cohort (300 vulnerability-preserving and
+300 patched transformations) with:
+
+```text
+PYTHONPATH=. .venv/bin/python -u scripts/generate_llm_transformed_subset.py --expanded
+```
+
+The expanded generator draws from every transformation-eligible corpus pair,
+uses Type-3 and Type-4 variants where needed to match Tier 1's 300/300 class
+balance, and writes each accepted record immediately to separate `*_expanded_*`
+fixtures. Re-running the command resumes from those records without overwriting
+the historical 145-sample Tier 2 fixture.
+
+After generation completes, evaluate it with:
+
+```text
+PYTHONPATH=. .venv/bin/python -u scripts/validate_llm_transformed_subset.py \
+  --positive eval/llm_transformed_expanded_positive.jsonl \
+  --negative eval/llm_transformed_expanded_negative.jsonl \
+  --output eval/llm_transformed_expanded_results.json
+```
+
+Source downloads use eight workers by default and skip non-target background files
+larger than 1 MB; labelled target files are always downloaded. Tune these with
+`--fetch-workers` and `--max-background-source-bytes` (`0` disables the byte cap).
+GitHub primary and secondary rate limits pause the worker pool until the advertised
+retry/reset time, and completed targets continue to be saved in the output's
+checkpoint file for automatic resume.

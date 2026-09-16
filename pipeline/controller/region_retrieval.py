@@ -144,7 +144,6 @@ def query_region_batch(
                     file_path=pair.file_path,
                     function_name=pair.function_name,
                     source_language=pair.source_language,
-                    representation=pair.representation,
                 )
             )
         results.append(matches)

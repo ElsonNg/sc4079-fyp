@@ -26,7 +26,7 @@ class HashMatch(BaseModel):
     advisory_url: str = ""
     advisory_references: list[str] = []
     side: Literal["vulnerable", "patched"]
-    match_type: Literal["exact", "abstracted", "type_erased"]
+    match_type: Literal["exact", "abstracted"]
     cwes: list[CWE] = []
     severity: str = "unknown"
     package_name: str | None = None
@@ -38,4 +38,3 @@ class HashMatch(BaseModel):
     file_path: str
     function_name: str | None = None
     source_language: str = "javascript"
-    cross_language: bool = False

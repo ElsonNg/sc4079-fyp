@@ -38,7 +38,7 @@ PACKAGE_CATEGORY: dict[str, str] = {
 
 DEFAULT_SNAPSHOT_DB = (
     Path(__file__).resolve().parent.parent
-    / "corpus" / "data" / "snapshots" / "e2f46ad5e9f47a1bdfe0" / "corpus.db"
+    / "corpus" / "data" / "corpus.db"
 )
 
 _EXTENSION_BY_LANGUAGE = {"javascript": ".js", "typescript": ".ts", "tsx": ".tsx"}

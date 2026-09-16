@@ -11,7 +11,6 @@ from pipeline.controller.parsing import (
     normalize_source_with_lines,
     parse_source,
     source_language,
-    type_erase_source,
 )
 from pipeline.models.parsing import FunctionUnit
 
@@ -264,8 +263,6 @@ def extract_function_pairs_from_commit(
                     vulnerable_function=pre_unit.source,
                     patched_function=post_unit.source,
                     source_language=language,
-                    vulnerable_runtime=type_erase_source(pre_unit.source, filename=pre_path),
-                    patched_runtime=type_erase_source(post_unit.source, filename=f.filename),
                     patch_hunk=f.patch,
                     substantive_changed_lines=len(diagnostics),
                     removed_executable_nodes=removed_nodes,

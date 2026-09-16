@@ -306,7 +306,6 @@ def _enrich_match(match: dict[str, Any], entry: CorpusEntry | None) -> dict[str,
         output["affected_versions"] = output.get("affected_versions") or entry.affected_versions
         output["fixed_versions"] = output.get("fixed_versions") or entry.fixed_versions
         output["source_language"] = entry.source_language
-        output["representation"] = "type-erased runtime" if entry.source_language != "javascript" else "native"
     output["affected_versions"] = _version_values(output.get("affected_versions"))
     output["fixed_versions"] = _version_values(output.get("fixed_versions"))
     output["advisory_summary"] = _advisory_summary(output.get("advisory_description"))
@@ -621,7 +620,21 @@ def _build_finding(
                     key: item.get(key)
                     for key in (
                         "lineage_id", "fix_boundary_id", "fix_commit_sha", "status",
+                        "abstention_reason", "edit_strategy",
                         "vulnerable_score", "patched_score", "contrast_score",
+                        "structural_vulnerable", "structural_patched",
+                        "token_vulnerable", "token_patched",
+                        "edit_vulnerable", "edit_patched", "edit_margin",
+                        "edit_vulnerable_anchor_has_identity",
+                        "edit_patched_anchor_has_identity",
+                        "edit_raw_vulnerable", "edit_raw_patched",
+                        "edit_contrastive_vulnerable", "edit_contrastive_patched",
+                        "edit_contrastive_used", "containment_fallback_attempted",
+                        "containment_fallback_used",
+                        "structure_gate_passed", "token_gate_passed",
+                        "context_correspondence_passed", "function_identity_state",
+                        "edit_anchor_has_identity", "boundary_identity_gate_passed",
+                        "boundary_rejected",
                         "fix_signature_coverage", "vulnerable_signature_coverage",
                         "fix_evidence", "contradictions",
                     )
@@ -728,8 +741,10 @@ def build_html_report_data(
             "model": config.detector.model_id,
             "retrieval_top_k": config.detector.retrieval_top_k,
             "retrieval_threshold": config.detector.retrieval_threshold,
-            "minimum_vulnerable_score": config.detector.verifier.minimum_vulnerable_score,
-            "minimum_margin": config.detector.verifier.minimum_margin,
+            "minimum_structure_score": config.detector.verifier.minimum_structure_score,
+            "minimum_token_score": config.detector.verifier.minimum_token_score,
+            "minimum_edit_side_score": config.detector.verifier.minimum_edit_side_score,
+            "minimum_edit_margin": config.detector.verifier.minimum_edit_margin,
         },
     }
 
@@ -969,30 +984,16 @@ function evidenceBreakdown(f){
   const e=f.evidence||{},hasRegionScore=Number.isFinite(Number(e.vulnerable_score));
   if(!hasRegionScore){
     const matchType=f.hash_match_types.length?f.hash_match_types.join(', '):'No localized match';
-    const explanation=f.hash_match_types.length?'The detector resolved this finding through its hash fast path, so region retrieval and weighted verification were not run.':'No localized region evidence was recorded for this finding.';
-    return `<div class="breakdown-empty"><strong>${esc(label(matchType))}</strong><p>${esc(explanation)}</p><p class="muted">There are no structural, token, semantic, margin, or AST-coverage calculations for this path.</p></div>`;
+    const explanation=f.hash_match_types.length?'The detector resolved this finding through its hash fast path, so staged region verification was not run.':'No localized region evidence was recorded for this finding.';
+    return `<div class="breakdown-empty"><strong>${esc(label(matchType))}</strong><p>${esc(explanation)}</p><p class="muted">There are no structural, token, API-anchor, margin, or AST-coverage calculations for this path.</p></div>`;
   }
-  const localEnabled=e.local_alignment_vulnerable!==null&&e.local_alignment_vulnerable!==undefined&&e.local_alignment_patched!==null&&e.local_alignment_patched!==undefined;
-  const signals=localEnabled?[
-    ['Structural',.40,e.structural_vulnerable,e.structural_patched,'50% AST shape ratio + 50% AST path ratio'],
-    ['Token',.30,e.token_vulnerable,e.token_patched,'Sequence similarity after identifiers and literals are normalized by role'],
-    ['Semantic',.20,e.semantic_vulnerable,e.semantic_patched,'50% call-set Jaccard + 50% member-access Jaccard'],
-    ['Local alignment',.10,e.local_alignment_vulnerable,e.local_alignment_patched,'Normalized local source-line alignment']
-  ]:[
-    ['Structural',1,e.structural_vulnerable,e.structural_patched,'50% AST shape ratio + 50% AST path ratio'],
-    ['Token',1,e.token_vulnerable,e.token_patched,'Sequence similarity after identifiers and literals are normalized by role'],
-    ['Semantic',1,e.semantic_vulnerable,e.semantic_patched,'50% call-set Jaccard + 50% member-access Jaccard']
+  const signals=[
+    ['Structure gate',e.structural_vulnerable,e.structural_patched,'50% AST shape ratio + 50% AST path ratio'],
+    ['Token gate',e.token_vulnerable,e.token_patched,'Sequence similarity after identifiers and literals are normalized by role']
   ];
-  const recorded=value=>value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value));
-  const vulnerableWeightTotal=signals.reduce((total,[,weight,value])=>total+(recorded(value)?weight:0),0);
-  const patchedWeightTotal=signals.reduce((total,[,weight,,value])=>total+(recorded(value)?weight:0),0);
-  const effectiveWeight=(value,weight,total)=>recorded(value)&&total?weight/total:null;
-  const weighted=(value,weight)=>value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value))?Number(value)*weight:null;
-  const weightLabel=weight=>weight===null?'Unavailable':`${(weight*100).toFixed(2)}%`;
-  const tableRows=signals.map(([name,weight,vulnerable,patched,note])=>{const vulnerableWeight=effectiveWeight(vulnerable,weight,vulnerableWeightTotal),patchedWeight=effectiveWeight(patched,weight,patchedWeightTotal);return `<tr><td><strong>${esc(name)}</strong><span class="weight-note">${esc(note)}</span></td><td>${weightLabel(vulnerableWeight)}</td><td>${scoreValue(vulnerable)}</td><td>${scoreValue(weighted(vulnerable,vulnerableWeight))}</td><td>${weightLabel(patchedWeight)}</td><td>${scoreValue(patched)}</td><td>${scoreValue(weighted(patched,patchedWeight))}</td></tr>`}).join('');
-  const minimumVulnerable=Number(report.config.minimum_vulnerable_score),minimumMargin=Number(report.config.minimum_margin);
+  const tableRows=signals.map(([name,vulnerable,patched,note])=>`<tr><td><strong>${esc(name)}</strong><span class="weight-note">${esc(note)}</span></td><td>${scoreValue(vulnerable)}</td><td>${scoreValue(patched)}</td></tr>`).join('');
   const verdict=f.status==='automatic_vulnerability'?'Automatic vulnerability':f.status==='informational_lineage'?'Informational lineage':f.status==='none'?'No lineage':'Manual review';
-  return `<div class="breakdown-score-strip"><div class="breakdown-score"><span>Retrieval similarity</span><strong>${scoreValue(e.retrieval_similarity)}</strong></div><div class="breakdown-score vulnerable"><span>Vulnerable score</span><strong>${scoreValue(e.vulnerable_score)}</strong></div><div class="breakdown-score patched"><span>Patched score</span><strong>${scoreValue(e.patched_score)}</strong></div><div class="breakdown-score margin"><span>Score margin</span><strong>${scoreValue(e.vulnerable_minus_patched)}</strong></div></div><section class="calculation-section"><h3>Fix-boundary evidence</h3><p>Vulnerable and patched references are scored symmetrically. Overlapping AST windows are deduplicated before their contrast and fix signatures are aggregated.</p><div class="calculation-table-wrap"><table class="calculation-table"><thead><tr><th>Signal</th><th>Vulnerable weight</th><th>Vulnerable similarity</th><th>Weighted</th><th>Patched weight</th><th>Patched similarity</th><th>Weighted</th></tr></thead><tbody>${tableRows}</tbody></table></div></section><div class="breakdown-grid"><section class="formula-card"><h3>Retrieval supports lineage</h3><p>Retrieval similarity ranks code-family candidates; it does not itself establish vulnerability state.</p><code>lineage retrieval = ${scoreValue(e.retrieval_similarity)}</code></section><section class="formula-card"><h3>AST coverage</h3><p>Coverage weights independent changed-region observations during robust aggregation.</p><code>AST coverage = ${scoreValue(e.ast_coverage)}</code></section></div><section class="decision-gate"><h3>Derived priority · ${esc(verdict)}</h3><ul><li>Automatic vulnerability additionally requires credible lineage and confirmed package applicability.</li><li>Fix-present contradictions prevent automatic promotion.</li><li>Unresolved state or applicability remains manual review.</li></ul></section>`;
+  return `<div class="breakdown-score-strip"><div class="breakdown-score"><span>Retrieval similarity</span><strong>${scoreValue(e.retrieval_similarity)}</strong></div><div class="breakdown-score vulnerable"><span>Vulnerable gate floor</span><strong>${scoreValue(e.vulnerable_score)}</strong></div><div class="breakdown-score patched"><span>Patched gate floor</span><strong>${scoreValue(e.patched_score)}</strong></div></div><section class="calculation-section"><h3>Fix-boundary correspondence</h3><p>Structure and tokens pass independently on the same reference side; they are not averaged. Patch-local fuzzy edit evidence then decides whether the candidate retains the vulnerable or patched edit.</p><div class="calculation-table-wrap"><table class="calculation-table"><thead><tr><th>Signal</th><th>Vulnerable similarity</th><th>Patched similarity</th></tr></thead><tbody>${tableRows}</tbody></table></div></section><div class="breakdown-grid"><section class="formula-card"><h3>Retrieval supports lineage</h3><p>Retrieval similarity ranks code-family candidates; it does not itself establish vulnerability state.</p><code>lineage retrieval = ${scoreValue(e.retrieval_similarity)}</code></section><section class="formula-card"><h3>AST coverage</h3><p>Coverage weights independent changed-region observations during robust aggregation.</p><code>AST coverage = ${scoreValue(e.ast_coverage)}</code></section></div><section class="decision-gate"><h3>Derived priority · ${esc(verdict)}</h3><ul><li>Structure and token gates require ${scoreValue(report.config.minimum_structure_score)} and ${scoreValue(report.config.minimum_token_score)} on one shared side.</li><li>Edit evidence requires a ${scoreValue(report.config.minimum_edit_side_score)} winning side and a ${scoreValue(report.config.minimum_edit_margin)} margin.</li><li>A generic edit alone cannot identify a boundary when contextual correspondence is absent and the function name conflicts.</li><li>Unresolved state or applicability remains manual review.</li></ul></section>`;
 }
 function openEvidenceBreakdown(findingId){
   const finding=report.findings.find(item=>item.id===findingId);if(!finding)return;
@@ -1131,7 +1132,7 @@ function renderRecommendations(){
   $$('.summary-toggle',root).forEach(button=>button.addEventListener('click',()=>{const summary=document.getElementById(button.getAttribute('aria-controls')),expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));button.textContent=expanded?'Show more':'Show less';summary.classList.toggle('collapsed',expanded)}))
 }
 function initDetails(){
-  const values=[['Project',report.project],['Report schema',report.schema],['Tool version',report.tool_version],['Corpus version',report.corpus_version],['Root hash',report.root_hash],['Embedding model',report.config.model],['Retrieval threshold',report.config.retrieval_threshold],['Minimum vulnerable score',report.config.minimum_vulnerable_score],['Minimum margin',report.config.minimum_margin],['Changed files',report.changed_files.length],['Deleted files',report.deleted_files.length],['Files analyzed',report.scanned_files.length],['Functions recomputed',report.audit.scanned_functions]];
+  const values=[['Project',report.project],['Report schema',report.schema],['Tool version',report.tool_version],['Corpus version',report.corpus_version],['Root hash',report.root_hash],['Embedding model',report.config.model],['Retrieval threshold',report.config.retrieval_threshold],['Minimum structure score',report.config.minimum_structure_score],['Minimum token score',report.config.minimum_token_score],['Minimum edit-side score',report.config.minimum_edit_side_score],['Minimum edit margin',report.config.minimum_edit_margin],['Changed files',report.changed_files.length],['Deleted files',report.deleted_files.length],['Files analyzed',report.scanned_files.length],['Functions recomputed',report.audit.scanned_functions]];
   const run=report.explanation_run||{};
   if(run.enabled)values.push(['Review explanation model',run.model],['Explanations generated',run.generated],['Explanations reused',run.reused],['Explanations unavailable',run.unavailable]);
   $('#scan-details').innerHTML=values.filter(([,value])=>value!==null&&value!==undefined&&value!=='').map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')

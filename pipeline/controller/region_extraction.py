@@ -65,13 +65,13 @@ class _ParsedSource:
     byte_offset: int = 0
 
 
-def _parse_region_source(source: str) -> _ParsedSource:
-    tree = parse_source(source)
+def _parse_region_source(source: str, filename: str | None = None) -> _ParsedSource:
+    tree = parse_source(source, filename=filename)
     if not tree.root_node.has_error:
         return _ParsedSource(source, tree, tree.root_node)
 
     wrapped = _SYNTHETIC_PREFIX + source + _SYNTHETIC_SUFFIX
-    wrapped_tree = parse_source(wrapped)
+    wrapped_tree = parse_source(wrapped, filename=filename)
     if wrapped_tree.root_node.has_error:
         return _ParsedSource(source, tree, tree.root_node)
     return _ParsedSource(
@@ -83,9 +83,9 @@ def _parse_region_source(source: str) -> _ParsedSource:
     )
 
 
-def source_is_supported(source: str) -> bool:
+def source_is_supported(source: str, filename: str | None = None) -> bool:
     """Return whether standalone or synthetic-method parsing produced a clean tree."""
-    return not _parse_region_source(source).tree.root_node.has_error
+    return not _parse_region_source(source, filename=filename).tree.root_node.has_error
 
 
 def _function_root(parsed: _ParsedSource) -> tree_sitter.Node:
@@ -294,9 +294,10 @@ def enumerate_candidate_regions(
     candidate_id: str | None = None,
     function_name: str | None = None,
     max_regions: int = 96,
+    filename: str | None = None,
 ) -> list[CandidateRegion]:
     """Generate prioritized changed/block/context/function regions for one function."""
-    parsed = _parse_region_source(source)
+    parsed = _parse_region_source(source, filename=filename)
     root = _function_root(parsed)
     nodes = _all_named_nodes(root)
     targets = [
@@ -344,8 +345,8 @@ def _anchor_line(source: str, lines: list[int]) -> int:
     return max(0, len(source.splitlines()) // 2)
 
 
-def _regions_for_anchor(source: str, lines: list[int], prefix: str) -> dict[RegionGranularity, AstRegion]:
-    parsed = _parse_region_source(source)
+def _regions_for_anchor(source: str, lines: list[int], prefix: str, filename: str | None = None) -> dict[RegionGranularity, AstRegion]:
+    parsed = _parse_region_source(source, filename=filename)
     root = _function_root(parsed)
     nodes = _all_named_nodes(root)
     anchor = _anchor_line(source, lines)
@@ -395,12 +396,12 @@ def extract_vulnerability_regions(
     # exclude them from paired region retrieval/verification.
     if not entry.vulnerable_function.strip() or not entry.patched_function.strip():
         return []
-    vulnerable_source = entry.vulnerable_runtime or entry.vulnerable_function
-    patched_source = entry.patched_runtime or entry.patched_function
+    vulnerable_source = entry.vulnerable_function
+    patched_source = entry.patched_function
     vulnerable_lines = [line.vulnerable_line for line in entry.diagnostic_lines if line.vulnerable_line is not None]
     patched_lines = [line.patched_line for line in entry.diagnostic_lines if line.patched_line is not None]
-    vulnerable = _regions_for_anchor(vulnerable_source, vulnerable_lines, f"{entry.ghsa_id}:v")
-    patched = _regions_for_anchor(patched_source, patched_lines, f"{entry.ghsa_id}:p")
+    vulnerable = _regions_for_anchor(vulnerable_source, vulnerable_lines, f"{entry.ghsa_id}:v", entry.file_path)
+    patched = _regions_for_anchor(patched_source, patched_lines, f"{entry.ghsa_id}:p", entry.file_path)
     vulnerable_digest = hashlib.sha256(entry.vulnerable_function.encode("utf-8")).hexdigest()
     patched_digest = hashlib.sha256(entry.patched_function.encode("utf-8")).hexdigest()
 
@@ -454,7 +455,6 @@ def extract_vulnerability_regions(
                 vulnerable_source_sha256=vulnerable_digest,
                 patched_source_sha256=patched_digest,
                 source_language=entry.source_language,
-                representation="type_erased" if entry.source_language != "javascript" else "native",
             )
         )
     return pairs

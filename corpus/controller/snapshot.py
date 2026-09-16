@@ -44,7 +44,6 @@ def _snapshot_id(result: BuildResult) -> str:
         {
             "identity": _entry_identity(e),
             "native": e.native_hash,
-            "runtime": e.runtime_hash,
             "boundary": e.release_boundary,
         }
         for e in result.entries
@@ -59,9 +58,9 @@ def _write_json(path: Path, value: object) -> None:
 
 def _verify_snapshot(directory: Path, expected_entries: int) -> dict[str, str]:
     required = (
-        "corpus.db", "retrieval-index.json", "source-manifest.json", "attrition.json",
-        "quarantine.json", "cohorts.json", "source-hashes.json",
-        "indexes/native.json", "indexes/type-erased.json",
+            "corpus.db", "retrieval-index.json", "source-manifest.json", "attrition.json",
+            "quarantine.json", "cohorts.json", "source-hashes.json",
+        "indexes/native.json",
     )
     for name in required:
         if not (directory / name).is_file():
@@ -102,7 +101,7 @@ def promote_snapshot(result: BuildResult, snapshots_dir: Path = DEFAULT_SNAPSHOT
                 "languages": {language: sum(e.source_language == language for e in result.entries) for language in sorted({e.source_language for e in result.entries})},
             })
             _write_json(stage / "source-hashes.json", [
-                {"identity": _entry_identity(e), "native_sha256": e.native_hash, "runtime_sha256": e.runtime_hash, "patch_sha256": hashlib.sha256(e.patch_hunk.encode()).hexdigest(), "advisory_sha256": hashlib.sha256(_canonical_json({"title": e.advisory_title, "description": e.advisory_description, "references": e.advisory_references, "affected": e.affected_versions, "fixed": e.fixed_versions}).encode()).hexdigest()}
+                {"identity": _entry_identity(e), "native_sha256": e.native_hash, "patch_sha256": hashlib.sha256(e.patch_hunk.encode()).hexdigest(), "advisory_sha256": hashlib.sha256(_canonical_json({"title": e.advisory_title, "description": e.advisory_description, "references": e.advisory_references, "affected": e.affected_versions, "fixed": e.fixed_versions}).encode()).hexdigest()}
                 for e in result.entries
             ])
             (stage / "indexes").mkdir()
@@ -110,14 +109,10 @@ def promote_snapshot(result: BuildResult, snapshots_dir: Path = DEFAULT_SNAPSHOT
                 {"hash": entry.native_hash, "identity": _entry_identity(entry)}
                 for entry in result.entries
             ])
-            _write_json(stage / "indexes" / "type-erased.json", [
-                {"hash": entry.runtime_hash, "identity": _entry_identity(entry), "maximum_label": "Flagged (Inferred)"}
-                for entry in result.entries
-            ])
             _write_json(stage / "retrieval-index.json", {
-                "schema": "native-runtime-hash-v1",
+                "schema": "native-hash-v2",
                 "entries": [
-                    {"identity": _entry_identity(e), "language": e.source_language, "native_hash": e.native_hash, "runtime_hash": e.runtime_hash, "native_match_label": "Flagged (Exact)", "cross_language_match_label": "Flagged (Inferred)"}
+                    {"identity": _entry_identity(e), "language": e.source_language, "native_hash": e.native_hash, "native_match_label": "Flagged (Exact)"}
                     for e in result.entries
                 ],
             })

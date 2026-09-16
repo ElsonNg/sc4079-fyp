@@ -11,7 +11,7 @@ from corpus.models.corpus import BuildResult, CorpusEntry
 from corpus.models.github import GitHubVulnerability
 from corpus.models.osv import OSVAffected, OSVEvent, OSVPackage, OSVRange, OSVVulnerability
 from pipeline.controller.scanning import JS_EXTENSIONS
-from pipeline.controller.parsing import extract_function_units, type_erase_source
+from pipeline.controller.parsing import extract_function_units
 from pipeline.controller.hashing import build_hash_index, lookup
 
 
@@ -52,27 +52,23 @@ def test_all_js_ts_extensions_and_nonproduction_exclusions():
     assert not is_production_js_file("dist/app.min.js")
 
 
-def test_typescript_keeps_native_source_and_builds_runtime_representation():
+def test_typescript_keeps_native_source():
     source = "export function greet<T>(user: User): string { return user.name as string; }"
     unit = extract_function_units(source, filename="src/greet.ts")[0]
     assert unit.language == "typescript"
     assert "user: User" in unit.source
-    runtime = type_erase_source(unit.source, filename="src/greet.ts")
-    assert runtime == "function greet(user) { return user.name; }"
 
 
-def test_type_erased_cross_language_match_cannot_be_exact():
+def test_native_hash_matching_is_language_scoped():
     native = "function greet(user: User): string { const value: string = user.name; return value.toUpperCase(); }"
-    runtime = type_erase_source(native, filename="greet.ts")
     entry = CorpusEntry(
         ghsa_id="GHSA-ts", package_name="widget", ecosystem="npm", repo="acme/widget",
         fix_commit_sha="abc", file_path="greet.ts", source_language="typescript",
         vulnerable_function=native, patched_function=native.replace("toUpperCase", "trim"),
-        vulnerable_runtime=runtime, patched_runtime=runtime.replace("toUpperCase", "trim"),
     )
     index = build_hash_index([entry])
-    assert any(match.match_type == "type_erased" for match in lookup(runtime, index, filename="greet.js"))
     assert any(match.match_type == "exact" for match in lookup(native, index, filename="greet.ts"))
+    assert not lookup(native, index, filename="greet.js")
 
 
 def _entry(boundary):

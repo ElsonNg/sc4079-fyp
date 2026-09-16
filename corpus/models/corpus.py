@@ -33,12 +33,9 @@ class CorpusEntry(BaseModel):
     fixed_versions: list[str] = []
     osv_confirmed: bool = False
     source_language: str = "javascript"
-    vulnerable_runtime: str | None = None
-    patched_runtime: str | None = None
     patch_hunk: str = ""
     native_hash: str = ""
     normalized_hash: str = ""
-    runtime_hash: str = ""
     ast_hash: str = ""
     release_boundary: dict = Field(default_factory=dict)
     high_impact: bool = False

@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 
 from corpus.models.corpus import CorpusEntry, DiagnosticLine
+from pipeline.controller.edit_distance import EditDistanceEvidence, score_edit_distance
 from pipeline.controller.region_extraction import (
     candidate_region_is_informative,
     enumerate_candidate_regions,
@@ -12,10 +13,15 @@ from pipeline.controller.region_extraction import (
 )
 from pipeline.controller.region_retrieval import aggregate_region_hits
 from pipeline.controller.hashing import HashIndex, build_hash_index
-from pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig
+from pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig, derive_priority
 from pipeline.controller.region_retrieval import RegionRetrievalIndex
-from pipeline.controller.region_verification import classify_evidence, verify_region_pair
-from pipeline.models.regions import RegionAggregate, RegionRetrievalMatch, RegionVerificationEvidence
+from pipeline.controller.region_verification import (
+    classify_boundary, classify_evidence, deduplicate_evidence, verify_region_pair,
+)
+from pipeline.models.regions import (
+    LineageAttribution, RegionAggregate, RegionRetrievalMatch,
+    RegionVerificationEvidence, VulnerabilityState,
+)
 
 
 def _entry(vulnerable: str, patched: str, diagnostics: list[DiagnosticLine]) -> CorpusEntry:
@@ -222,13 +228,12 @@ def test_region_verification_prefers_vulnerable_shape_over_patched_shape():
     assert evidence.local_alignment_vulnerable is None
     assert evidence.local_alignment_patched is None
     assert evidence.fallback_used is False
-    available = [evidence.structural_vulnerable, evidence.token_vulnerable]
-    if evidence.semantic_vulnerable is not None:
-        available.append(evidence.semantic_vulnerable)
-    assert evidence.vulnerable_score == pytest.approx(sum(available) / len(available))
+    assert evidence.vulnerable_score == pytest.approx(
+        min(evidence.structural_vulnerable, evidence.token_vulnerable)
+    )
 
 
-def test_empty_semantic_features_are_unavailable_instead_of_perfect_similarity():
+def test_empty_api_anchor_features_are_unavailable_instead_of_perfect_similarity():
     vulnerable = "function checkValue(value) { if (value) return value; return null; }"
     patched = "function checkValue(value) { if (value === true) return value; return null; }"
     entry = _entry(
@@ -241,10 +246,172 @@ def test_empty_semantic_features_are_unavailable_instead_of_perfect_similarity()
 
     evidence = verify_region_pair(candidate, pair, retrieval_similarity=0.9)
 
-    assert evidence.semantic_vulnerable is None
-    assert evidence.semantic_patched is None
+    assert evidence.api_anchor_vulnerable is None
+    assert evidence.api_anchor_patched is None
     assert evidence.vulnerable_score == pytest.approx(
-        (evidence.structural_vulnerable + evidence.token_vulnerable) / 2
+        min(evidence.structural_vulnerable, evidence.token_vulnerable)
+    )
+
+
+def test_regex_fix_remains_visible_to_token_and_edit_scores():
+    vulnerable = r"function clean(value) { return value.replace(/\([^)]*\)/g, ' '); }"
+    patched = r"function clean(value) { return value.replace(/\([^()]*\)/g, ' '); }"
+    entry = _entry(
+        vulnerable,
+        patched,
+        [DiagnosticLine(kind="replacement", vulnerable_line=0, patched_line=0, text="regex")],
+    )
+    pair = next(
+        pair for pair in extract_vulnerability_regions(entry)
+        if pair.vulnerable_region.granularity == "function"
+    )
+
+    patched_evidence = verify_region_pair(
+        pair.patched_region,
+        pair,
+        retrieval_similarity=0.9,
+    )
+
+    assert patched_evidence.token_patched == 1.0
+    assert patched_evidence.token_vulnerable < patched_evidence.token_patched
+    edit = score_edit_distance(
+        patched,
+        [
+            DiagnosticLine(kind="removed", vulnerable_line=0, text=vulnerable),
+            DiagnosticLine(kind="added", patched_line=0, text=patched),
+        ],
+    )
+    assert edit.patched == 1.0
+    assert edit.vulnerable < edit.patched
+    assert edit.vulnerable_anchor_has_identity is True
+    assert edit.patched_anchor_has_identity is True
+
+
+def test_generic_edit_anchor_has_no_boundary_identity():
+    edit = score_edit_distance(
+        "function loadLocale(name) { return locales[name]; }",
+        [
+            DiagnosticLine(kind="removed", vulnerable_line=0, text="return obj[name];"),
+            DiagnosticLine(kind="added", patched_line=0, text="return safeLookup(obj, name);"),
+        ],
+    )
+
+    assert edit.vulnerable == 1.0
+    assert edit.vulnerable_anchor_has_identity is False
+    assert edit.patched_anchor_has_identity is True
+
+
+def test_contrastive_edit_anchors_ignore_statement_shared_by_both_sides():
+    diagnostics = [
+        DiagnosticLine(
+            kind="removed", vulnerable_line=0, text="proxy = new URL(proxyUrl);"
+        ),
+        DiagnosticLine(
+            kind="added", patched_line=0, text="if (!shouldBypassProxy(location)) {"
+        ),
+        DiagnosticLine(
+            kind="added", patched_line=1, text="proxy = new URL(proxyUrl);"
+        ),
+        DiagnosticLine(kind="added", patched_line=2, text="}"),
+    ]
+
+    vulnerable = score_edit_distance("proxy = new URL(proxyUrl);", diagnostics)
+    patched = score_edit_distance(
+        "if (!shouldBypassProxy(location)) { proxy = new URL(proxyUrl); }",
+        diagnostics,
+    )
+
+    assert vulnerable.raw_vulnerable == 1.0
+    assert patched.raw_vulnerable == 1.0
+    assert vulnerable.contrastive_used is True
+    assert vulnerable.vulnerable == 1.0
+    assert vulnerable.patched < 0.90
+    assert patched.patched == 1.0
+    assert patched.vulnerable == 0.0
+
+
+def test_containment_fallback_recovers_type3_region_with_extra_code():
+    entry = _entry(
+        "function checkValue(value) { return unsafe(value); }",
+        "function checkValue(value) { return safe(value); }",
+        [DiagnosticLine(kind="removed", vulnerable_line=0, text="return unsafe(value);")],
+    )
+    pair = next(
+        pair for pair in extract_vulnerability_regions(entry)
+        if pair.vulnerable_region.granularity == "function"
+    )
+    reference = pair.vulnerable_region
+    candidate = reference.model_copy(update={
+        "region_id": "type3-extra-code",
+        "ast_shape": reference.ast_shape + ["extra_node"] * len(reference.ast_shape),
+        "ast_path": reference.ast_path + ["extra/path"] * len(reference.ast_path),
+        "normalized_tokens": (
+            reference.normalized_tokens + [";"] * len(reference.normalized_tokens)
+        ),
+    })
+
+    evidence = verify_region_pair(candidate, pair, retrieval_similarity=0.9)
+
+    assert evidence.structural_vulnerable < 0.70
+    assert evidence.containment_fallback_vulnerable is True
+    assert evidence.containment_coverage_vulnerable == pytest.approx(0.50)
+    assert evidence.vulnerable_score >= 0.70
+
+
+def test_renamed_api_anchor_receivers_preserve_operation_similarity():
+    vulnerable = "function checkValue(value) { service.accept(value); return service.result; }"
+    patched = "function checkValue(value) { service.reject(value); return service.error; }"
+    entry = _entry(
+        vulnerable,
+        patched,
+        [DiagnosticLine(kind="replacement", vulnerable_line=0, patched_line=0, text="operation")],
+    )
+    pair = next(
+        pair for pair in extract_vulnerability_regions(entry)
+        if pair.vulnerable_region.granularity == "function"
+    )
+    candidate = pair.vulnerable_region.model_copy(
+        update={
+            "region_id": "C-renamed-semantics",
+            "calls": ["renamed.accept"],
+            "member_accesses": ["renamed.accept", "renamed.result"],
+        }
+    )
+
+    evidence = verify_region_pair(candidate, pair, retrieval_similarity=0.9)
+
+    assert evidence.structural_vulnerable == 1.0
+    assert evidence.token_vulnerable == 1.0
+    assert evidence.api_anchor_vulnerable == 1.0
+    assert evidence.correspondence_score == pytest.approx(
+        max(evidence.vulnerable_score, evidence.patched_score)
+    )
+    assert evidence.vulnerable_score == pytest.approx(1.0)
+    assert evidence.vulnerable_score >= 0.75
+
+    different_operation = candidate.model_copy(
+        update={
+            "region_id": "C-different-api-operation",
+            "calls": ["renamed.reject"],
+            "member_accesses": ["renamed.reject", "renamed.error"],
+        }
+    )
+    different_evidence = verify_region_pair(different_operation, pair, retrieval_similarity=0.9)
+
+    assert different_evidence.api_anchor_vulnerable == 0.0
+
+    weak_token_candidate = candidate.model_copy(
+        update={
+            "region_id": "C-same-shape-weak-tokens",
+            "normalized_tokens": ["while"],
+        }
+    )
+    weak_evidence = verify_region_pair(weak_token_candidate, pair, retrieval_similarity=0.9)
+
+    assert weak_evidence.structural_vulnerable == 1.0
+    assert weak_evidence.token_vulnerable < 0.95
+    assert weak_evidence.vulnerable_score == pytest.approx(
+        min(weak_evidence.structural_vulnerable, weak_evidence.token_vulnerable)
     )
 
 
@@ -279,6 +446,386 @@ def test_classification_does_not_let_a_low_score_large_margin_hide_passing_evide
     status, _ = classify_evidence([low_score, passing, corroborating], aggregates)
 
     assert status == "flagged"
+
+
+def test_both_signatures_are_neutral_when_side_scores_favor_vulnerable():
+    entry = _entry(
+        "function checkValue(value) { return unsafe(value); }",
+        "function checkValue(value) { return safe(value); }",
+        [DiagnosticLine(kind="replacement", vulnerable_line=0, patched_line=0, text="call")],
+    )
+    pair = next(
+        pair for pair in extract_vulnerability_regions(entry)
+        if pair.vulnerable_region.granularity == "function"
+    )
+    evidence = _evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15).model_copy(
+        update={"fix_signature_coverage": 0.9, "vulnerable_signature_coverage": 0.9}
+    )
+
+    state = classify_boundary(
+        [evidence],
+        pair,
+        edit=EditDistanceEvidence(vulnerable=0.95, patched=0.80),
+    )
+
+    assert state.status == "vulnerable"
+    assert state.signature_evidence_state == "both"
+    assert state.independent_region_count == 1
+    assert state.vulnerable_support_count == 1
+    assert state.patched_support_count == 0
+    assert state.side_consensus_ratio == 1.0
+
+
+def test_staged_boundary_requires_structure_and_tokens_on_the_same_side():
+    entry = _entry(
+        "function checkValue(value) { return unsafe(value); }",
+        "function checkValue(value) { return safe(value); }",
+        [DiagnosticLine(kind="replacement", vulnerable_line=0, patched_line=0, text="call")],
+    )
+    pair = next(
+        pair for pair in extract_vulnerability_regions(entry)
+        if pair.vulnerable_region.granularity == "function"
+    )
+    evidence = _evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15).model_copy(
+        update={
+            "structural_vulnerable": 0.80,
+            "token_vulnerable": 0.69,
+            "structural_patched": 0.69,
+            "token_patched": 0.80,
+        }
+    )
+
+    state = classify_boundary(
+        [evidence],
+        pair,
+        edit=EditDistanceEvidence(vulnerable=1.0, patched=0.60),
+    )
+
+    assert state.structure_gate_passed is True
+    assert state.token_gate_passed is False
+    assert state.status == "uncertain"
+
+
+@pytest.mark.parametrize(
+    ("structural", "token", "edit", "expected_reason"),
+    [
+        (0.60, 0.90, None, "S_FAILED"),
+        (0.90, 0.60, None, "T_FAILED"),
+        (0.90, 0.90, EditDistanceEvidence(vulnerable=0.95, patched=0.90),
+         "E_MARGIN_AMBIGUOUS"),
+        (0.90, 0.90, EditDistanceEvidence(vulnerable=0.85, patched=0.60),
+         "E_SIDE_WEAK"),
+        (0.90, 0.90, EditDistanceEvidence(vulnerable=0.80, patched=0.75),
+         "E_SIDE_AND_MARGIN_WEAK"),
+    ],
+)
+def test_uncertain_boundary_records_one_terminal_reason(
+    structural, token, edit, expected_reason,
+):
+    entry = _entry(
+        "function checkValue(value) { return unsafe(value); }",
+        "function checkValue(value) { return safe(value); }",
+        [DiagnosticLine(kind="removed", vulnerable_line=0, text="return unsafe(value);")],
+    )
+    pair = next(
+        pair for pair in extract_vulnerability_regions(entry)
+        if pair.vulnerable_region.granularity == "changed"
+    )
+    evidence = _evidence(pair.pair_id, vulnerable_score=structural, margin=0.0).model_copy(
+        update={
+            "structural_vulnerable": structural,
+            "structural_patched": structural,
+            "token_vulnerable": token,
+            "token_patched": token,
+        }
+    )
+
+    state = classify_boundary([evidence], pair, edit=edit)
+
+    assert state.status == "uncertain"
+    assert state.abstention_reason == expected_reason
+
+
+def test_staged_boundary_uses_edit_distance_only_after_correspondence():
+    entry = _entry(
+        "function checkValue(value) { return unsafe(value); }",
+        "function checkValue(value) { return safe(value); }",
+        [DiagnosticLine(kind="replacement", vulnerable_line=0, patched_line=0, text="call")],
+    )
+    pair = next(
+        pair for pair in extract_vulnerability_regions(entry)
+        if pair.vulnerable_region.granularity == "function"
+    )
+    evidence = _evidence(pair.pair_id, vulnerable_score=0.70, margin=0.0)
+
+    state = classify_boundary(
+        [evidence],
+        pair,
+        edit=EditDistanceEvidence(vulnerable=1.0, patched=0.60),
+    )
+
+    assert state.structure_gate_passed is True
+    assert state.token_gate_passed is True
+    assert state.status == "vulnerable"
+    assert state.vulnerable_score == 1.0
+    assert state.contrast_score == pytest.approx(0.40)
+
+
+def test_overlapping_alignment_keeps_strongest_coherent_correspondence():
+    exact = _evidence("boundary:changed", vulnerable_score=1.0, margin=0.23).model_copy(
+        update={
+            "candidate_region_id": "same-candidate-span",
+            "candidate_granularity": "changed",
+            "reference_granularity": "changed",
+            "structural_vulnerable": 1.0,
+            "token_vulnerable": 1.0,
+            "structural_patched": 0.875,
+            "token_patched": 0.769,
+        }
+    )
+    decisive_mismatch = exact.model_copy(
+        update={
+            "pair_id": "boundary:context",
+            "reference_granularity": "context",
+            "token_vulnerable": 0.526,
+            "vulnerable_score": 0.526,
+            "patched_score": 0.769,
+            "vulnerable_minus_patched": -0.243,
+        }
+    )
+
+    selected = deduplicate_evidence(
+        [decisive_mismatch, exact],
+        side="vulnerable",
+    )
+
+    assert selected == [exact]
+
+
+def test_boundary_gate_uses_structure_and_tokens_from_one_best_row():
+    entry = _entry(
+        "function checkValue(value) { return unsafe(value); }",
+        "function checkValue(value) { return safe(value); }",
+        [DiagnosticLine(kind="removed", vulnerable_line=0, text="return unsafe(value);")],
+    )
+    pair = next(
+        pair for pair in extract_vulnerability_regions(entry)
+        if pair.vulnerable_region.granularity == "changed"
+    )
+    exact = _evidence(pair.pair_id, vulnerable_score=1.0, margin=0.23).model_copy(
+        update={
+            "candidate_region_id": "same-candidate-span",
+            "candidate_granularity": "changed",
+            "reference_granularity": "changed",
+            "structural_vulnerable": 1.0,
+            "token_vulnerable": 1.0,
+            "structural_patched": 0.875,
+            "token_patched": 0.769,
+        }
+    )
+    mismatch = exact.model_copy(
+        update={
+            "pair_id": f"{pair.fix_boundary_id}:context",
+            "reference_granularity": "context",
+            "token_vulnerable": 0.526,
+            "vulnerable_score": 0.526,
+            "patched_score": 0.769,
+            "vulnerable_minus_patched": -0.243,
+        }
+    )
+
+    state = classify_boundary(
+        [mismatch, exact],
+        pair,
+        edit=EditDistanceEvidence(
+            vulnerable=1.0,
+            patched=0.804,
+            vulnerable_anchor_has_identity=True,
+        ),
+    )
+
+    assert state.status == "vulnerable"
+    assert state.structural_vulnerable == 1.0
+    assert state.token_vulnerable == 1.0
+
+
+def test_decisive_raw_edit_result_is_not_overturned_by_contrastive_fallback():
+    entry = _entry(
+        "function checkValue(value) { return unsafe(value); }",
+        "function checkValue(value) { return safe(value); }",
+        [DiagnosticLine(kind="removed", vulnerable_line=0, text="return unsafe(value);")],
+    )
+    pair = next(
+        pair for pair in extract_vulnerability_regions(entry)
+        if pair.vulnerable_region.granularity == "changed"
+    )
+    evidence = _evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15)
+
+    state = classify_boundary(
+        [evidence],
+        pair,
+        edit=EditDistanceEvidence(
+            vulnerable=0.0,
+            patched=1.0,
+            raw_vulnerable=1.0,
+            raw_patched=0.70,
+            contrastive_vulnerable=0.0,
+            contrastive_patched=1.0,
+            contrastive_used=True,
+            raw_vulnerable_anchor_has_identity=True,
+            raw_patched_anchor_has_identity=True,
+            contrastive_vulnerable_anchor_has_identity=False,
+            contrastive_patched_anchor_has_identity=False,
+        ),
+    )
+
+    assert state.status == "vulnerable"
+    assert state.edit_vulnerable == 1.0
+    assert state.edit_patched == 0.70
+    assert state.edit_contrastive_used is False
+
+
+def test_verified_vulnerable_boundary_overrides_low_lineage_confidence():
+    lineages = [LineageAttribution(
+        lineage_id="lineage-a", confidence="low", score=0.6,
+        repo="test/repo", file_path="test.js",
+    )]
+    states = [VulnerabilityState(
+        lineage_id="lineage-a",
+        fix_boundary_id="boundary-a",
+        fix_commit_sha="deadbeef",
+        status="vulnerable",
+        token_gate_passed=True,
+    )]
+
+    assert derive_priority(lineages, states, []) == "automatic_vulnerability"
+
+
+def test_patched_boundary_overrides_only_weak_unrelated_uncertainty():
+    lineages = [
+        LineageAttribution(
+            lineage_id="patched-lineage", confidence="medium", score=0.8,
+            repo="test/repo", file_path="patched.js",
+        ),
+        LineageAttribution(
+            lineage_id="noise-lineage", confidence="medium", score=0.8,
+            repo="test/repo", file_path="noise.js",
+        ),
+    ]
+    patched = VulnerabilityState(
+        lineage_id="patched-lineage",
+        fix_boundary_id="patched-boundary",
+        fix_commit_sha="patched",
+        status="patched",
+        token_gate_passed=True,
+    )
+    weak = VulnerabilityState(
+        lineage_id="noise-lineage",
+        fix_boundary_id="noise-boundary",
+        fix_commit_sha="noise",
+        status="uncertain",
+        token_gate_passed=False,
+    )
+
+    assert derive_priority(lineages, [patched, weak], []) == "informational_lineage"
+
+    strong = weak.model_copy(update={"token_gate_passed": True})
+    assert derive_priority(lineages, [patched, strong], []) == "manual_review"
+
+
+def test_boundary_identity_gate_abstains_on_generic_changed_only_function_conflict():
+    entry = _entry(
+        "function checkValue(obj, name) { return obj[name]; }",
+        "function checkValue(obj, name) { return safeLookup(obj, name); }",
+        [DiagnosticLine(kind="removed", vulnerable_line=0, text="return obj[name];")],
+    )
+    pair = next(
+        pair for pair in extract_vulnerability_regions(entry)
+        if pair.vulnerable_region.granularity == "changed"
+    )
+    evidence = _evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15).model_copy(
+        update={
+            "candidate_granularity": "changed",
+            "candidate_function_name": "unrelatedFunction",
+        }
+    )
+
+    state = classify_boundary(
+        [evidence],
+        pair,
+        edit=EditDistanceEvidence(
+            vulnerable=1.0,
+            patched=0.5,
+            vulnerable_anchor_has_identity=False,
+            patched_anchor_has_identity=True,
+        ),
+    )
+
+    assert state.status == "uncertain"
+    assert state.function_identity_state == "conflict"
+    assert state.context_correspondence_passed is False
+    assert state.edit_anchor_has_identity is False
+    assert state.boundary_identity_gate_passed is False
+    assert state.boundary_rejected is True
+    assert state.abstention_reason == "IDENTITY_REJECTED"
+
+
+def test_rejected_identity_mismatch_does_not_override_verified_patch():
+    lineages = [LineageAttribution(
+        lineage_id="lineage-a", confidence="medium", score=0.8,
+        repo="test/repo", file_path="test.js",
+    )]
+    patched = VulnerabilityState(
+        lineage_id="lineage-a",
+        fix_boundary_id="patched",
+        fix_commit_sha="patched",
+        status="patched",
+        token_gate_passed=True,
+    )
+    rejected = VulnerabilityState(
+        lineage_id="lineage-a",
+        fix_boundary_id="unrelated",
+        fix_commit_sha="unrelated",
+        status="uncertain",
+        token_gate_passed=True,
+        boundary_identity_gate_passed=False,
+        boundary_rejected=True,
+    )
+
+    assert derive_priority(lineages, [patched, rejected], []) == "informational_lineage"
+
+
+def test_boundary_identity_gate_keeps_named_edit_anchor_despite_function_rename():
+    entry = _entry(
+        "function checkValue(value) { return unsafe(value); }",
+        "function checkValue(value) { return safe(value); }",
+        [DiagnosticLine(kind="removed", vulnerable_line=0, text="return unsafe(value);")],
+    )
+    pair = next(
+        pair for pair in extract_vulnerability_regions(entry)
+        if pair.vulnerable_region.granularity == "changed"
+    )
+    evidence = _evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15).model_copy(
+        update={
+            "candidate_granularity": "changed",
+            "candidate_function_name": "renamedFunction",
+        }
+    )
+
+    state = classify_boundary(
+        [evidence],
+        pair,
+        edit=EditDistanceEvidence(
+            vulnerable=1.0,
+            patched=0.5,
+            vulnerable_anchor_has_identity=True,
+            patched_anchor_has_identity=True,
+        ),
+    )
+
+    assert state.status == "vulnerable"
+    assert state.function_identity_state == "conflict"
+    assert state.boundary_identity_gate_passed is True
 
 
 def test_classification_does_not_flag_from_one_supporting_region():

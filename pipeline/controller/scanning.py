@@ -31,7 +31,7 @@ DEFAULT_CORPUS_VERSION = "unknown"
 # Bump this whenever the persisted RegionDetectionResult shape or its serialized
 # metadata contract changes. This prevents old cache entries from being treated as
 # complete results after adding fields such as CVE/version provenance.
-RESULT_CACHE_SCHEMA_VERSION = 9
+RESULT_CACHE_SCHEMA_VERSION = 22
 
 
 class Detector(Protocol):
@@ -292,6 +292,7 @@ def scan_directory(
                 function_index=function_index,
                 function_count=len(records),
                 name=record["name"],
+                source_chars=len(record["source"]),
             )
             function_hash = record["function_hash"]
             cached = result_cache.get(function_hash)
@@ -301,11 +302,20 @@ def scan_directory(
                 file_reused += 1
                 source = "reused"
             else:
-                raw_result = get_detector().detect(
-                    record["source"],
-                    candidate_id=record["function_id"],
-                    language=record.get("source_language"),
-                )
+                active_detector = get_detector()
+                if isinstance(active_detector, RegionDetector):
+                    raw_result = active_detector.detect(
+                        record["source"],
+                        candidate_id=record["function_id"],
+                        language=record.get("source_language"),
+                        candidate_function_name=record.get("name"),
+                    )
+                else:
+                    raw_result = active_detector.detect(
+                        record["source"],
+                        candidate_id=record["function_id"],
+                        language=record.get("source_language"),
+                    )
                 scanned_functions += 1
                 file_scanned += 1
                 source = "scanned"

@@ -15,7 +15,12 @@ class _FakeDetector:
     def __init__(self):
         self.calls = []
 
-    def detect(self, candidate_source: str, candidate_id: str | None = None):
+    def detect(
+        self,
+        candidate_source: str,
+        candidate_id: str | None = None,
+        language: str | None = None,
+    ):
         self.calls.append((candidate_source, candidate_id))
         return RegionDetectionResult(
             priority="manual_review",

@@ -77,7 +77,7 @@ def _corpus_windows(entry: CorpusEntry) -> list[str]:
     Prefix/suffix coverage remains available, while diagnostic anchors ensure the
     vulnerable mechanism is represented even when it occurs deep in generated code.
     """
-    source = entry.vulnerable_runtime or entry.vulnerable_function
+    source = entry.vulnerable_function
     if len(source) <= WINDOW_CHARS:
         return [source]
     offsets = []
@@ -109,7 +109,6 @@ def _match_from_entry(entry: CorpusEntry) -> RetrievalMatch:
         file_path=entry.file_path,
         function_name=entry.function_name,
         source_language=entry.source_language,
-        representation="type_erased" if entry.source_language != "javascript" else "native",
     )
 
 

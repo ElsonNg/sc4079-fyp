@@ -88,7 +88,7 @@ def _get_parser(language: str = "javascript") -> tree_sitter.Parser:
             if tree_sitter_typescript is None:
                 # Keep byte offsets aligned with the native source. This fallback is
                 # deliberately narrower than the real grammar and never changes the
-                # language/representation label used by matching policy.
+                # language label used by matching policy.
                 return _get_parser("javascript")
             capsule = (
                 tree_sitter_typescript.language_tsx()
@@ -179,46 +179,6 @@ def extract_function_units(
 
     walk(tree.root_node)
     return units
-
-
-def type_erase_source(source: str, *, filename: str | None = None) -> str:
-    """Return a deterministic JS-like representation used only for TS-to-JS retrieval.
-
-    Tree-sitter byte ranges are removed from right to left, preserving executable text.
-    This is deliberately not emitted as runnable JavaScript and never upgrades a match
-    to exact: native source remains the authoritative representation.
-    """
-    language = source_language(filename)
-    if language == "javascript":
-        return source
-    if tree_sitter_typescript is None:
-        return _typescript_fallback(source, preserve_width=False)
-    tree = parse_source(source, language=language)
-    removable = {
-        "type_annotation", "type_arguments", "type_parameters", "interface_declaration",
-        "type_alias_declaration", "declare_statement", "accessibility_modifier",
-        "abstract_modifier", "readonly_type",
-    }
-    ranges: list[tuple[int, int, str]] = []
-
-    def walk(node: tree_sitter.Node) -> None:
-        if node.type in removable:
-            ranges.append((node.start_byte, node.end_byte, ""))
-            return
-        if node.type == "as_expression":
-            expression = node.child_by_field_name("expression")
-            if expression is None and node.named_children:
-                # tree-sitter-typescript names this field ``left`` in some grammar
-                # releases and leaves it unnamed in others.
-                expression = node.named_children[0]
-            if expression is not None:
-                ranges.append((node.start_byte, node.end_byte, expression.text.decode("utf-8")))
-                return
-        for child in node.children:
-            walk(child)
-
-    walk(tree.root_node)
-    return _apply_replacements(source, ranges)
 
 
 def find_enclosing_function(

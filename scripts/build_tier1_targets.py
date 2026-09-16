@@ -40,6 +40,21 @@ _REQUIRED = (
     "fixed_tarball", "fixed_artifact_sha256", "first_fixed",
 )
 
+# Independently refetched release source proves this corpus boundary is absent;
+# another same-named Mermaid boundary is present instead. Keep regeneration from
+# reintroducing the invalid vulnerable/fixed pair.
+_AUDITED_ABSENT_BOUNDARIES = {
+    (
+        "GHSA-ghcm-xqfw-q4vr",
+        "4e2d512bf5bf6f9de1a8f0a48da78dc4d09ac4f3",
+        "packages/mermaid/src/mermaidAPI.ts",
+        "cssImportantStyles",
+    ),
+}
+
+
+def _boundary_identity(entry) -> tuple:
+    return entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name
 
 def _complete(entry) -> bool:
     rb = entry.release_boundary or {}
@@ -112,8 +127,19 @@ def main() -> int:
         args.entries, args.per_category = 2, 1
     # Only entries whose vulnerable function is in shipped library code are scorable
     # by a release scan; test/example-only fixes are excluded from the Tier-1 set.
-    applicable = [e for e in entries if _complete(e) and _tier1_applicable(e.file_path)]
-    excluded = sum(1 for e in entries if _complete(e) and not _tier1_applicable(e.file_path))
+    applicable = [
+        e for e in entries
+        if _complete(e)
+        and _tier1_applicable(e.file_path)
+        and _boundary_identity(e) not in _AUDITED_ABSENT_BOUNDARIES
+    ]
+    excluded = sum(
+        1 for e in entries
+        if _complete(e) and (
+            not _tier1_applicable(e.file_path)
+            or _boundary_identity(e) in _AUDITED_ABSENT_BOUNDARIES
+        )
+    )
     if args.all:
         selected = applicable
     else:

@@ -90,8 +90,6 @@ def _entry_from_pair(pair: ExtractedFunctionPair, **evidence) -> CorpusEntry:
         patched_function=pair.patched_function,
         diagnostic_lines=compute_diagnostic_lines(pair.vulnerable_function, pair.patched_function, language=pair.source_language),
         source_language=pair.source_language,
-        vulnerable_runtime=pair.vulnerable_runtime,
-        patched_runtime=pair.patched_runtime,
         patch_hunk=pair.patch_hunk,
         primary_evidence=pair.is_primary,
     )
