@@ -8,6 +8,7 @@ from pipeline.controller.incremental import (
     save_scan_state,
 )
 from pipeline.controller.scanning import ScanConfig, scan_directory
+from pipeline.controller.region_detection import RegionDetector
 from pipeline.models.regions import RegionDetectionResult
 
 
@@ -29,6 +30,31 @@ class _FakeDetector:
             retrieval_match_count=1,
             message="fake detector",
         )
+
+
+class _FakeBatchRegionDetector(RegionDetector):
+    def __init__(self):
+        self.single_calls = []
+        self.batch_calls = []
+
+    @staticmethod
+    def _result(candidate_id):
+        return RegionDetectionResult(
+            priority="manual_review",
+            candidate_id=candidate_id,
+            candidate_region_count=1,
+            retrieval_match_count=1,
+            message="equivalent fake result",
+        )
+
+    def detect(self, candidate_source, candidate_id=None, language=None,
+               candidate_function_name=None, **kwargs):
+        self.single_calls.append((candidate_id, language, candidate_function_name))
+        return self._result(candidate_id)
+
+    def detect_batch(self, candidates):
+        self.batch_calls.append(candidates)
+        return [self._result(candidate[0]) for candidate in candidates]
 
 
 def test_merkle_snapshot_is_deterministic_and_reports_file_changes(tmp_path):
@@ -176,3 +202,35 @@ def test_scan_reports_detector_initialization_when_factory_is_lazy(tmp_path):
     phases = [event["phase"] for event in events]
     assert phases.index("detector_start") < phases.index("detector_ready")
     assert phases.index("detector_ready") < phases.index("function_complete")
+
+
+def test_batched_and_sequential_directory_scans_are_equivalent(tmp_path):
+    source = (
+        "function first(value) { return value + 1; }\n"
+        "const second = (value: number) => value * 2;\n"
+    )
+    sequential_root = tmp_path / "sequential"
+    batched_root = tmp_path / "batched"
+    sequential_root.mkdir()
+    batched_root.mkdir()
+    (sequential_root / "source.ts").write_text(source, encoding="utf-8")
+    (batched_root / "source.ts").write_text(source, encoding="utf-8")
+    sequential_detector = _FakeBatchRegionDetector()
+    batched_detector = _FakeBatchRegionDetector()
+
+    sequential = scan_directory(
+        sequential_root, detector=sequential_detector,
+        config=ScanConfig(state_path=sequential_root / "state.json", batch_size=1),
+    )
+    batched = scan_directory(
+        batched_root, detector=batched_detector,
+        config=ScanConfig(state_path=batched_root / "state.json", batch_size=32),
+    )
+
+    assert sequential.priority_counts == batched.priority_counts
+    assert [item["result"] for item in sequential.findings] == [
+        item["result"] for item in batched.findings
+    ]
+    assert len(sequential_detector.single_calls) == 2
+    assert len(batched_detector.batch_calls) == 1
+    assert all(candidate[2] == "typescript" for candidate in batched_detector.batch_calls[0])

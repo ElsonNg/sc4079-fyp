@@ -31,7 +31,7 @@ DEFAULT_CORPUS_VERSION = "unknown"
 # Bump this whenever the persisted RegionDetectionResult shape or its serialized
 # metadata contract changes. This prevents old cache entries from being treated as
 # complete results after adding fields such as CVE/version provenance.
-RESULT_CACHE_SCHEMA_VERSION = 22
+RESULT_CACHE_SCHEMA_VERSION = 25
 
 
 class Detector(Protocol):
@@ -47,6 +47,7 @@ class ScanConfig:
     corpus_version: str = DEFAULT_CORPUS_VERSION
     state_path: Path | None = None
     extensions: tuple[str, ...] = JS_EXTENSIONS
+    batch_size: int = 32
 
 
 @dataclass
@@ -202,6 +203,8 @@ def scan_directory(
     """Scan JavaScript and TypeScript functions, reusing safe cached results."""
 
     config = config or ScanConfig()
+    if config.batch_size < 1:
+        raise ValueError("batch_size must be at least 1")
     root = Path(root).resolve()
     if not root.is_dir():
         raise NotADirectoryError(root)
@@ -285,6 +288,86 @@ def scan_directory(
             path=relative_path,
             function_count=len(records),
         )
+        uncached = [
+            record for record in records
+            if result_cache.get(record["function_hash"]) is None
+        ]
+        active_detector = get_detector() if uncached else lazy_detector
+        if isinstance(active_detector, RegionDetector) and config.batch_size > 1:
+            raw_results: dict[str, RegionDetectionResult] = {}
+            result_sources: dict[str, str] = {}
+            for function_index, record in enumerate(records, start=1):
+                progress(
+                    "function_start",
+                    path=relative_path,
+                    function_index=function_index,
+                    function_count=len(records),
+                    name=record["name"],
+                    source_chars=len(record["source"]),
+                )
+                cached = result_cache.get(record["function_hash"])
+                if cached is not None:
+                    raw_results[record["function_id"]] = _result_from_record(
+                        cached, record["function_id"]
+                    )
+                    result_sources[record["function_id"]] = "reused"
+                    reused_functions += 1
+                    file_reused += 1
+            for offset in range(0, len(uncached), config.batch_size):
+                chunk = uncached[offset: offset + config.batch_size]
+                progress(
+                    "batch_start", path=relative_path,
+                    batch_index=offset // config.batch_size + 1,
+                    batch_count=(len(uncached) + config.batch_size - 1) // config.batch_size,
+                    function_count=len(chunk),
+                )
+                batch_results = active_detector.detect_batch([
+                    (
+                        record["function_id"], record["source"],
+                        record.get("source_language"), record.get("name"),
+                    )
+                    for record in chunk
+                ])
+                if len(batch_results) != len(chunk):
+                    raise ValueError("detector batch result count does not match input count")
+                for record, raw_result in zip(chunk, batch_results):
+                    raw_results[record["function_id"]] = raw_result
+                    result_sources[record["function_id"]] = "scanned"
+                    result_cache[record["function_hash"]] = {
+                        "function_hash": record["function_hash"],
+                        "result": raw_result.model_dump(mode="json"),
+                    }
+                    scanned_functions += 1
+                    file_scanned += 1
+                progress(
+                    "batch_complete", path=relative_path,
+                    batch_index=offset // config.batch_size + 1,
+                    function_count=len(chunk),
+                )
+            for function_index, record in enumerate(records, start=1):
+                raw_result = raw_results[record["function_id"]]
+                result = project_evidence.assess(raw_result, relative_path)
+                record["result"] = result.model_dump(mode="json")
+                current_records[record["function_id"]] = record
+                progress(
+                    "function_complete",
+                    path=relative_path,
+                    function_index=function_index,
+                    function_count=len(records),
+                    name=record["name"],
+                    status=result.priority,
+                    source=result_sources[record["function_id"]],
+                )
+            progress(
+                "file_complete",
+                completed_files=file_index,
+                total_files=len(js_files),
+                path=relative_path,
+                function_count=len(records),
+                scanned_count=file_scanned,
+                reused_count=file_reused,
+            )
+            continue
         for function_index, record in enumerate(records, start=1):
             progress(
                 "function_start",

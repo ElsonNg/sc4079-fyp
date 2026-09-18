@@ -152,6 +152,12 @@ class RegionDetectorConfig:
     # Experimental late fallback. It never bypasses S/T, hashes, identity rejection,
     # or contradictions, and is deliberately disabled in production by default.
     include_local_correspondence_fallback: bool = False
+    # Optional operational guard for broad field scans. Oversized outer functions
+    # are recorded as skipped before region expansion/embedding; their separately
+    # extracted nested functions remain eligible. Labelled evaluations disable it.
+    max_candidate_chars: int | None = None
+    # Independently bound the regex-based edit tokenizer for field scans.
+    max_edit_candidate_chars: int | None = None
     verifier: RegionVerifierConfig = RegionVerifierConfig()
 
 
@@ -195,6 +201,21 @@ class RegionDetector:
         # is absent, deriving language from the path before any ``::`` span marker.
         candidate_language = resolve_candidate_language(candidate_id, language)
         language_filename = _LANGUAGE_FILENAME.get(candidate_language, "candidate.js")
+        if (
+            self.config.max_candidate_chars is not None
+            and len(candidate_source) > self.config.max_candidate_chars
+        ):
+            return RegionDetectionResult(
+                priority="manual_review",
+                candidate_id=candidate_id,
+                candidate_region_count=0,
+                retrieval_match_count=0,
+                message=(
+                    "Candidate complexity-skipped before retrieval: source has "
+                    f"{len(candidate_source)} characters (limit "
+                    f"{self.config.max_candidate_chars})"
+                ),
+            )
         if not source_is_supported(candidate_source, filename=language_filename):
             return RegionDetectionResult(
                 priority="manual_review",
@@ -352,6 +373,18 @@ class RegionDetector:
             if not preliminary.token_gate_passed:
                 states.append(preliminary)
                 continue
+            if (
+                self.config.max_edit_candidate_chars is not None
+                and len(candidate_source) > self.config.max_edit_candidate_chars
+            ):
+                states.append(preliminary.model_copy(update={
+                    "fix_evidence": preliminary.fix_evidence + [
+                        "Edit stage complexity-skipped: candidate source has "
+                        f"{len(candidate_source)} characters (limit "
+                        f"{self.config.max_edit_candidate_chars})"
+                    ],
+                }))
+                continue
             diagnostics = self.boundary_diagnostics.get(boundary_id)
             if diagnostics is None:
                 diagnostics = compute_diagnostic_lines(
@@ -464,24 +497,35 @@ class RegionDetector:
 
     def detect_batch(
         self,
-        candidates: list[tuple[str | None, str]],
+        candidates: list[tuple],
     ) -> list[RegionDetectionResult]:
         """Detect a batch while encoding all candidate regions in one model call."""
-        prepared: list[tuple[str | None, str, list]] = []
+        prepared: list[tuple[str | None, str, str | None, str | None, list]] = []
         flattened = []
         offsets: list[tuple[int, int]] = []
-        for candidate_id, source in candidates:
-            inferred_name = _infer_candidate_function_name(source, "candidate.js")
+        for candidate in candidates:
+            if len(candidate) == 2:
+                candidate_id, source = candidate
+                language = None
+                candidate_function_name = None
+            elif len(candidate) == 4:
+                candidate_id, source, language, candidate_function_name = candidate
+            else:
+                raise ValueError("batch candidates must contain 2 or 4 values")
+            candidate_language = resolve_candidate_language(candidate_id, language)
+            filename = _LANGUAGE_FILENAME.get(candidate_language, "candidate.js")
+            inferred_name = candidate_function_name or _infer_candidate_function_name(source, filename)
             regions = enumerate_candidate_regions(
                 source,
                 candidate_id=candidate_id,
                 function_name=inferred_name,
                 max_regions=self.config.max_candidate_regions,
+                filename=filename,
             )
             start = len(flattened)
             flattened.extend(regions)
             offsets.append((start, len(flattened)))
-            prepared.append((candidate_id, source, regions))
+            prepared.append((candidate_id, source, language, inferred_name, regions))
         batches = query_region_batch(
             flattened,
             self.region_index,
@@ -489,12 +533,14 @@ class RegionDetector:
             threshold=self.config.retrieval_threshold,
         )
         results: list[RegionDetectionResult] = []
-        for (candidate_id, source, regions), (start, end) in zip(prepared, offsets):
+        for (candidate_id, source, language, function_name, regions), (start, end) in zip(prepared, offsets):
             matches = [match for batch in batches[start:end] for match in batch]
             results.append(
                 self.detect(
                     source,
                     candidate_id=candidate_id,
+                    language=language,
+                    candidate_function_name=function_name,
                     _candidate_regions=regions,
                     _matches=matches,
                 )

@@ -31,7 +31,7 @@ class RegionRetrievalIndex:
 
 def _region_fingerprint(pairs: list[VulnerableRegionPair], model_id: str) -> str:
     values = [
-        f"symmetric-v2|{model_id}|{pair.pair_id}|{pair.lineage_id}|{pair.advisory_title}|"
+        f"symmetric-v3-fp32|{model_id}|{pair.pair_id}|{pair.lineage_id}|{pair.advisory_title}|"
         f"{json.dumps([item.model_dump() for item in pair.advisories], sort_keys=True)}|"
         f"{pair.vulnerable_source_sha256}|{pair.patched_source_sha256}|"
         f"{pair.vulnerable_region.source}|{pair.patched_region.source}"
@@ -101,9 +101,15 @@ def query_region_batch(
     vectors = embedding.encode(retrieval_index.model_id, texts)
     indexed_count = len(retrieval_index.indexed_pair_ids) or len(retrieval_index.pairs)
     k = min(top_k, indexed_count)
-    similarities, ids = retrieval_index.index.search(vectors, k)
+    # HNSW can choose different members of a tied neighbourhood when FAISS is
+    # asked to search a matrix in parallel. Keep model encoding batched (the
+    # expensive part), but search each region vector independently so batching
+    # does not change the established sequential shortlist semantics.
+    searched = [retrieval_index.index.search(vector[None, :], k) for vector in vectors]
     results: list[list[RegionRetrievalMatch]] = []
-    for candidate, row_sims, row_ids in zip(candidate_regions, similarities, ids):
+    for candidate, (row_sims, row_ids) in zip(candidate_regions, searched):
+        row_sims = row_sims[0]
+        row_ids = row_ids[0]
         matches: list[RegionRetrievalMatch] = []
         for rank, (similarity, index_id) in enumerate(zip(row_sims, row_ids), start=1):
             if index_id < 0 or float(similarity) < threshold:

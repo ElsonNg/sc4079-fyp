@@ -84,6 +84,12 @@ def get_model(model_id: str) -> "SentenceTransformer":
 
         configured_device = os.environ.get(EMBEDDING_DEVICE_ENV)
         model = SentenceTransformer(spec.hf_name, device=configured_device)
+        # Qwen weights may auto-load as bfloat16 on CUDA. Different GEMM kernels
+        # are then selected for singleton and multi-item batches, producing enough
+        # numerical drift to change tied HNSW neighbours. Field scans require the
+        # same retrieval semantics regardless of batch composition, so inference
+        # is pinned to float32 on every supported device.
+        model.float()
         model.max_seq_length = DEFAULT_MAX_SEQ_LENGTH
         _loaded_models[model_id] = model
     return _loaded_models[model_id]

@@ -46,6 +46,8 @@ class RegionVerifierConfig:
     include_local_alignment: bool = False
     minimum_containment_coverage: float = 0.50
     include_containment_fallback: bool = True
+    # Field-scan operational guard. None preserves uncapped evaluation behavior.
+    max_containment_cells: int | None = None
 
 
 def _ratio(left: list[str], right: list[str]) -> float:
@@ -131,18 +133,27 @@ def _token_score(candidate: AstRegion, reference: AstRegion) -> float:
     return role_score
 
 
-def _containment_score(left: list[str], right: list[str]) -> tuple[float, float]:
+def _containment_score(
+    left: list[str], right: list[str], max_cells: int | None = None
+) -> tuple[float, float]:
     """Score the shorter sequence inside the longer, guarded by size coverage."""
     if not left or not right:
         return 0.0, 0.0
     shorter, longer = (left, right) if len(left) <= len(right) else (right, left)
-    return fuzzy_substring_similarity(shorter, longer), len(shorter) / len(longer)
+    coverage = len(shorter) / len(longer)
+    if max_cells is not None and len(shorter) * len(longer) > max_cells:
+        return 0.0, coverage
+    return fuzzy_substring_similarity(shorter, longer), coverage
 
 
-def _containment_components(candidate: AstRegion, reference: AstRegion) -> tuple[float, float, float]:
-    shape, shape_coverage = _containment_score(candidate.ast_shape, reference.ast_shape)
-    path, path_coverage = _containment_score(candidate.ast_path, reference.ast_path)
-    token, token_coverage = _containment_score(_role_tokens(candidate), _role_tokens(reference))
+def _containment_components(
+    candidate: AstRegion, reference: AstRegion, max_cells: int | None = None
+) -> tuple[float, float, float]:
+    shape, shape_coverage = _containment_score(candidate.ast_shape, reference.ast_shape, max_cells)
+    path, path_coverage = _containment_score(candidate.ast_path, reference.ast_path, max_cells)
+    token, token_coverage = _containment_score(
+        _role_tokens(candidate), _role_tokens(reference), max_cells
+    )
     return 0.5 * shape + 0.5 * path, token, min(shape_coverage, path_coverage, token_coverage)
 
 
@@ -242,10 +253,14 @@ def verify_region_pair(
         language,
     )
     containment_vuln_struct, containment_vuln_token, containment_vuln_coverage = (
-        _containment_components(candidate_region, pair.vulnerable_region)
+        _containment_components(
+            candidate_region, pair.vulnerable_region, config.max_containment_cells
+        )
     )
     containment_patch_struct, containment_patch_token, containment_patch_coverage = (
-        _containment_components(candidate_region, pair.patched_region)
+        _containment_components(
+            candidate_region, pair.patched_region, config.max_containment_cells
+        )
     )
     containment_vuln_attempted = (
         config.include_containment_fallback

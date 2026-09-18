@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import logging
 import os
 import threading
@@ -335,6 +336,7 @@ def fetch_source_tree(
     package_path: str = "",
     required_paths: Iterable[str] = (),
     max_background_blob_bytes: int | None = None,
+    max_files: int | None = None,
     max_workers: int = 1,
     session: requests.Session | None = None,
 ) -> dict[str, str]:
@@ -347,6 +349,8 @@ def fetch_source_tree(
     """
     if max_workers < 1:
         raise ValueError("max_workers must be at least 1")
+    if max_files is not None and max_files < 1:
+        raise ValueError("max_files must be at least 1")
     tree_session = session or _get_github_session()
     response = _github_get(
         f"{GITHUB_API_BASE}/repos/{owner}/{repo}/git/trees/{quote(ref, safe='')}"
@@ -386,6 +390,13 @@ def fetch_source_tree(
         if not blob_sha:
             continue
         candidates.append((path, blob_sha))
+    if max_files is not None and len(candidates) > max_files:
+        # Content-independent ordering prevents repository tree layout from
+        # deciding which files enter a bounded field-study scan.
+        candidates = sorted(
+            candidates,
+            key=lambda item: hashlib.sha256(item[0].encode("utf-8")).hexdigest(),
+        )[:max_files]
     def fetch(candidate: tuple[str, str]) -> tuple[str, str]:
         path, blob_sha = candidate
         # When no explicit session was supplied, each worker obtains its own

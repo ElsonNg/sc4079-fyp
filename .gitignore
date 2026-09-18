@@ -22,3 +22,19 @@ eval/tier1_sandbox/
 eval/tier1_source_sandbox/
 eval/llm_transformed_results.json
 eval/tier1_release_results.json
+
+# Generated evaluation state and exploratory outputs
+*.checkpoint.json
+*.log
+*.bak
+eval/reviewed_verification/
+eval/*_litmus.json
+eval/*_ablation.json
+eval/*_inspection.json
+eval/*_benchmark.json
+eval/*_comparison.json
+eval/*_investigation.json
+eval/*_screen.json
+eval/*_safety.json
+eval/wider_*.json
+eval/llm_transformed_results_*.json
