@@ -8,6 +8,8 @@ CLAUDE.md
 AGENTS.md
 .claude
 docs/*
+!docs/tool-comparison.md
+!docs/jscpd-clone-pilot.md
 # Generated embedding indexes and local incremental-scan state
 corpus/data/corpus.db
 corpus/data/embeddings/*
@@ -38,3 +40,9 @@ eval/*_screen.json
 eval/*_safety.json
 eval/wider_*.json
 eval/llm_transformed_results_*.json
+
+# Comparative scanner evaluation (generated workspaces and raw tool state)
+eval/comparison_workspaces/
+eval/comparison_raw/
+eval/comparison_tools/
+eval/codeql_databases/

@@ -1,0 +1,62 @@
+{
+  "schema": "provtrail_tool_comparison_v1",
+  "seed": 4079,
+  "origin_count": 15,
+  "case_count": 90,
+  "catalog_origin_count": 72,
+  "selection": [
+    "aaab82afbd01",
+    "ee0e8d1c2133",
+    "91751add2df6",
+    "54cab867f513",
+    "425dc8c3d50f",
+    "4eb1ba21c6f7",
+    "7809810615df",
+    "600221927805",
+    "3fa4bbd3a5b4",
+    "74fe42e16d99",
+    "a29c8d5a22f2",
+    "2543c0b8501e",
+    "347c69788c5d",
+    "a0a8f5976273",
+    "c73b2ead575f"
+  ],
+  "locked": true,
+  "tools": {
+    "provtrail": {
+      "configuration": "production-fp32-fallback-off"
+    },
+    "semgrep": {
+      "configuration": "pinned-community-javascript-typescript-full",
+      "version": "1.177.0",
+      "reported_version": "1.177.0",
+      "path": "eval\\comparison_tools\\semgrep-venv\\Scripts\\semgrep.exe",
+      "rules_commit": "40b8c63f75dc7c22c8a77482d73bfb864b146f7e",
+      "rules_paths": [
+        "eval\\comparison_tools\\semgrep-rules\\javascript",
+        "eval\\comparison_tools\\semgrep-rules\\typescript"
+      ],
+      "yaml_files": 203,
+      "rule_definitions": 212,
+      "combined_rules_sha256": "c795e1f388cb15cd5615e9f6d10e4e16985f4598cef70e5eee97b2a1a93e908c"
+    },
+    "codeql": {
+      "configuration": "javascript-typescript/security-extended",
+      "tag": "codeql-bundle-v2.27.0",
+      "sha256": "c472bbd03b0f70a468f5b77b16e26bd8248d5c570fca120605eedcdcc3abd3c0",
+      "path": "eval\\comparison_tools\\codeql\\codeql\\codeql.exe",
+      "reported_version": "2.27.0",
+      "suite": "codeql/javascript-queries:codeql-suites/javascript-security-extended.qls",
+      "resolved_query_count": 105,
+      "suite_rule_count": 103
+    },
+    "osv-scanner": {
+      "configuration": "v2-source-recursive",
+      "tag": "v2.6.0",
+      "sha256": "e0ed7644118b717b028c249ee9d3515024e55e8510747ca08906eb96765354d6",
+      "path": "eval\\comparison_tools\\osv-scanner\\osv-scanner.exe",
+      "reported_version": "osv-scanner version: 2.6.0\nosv-scalibr version: 0.5.2\ncommit: e840a6e8adb14b7777c78e26cfbf6e2abc1d1fc6\nbuilt at: 2026-09-14T01:44:58Z"
+    }
+  },
+  "platform": "win32"
+}

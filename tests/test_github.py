@@ -106,6 +106,28 @@ def test_fetch_source_tree_parallelizes_and_skips_only_large_background(monkeypa
     assert len(worker_threads) == 2
 
 
+def test_fetch_source_tree_file_cap_always_reserves_required_paths(monkeypatch):
+    session = FakeSession([FakeResponse({
+        "truncated": False,
+        "tree": [
+            {"path": "src/a.js", "type": "blob", "sha": "a", "size": 10},
+            {"path": "src/b.js", "type": "blob", "sha": "b", "size": 10},
+            {"path": "src/required.js", "type": "blob", "sha": "required", "size": 10},
+        ],
+    })])
+    monkeypatch.setattr(
+        github, "fetch_raw_file_content",
+        lambda _owner, _repo, path, _ref, **_kwargs: f"// {path}\n",
+    )
+
+    sources = fetch_source_tree(
+        "acme", "widget", "commit1", required_paths={"src/required.js"},
+        max_files=1, session=session,
+    )
+
+    assert sources == {"src/required.js": "// src/required.js\n"}
+
+
 def test_secondary_rate_limit_uses_retry_after_header():
     response = FakeResponse(
         {"message": "You have exceeded a secondary rate limit."},

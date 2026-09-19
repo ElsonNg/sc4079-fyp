@@ -392,11 +392,19 @@ def fetch_source_tree(
         candidates.append((path, blob_sha))
     if max_files is not None and len(candidates) > max_files:
         # Content-independent ordering prevents repository tree layout from
-        # deciding which files enter a bounded field-study scan.
-        candidates = sorted(
-            candidates,
+        # deciding which background files enter a bounded scan. Required label
+        # targets are reserved first so a cap can never invalidate evaluation.
+        required_candidates = [item for item in candidates if item[0] in required]
+        if len(required_candidates) > max_files:
+            raise ValueError(
+                f"max_files={max_files} is smaller than the {len(required_candidates)} required paths"
+            )
+        background_candidates = sorted(
+            (item for item in candidates if item[0] not in required),
             key=lambda item: hashlib.sha256(item[0].encode("utf-8")).hexdigest(),
-        )[:max_files]
+        )[: max_files - len(required_candidates)]
+        selected_paths = {item[0] for item in required_candidates + background_candidates}
+        candidates = [item for item in candidates if item[0] in selected_paths]
     def fetch(candidate: tuple[str, str]) -> tuple[str, str]:
         path, blob_sha = candidate
         # When no explicit session was supplied, each worker obtains its own
