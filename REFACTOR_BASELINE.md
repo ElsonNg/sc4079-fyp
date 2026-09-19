@@ -364,3 +364,51 @@ Validation artifacts are under `.provtrail/refactor-baseline/`:
   (`verification-split-tier1-prerequisite.json`).
 
 Detector decomposition and later phases have not started.
+
+
+## Migration Phase 4: detector orchestration
+
+Baseline commit: `96b11ce` (the user committed verification decomposition).
+`RegionDetector.detect()` now orders the major operations. Extracted components:
+
+- `pipeline/detection/hashing.py`: deterministic match results and boundary states.
+- `pipeline/detection/retrieval.py`: ranked reference pairs and supporting hits.
+- `pipeline/detection/lineage.py`: source attribution and unknown package applicability.
+- `pipeline/detection/priority.py`: shared report-priority selection.
+
+Named detector methods coordinate region verification, boundary classification and
+optional local correspondence. Fallback eligibility stays visible at its invocation.
+Old priority/confidence imports and the package-applicability method remain available.
+Project assessment and the decision-ablation script import the canonical priority
+function. Thresholds, retrieval ordering, limits and fallback defaults are unchanged.
+
+The separately requested GitHub configuration change loads the project-root `.env`
+in the shared GitHub client without overriding process environment values. Tests
+exercise both token sources from a different working directory using dummy tokens.
+Authenticated API access succeeds outside the sandbox restriction. Earlier proxy
+failures are environmental and do not establish that credentials were missing.
+
+Validation artifacts are under `.provtrail/refactor-baseline/`:
+
+- Initial full suite: **392 passed in 25.98 seconds** (`detector-split-pytest.log`).
+- Direct comparison with the saved pre-extraction detector: **128 identical full
+  result records**, covering eight corpus entries, hash and region paths, both
+  reference sides and four configurations (`detector-split-differential.json`).
+- Fresh and cached CLI findings are identical to the preceding phase, with exit 1
+  and JSON/HTML reports (`detector-split-cli-comparison.json`).
+- All six baseline input/corpus/index artifact hashes remain unchanged
+  (`detector-split-artifact-check.json`).
+- Final full suite after the GitHub configuration change: **394 passed in 22.03
+  seconds** (`detector-split-final-pytest.log` and `.xml`).
+- The fresh full Tier 2 rerun matches all **600 records** and all other fields
+  exactly, excluding only `generated_at_utc` (`tier2-detector-split.json` and
+  `tier2-detector-split-comparison.json`).
+- The main `detect()` method shrank from 315 to 93 lines. Batch detection and the
+  extracted priority, confidence and applicability function bodies are unchanged
+  (`detector-split-structure.json`).
+- The user requested skipping the remaining Tier 1 evaluation. Before stopping,
+  49 detector results matched the saved pre-Phase-4 implementation exactly on the
+  same fetched sources (`tier1-detector-split-differential.json`). This is partial
+  evidence only. The full Tier 1 gate remains unverified.
+
+Phase 5 scanning decomposition has not started.

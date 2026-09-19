@@ -6,13 +6,17 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections.abc import Iterable
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 
 import requests
+from dotenv import load_dotenv
 
 from corpus.models.commit import GitHubCommitDetail, GitHubCommitFile
 from corpus.models.github import GitHubAdvisory, GitHubVulnerability
+
+# Read the project .env while preserving values already set in the process environment.
+load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
 
 GITHUB_API_BASE = "https://api.github.com"
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com"

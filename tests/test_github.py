@@ -1,8 +1,29 @@
 import base64
+import runpy
 import threading
+from pathlib import Path
+
+import pytest
 
 from corpus.controller import github
 from corpus.controller.github import fetch_file_content, fetch_source_tree
+
+
+@pytest.mark.parametrize("environment_token", [None, "environment-token"])
+def test_github_loads_project_dotenv_without_overriding_environment(tmp_path, monkeypatch, environment_token):
+    project = tmp_path / "project"
+    client = project / "corpus" / "controller" / "github.py"
+    client.parent.mkdir(parents=True)
+    client.write_text(Path(github.__file__).read_text(encoding="utf-8"), encoding="utf-8")
+    (project / ".env").write_text("GITHUB_TOKEN=dotenv-token\n", encoding="utf-8")
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    if environment_token:
+        monkeypatch.setenv("GITHUB_TOKEN", environment_token)
+    monkeypatch.chdir(tmp_path)
+
+    module = runpy.run_path(str(client))
+
+    assert module["_github_headers"]()["Authorization"] == f"Bearer {environment_token or 'dotenv-token'}"
 
 
 class FakeResponse:

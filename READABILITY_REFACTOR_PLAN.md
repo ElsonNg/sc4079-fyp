@@ -45,7 +45,18 @@ including performance checks; 384 region-evidence and 768 boundary-state compari
 against the pre-extraction implementation match. Fresh/cached CLI findings match.
 The fresh Tier 2 rerun matches all 600 records and the summary exactly, excluding
 the timestamp. Tier 1 is still blocked by the proxy.
-Phase 4 detector decomposition has not started.
+Migration Phase 4 (detector decomposition) is now authorized and implemented.
+`pipeline/detection/{hashing,retrieval,lineage,priority}.py` owns result construction,
+retrieval aggregation, lineage attribution and priority selection. `detect()` orders
+these operations, with named methods for region verification and boundary decisions.
+The optional local correspondence fallback remains explicit and late in that flow.
+All 394 tests pass, fresh/cached CLI findings match, and all 600 Tier 2 records
+match exactly except the timestamp. The user requested skipping the remaining
+Tier 1 evaluation after 49 identical detector comparisons. Its full gate remains
+unverified, as recorded in `REFACTOR_BASELINE.md`.
+The shared GitHub client now loads the project `.env`, as separately requested.
+Authenticated GitHub access succeeds outside the sandbox network restriction.
+Phase 5 scanning decomposition has not started.
 
 User review preference: present recommendations phase by phase for vetting before
 implementing each phase. Prioritize readability, maintainability, clean code and

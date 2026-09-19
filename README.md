@@ -5,11 +5,29 @@ evidence-attributed vulnerable origins from the npm JavaScript/TypeScript ecosys
 
 ## CLI
 
+GitHub requests use `GITHUB_TOKEN` from the project-root `.env` file. A token
+already set in the process environment takes precedence. The `.env` file is ignored
+by Git.
+
 For engineers extending the tool, `cli/main.py` defines arguments and dispatches
 commands. Execution lives in `cli/commands/scan.py`, `report.py`, and `corpus.py`.
 The scan command calls `pipeline/controller/scanning.py`, which coordinates the
 detector in `pipeline/controller/region_detection.py`. The scan command then writes
 the JSON and HTML reports.
+
+Inside `RegionDetector.detect()`, follow hash lookup, region retrieval, verification,
+boundary classification and lineage attribution in that order. The extracted
+components live in `pipeline/detection/`:
+
+- `hashing.py` builds results for deterministic matches.
+- `retrieval.py` groups and limits reference pairs for verification.
+- `lineage.py` attributes source lineage and lists associated packages.
+- `priority.py` chooses reporting priority from the resulting evidence.
+
+The detector's `_verify_regions()` and `_classify_boundaries()` methods coordinate
+the detailed checks. The optional local correspondence fallback runs only after
+boundary classification remains uncertain and its eligibility gates pass.
+Batch detection shares retrieval first, then rejoins `detect()` for each function.
 
 Region verification lives in `pipeline/detection/verification/`: `verifier.py`
 coordinates scoring, `classification.py` decides boundary states, and the other

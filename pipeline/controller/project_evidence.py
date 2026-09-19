@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pipeline.controller.region_detection import derive_priority
+from pipeline.detection.priority import derive_priority
 from pipeline.models.regions import (
     ApplicabilityEvidence,
     PackageApplicability,
