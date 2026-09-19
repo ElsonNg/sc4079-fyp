@@ -16,7 +16,7 @@ from pydantic import ValidationError
 
 from corpus.models.corpus import CorpusEntry
 from pipeline.controller.html_reporting import _candidate_lines, build_html_report_data
-from pipeline.controller.scanning import ScanConfig, ScanSummary
+from pipeline.scanning.scanner import ScanConfig, ScanSummary
 from pipeline.models.explanations import ReviewBrief, ReviewExplanation
 
 EXPLANATION_CACHE_SCHEMA_VERSION = 1

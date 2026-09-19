@@ -14,7 +14,7 @@ from pipeline.controller.review_explanation import (
     enrich_manual_review_findings,
     explanation_progress,
 )
-from pipeline.controller.scanning import (
+from pipeline.scanning.scanner import (
     ScanConfig,
     build_default_detector_factory,
     corpus_fingerprint,

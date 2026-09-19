@@ -33,7 +33,7 @@ from pipeline.controller.retrieval import (
     _match_from_entry,
     _normalized_text,
 )
-from pipeline.controller.scanning import corpus_fingerprint
+from pipeline.scanning.cache import corpus_fingerprint
 
 
 def _corpus_build_progress(event: dict) -> None:

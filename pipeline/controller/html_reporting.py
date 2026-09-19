@@ -13,7 +13,7 @@ from urllib.parse import quote, urlparse
 from corpus.models.corpus import CorpusEntry
 from pipeline.controller.region_extraction import enumerate_candidate_regions
 from pipeline.controller.reporting import ACTIVE_STATUSES, audit_summary, final_metrics, finding_detail
-from pipeline.controller.scanning import ScanConfig, ScanSummary
+from pipeline.scanning.scanner import ScanConfig, ScanSummary
 
 MAX_EXCERPT_LINES = 120
 SEVERITY_RANK = {

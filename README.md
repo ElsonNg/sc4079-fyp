@@ -11,9 +11,18 @@ by Git.
 
 For engineers extending the tool, `cli/main.py` defines arguments and dispatches
 commands. Execution lives in `cli/commands/scan.py`, `report.py`, and `corpus.py`.
-The scan command calls `pipeline/controller/scanning.py`, which coordinates the
+The scan command calls `pipeline/scanning/scanner.py`, which coordinates the
 detector in `pipeline/controller/region_detection.py`. The scan command then writes
-the JSON and HTML reports.
+the JSON and HTML reports. To follow a scan, read `scan_directory()` first:
+
+1. `discovery.py` extracts JavaScript and TypeScript functions.
+2. `cache.py` loads the snapshot and reusable detector results.
+3. `scanner.py` reuses or detects each function, then applies project evidence.
+4. `project_context.py` checks package manifests and imports.
+5. `scanner.py` saves scan state and returns findings to the CLI for reporting.
+
+The old `pipeline/controller/scanning.py`, `incremental.py` and
+`project_evidence.py` imports remain available during the migration.
 
 Inside `RegionDetector.detect()`, follow hash lookup, region retrieval, verification,
 boundary classification and lineage attribution in that order. The extracted

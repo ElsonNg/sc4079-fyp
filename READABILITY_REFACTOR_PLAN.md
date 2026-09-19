@@ -56,7 +56,12 @@ Tier 1 evaluation after 49 identical detector comparisons. Its full gate remains
 unverified, as recorded in `REFACTOR_BASELINE.md`.
 The shared GitHub client now loads the project `.env`, as separately requested.
 Authenticated GitHub access succeeds outside the sandbox network restriction.
-Phase 5 scanning decomposition has not started.
+Migration Phase 5 (scanning decomposition) is implemented in
+`pipeline/scanning/{scanner,discovery,cache,project_context}.py`. Existing controller
+imports remain compatibility facades. The user requested postponing the full scanning
+test suites and evaluation runs until the refactor is done. Ten focused tests pass.
+Fresh and reused CLI findings and JSON/HTML artifacts match Phase 4.
+Phase 6 has not started.
 
 User review preference: present recommendations phase by phase for vetting before
 implementing each phase. Prioritize readability, maintainability, clean code and

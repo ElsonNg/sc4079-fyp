@@ -40,7 +40,7 @@ from eval.metrics import (
 )
 from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
 from pipeline.controller.parsing import SUPPORTED_SOURCE_EXTENSIONS, extract_function_units
-from pipeline.controller.scanning import (
+from pipeline.scanning.scanner import (
     RESULT_CACHE_SCHEMA_VERSION,
     ScanConfig,
     corpus_fingerprint,

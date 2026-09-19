@@ -363,7 +363,7 @@ Validation artifacts are under `.provtrail/refactor-baseline/`:
 - GitHub access still fails with `ProxyError`; Tier 1 remains outstanding
   (`verification-split-tier1-prerequisite.json`).
 
-Detector decomposition and later phases have not started.
+Detector decomposition is documented below.
 
 
 ## Migration Phase 4: detector orchestration
@@ -411,4 +411,25 @@ Validation artifacts are under `.provtrail/refactor-baseline/`:
   same fetched sources (`tier1-detector-split-differential.json`). This is partial
   evidence only. The full Tier 1 gate remains unverified.
 
-Phase 5 scanning decomposition has not started.
+## Migration Phase 5: scanning decomposition
+
+Baseline commit: `2eb39ea` (the user committed detector orchestration).
+`pipeline/scanning/scanner.py` now shows the scan flow from discovery to saved
+summary. `discovery.py` owns source-file selection and function extraction.
+`cache.py` owns Merkle snapshots, saved-state compatibility, corpus/config
+fingerprints and rebinding cached region IDs when a function moves.
+`project_context.py` owns manifest and import evidence. The old controller modules
+re-export their public interfaces for existing consumers.
+
+The user requested postponing the full scanning test suites and evaluation runs
+until the refactor is done. Focused checks cover unchanged files, changed functions,
+batching, progress events, lazy detector loading, cache invalidation, legacy
+saved-state loading and nested ID rebinding. Ten distinct focused tests passed.
+
+The fresh and reused CLI scans produced findings identical to Phase 4, with exit 1
+and JSON/HTML reports. The first scanned one function and the second reused one
+(`scanning-split-cli-comparison.json`). Moved cache, project-context and discovery
+functions have unchanged ASTs, as do the public scanner models and detector factory
+(`scanning-split-structure.json`). Cache schema version 25 and scan JSON schema v5
+remain unchanged. The full test and evaluation gates are deferred at the user's
+request.
