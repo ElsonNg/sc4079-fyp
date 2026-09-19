@@ -291,10 +291,10 @@ def test_embedded_javascript_has_valid_syntax(tmp_path):
 
 
 def test_cli_scan_writes_redesigned_artifacts(monkeypatch, tmp_path):
-    monkeypatch.setattr("cli.main.load_entries", lambda *_args, **_kwargs: [_entry()])
-    monkeypatch.setattr("cli.main.scan_directory", lambda *_args, **_kwargs: _summary())
+    monkeypatch.setattr("cli.commands.scan.load_entries", lambda *_args, **_kwargs: [_entry()])
+    monkeypatch.setattr("cli.commands.scan.scan_directory", lambda *_args, **_kwargs: _summary())
     monkeypatch.setattr(
-        "cli.main.build_default_detector_factory", lambda *_args, **_kwargs: lambda: None
+        "cli.commands.scan.build_default_detector_factory", lambda *_args, **_kwargs: lambda: None
     )
     assert main(["scan", str(tmp_path)]) == 1
     json_path = tmp_path / ".provtrail" / "latest-scan.json"

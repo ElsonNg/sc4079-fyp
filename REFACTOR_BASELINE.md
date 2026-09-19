@@ -279,3 +279,38 @@ Validation completed:
 
 No fresh full Tier 2 evaluation was run for this extension. The earlier Tier 2
 comparison remains historical evidence; the Tier 1 network limitation is unchanged.
+
+## Migration Phase 2: CLI command extraction
+
+Baseline commit: `fd7e54a` (the user committed the preceding model refactor).
+Moved command execution to `cli/commands/scan.py`, `report.py` and `corpus.py`.
+`cli/main.py` retains parser construction and dispatch, shrinking from 552 to 178
+lines. Existing private handler/progress imports are re-exported until Phase 8;
+scan tests patch dependencies at their new owning module. The development version
+constant lives in `cli/__init__.py` and remains importable from `cli.main`.
+
+Validation artifacts are under `.provtrail/refactor-baseline/`:
+
+- All nine help outputs match `cli-help-before.json` exactly. AST comparisons of
+  the nine moved functions match after normalizing renamed handlers; parser and
+  dispatch function bodies are unchanged (`cli-split-structure.json`).
+- **379 tests passed in 32.92 seconds**, including model-dependent tests, using
+  offline Hugging Face settings and `python -m pytest tests -q --tb=short`.
+  Logs: `cli-split-pytest.log` and `cli-split-pytest.xml`.
+- Added corpus command coverage for build promotion, failed builds preserving
+  the active database, probe output, optional indexing after ingestion, function
+  and region metadata, and temporary vector cleanup. External services are
+  substituted; files are written only in test directories.
+- Fresh and cached real CLI scans match the preceding findings exactly, exit 1,
+  and generate JSON/HTML (`cli-split-comparison.json`, `cli-split-{fresh,reused}.*`).
+- Tier 2's fresh full rerun completed all **600 candidates**. Every candidate
+  record, the summary and all other fields match `tier2-before.json` exactly,
+  excluding only `generated_at_utc`. This also verifies the preceding metadata
+  consolidation with a complete detector run. Artifacts: `tier2-cli-split.json`,
+  `tier2-cli-split.log` and `tier2-cli-split-comparison.json`.
+- All six baseline input/corpus/index artifact hashes remain unchanged
+  (`cli-split-artifact-check.json`).
+- The GitHub prerequisite check still raises `ProxyError`, recorded in
+  `cli-split-tier1-prerequisite.json`. The Tier 1 gate remains outstanding.
+
+No verification decomposition or later migration phase was started.

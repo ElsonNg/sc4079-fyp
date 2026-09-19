@@ -29,6 +29,14 @@ for this extension. Comments are reserved for non-obvious fields.
 Reviewed against the repository on 2026-09-19. The package tree below describes
 the target architecture; it is not a complete file-move manifest.
 
+Migration Phase 2 (CLI command extraction) was then authorized. Parser setup and
+dispatch remain in `cli/main.py` (552 to 178 lines); execution now lives in
+`cli/commands/{scan,report,corpus}.py`. All 379 tests pass, nine help outputs match,
+and fresh/cached CLI findings match. The fresh full Tier 2 rerun matches all 600
+candidate records and the summary exactly, excluding the generation timestamp.
+Tier 1 remains blocked by a GitHub proxy error. Phase 3 verification decomposition
+has not started.
+
 User review preference: present recommendations phase by phase for vetting before
 implementing each phase. Prioritize readability, maintainability, clean code and
 straightforward extension. The detailed migration recommendations remain proposals

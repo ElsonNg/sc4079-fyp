@@ -5,6 +5,12 @@ evidence-attributed vulnerable origins from the npm JavaScript/TypeScript ecosys
 
 ## CLI
 
+For engineers extending the tool, `cli/main.py` defines arguments and dispatches
+commands. Execution lives in `cli/commands/scan.py`, `report.py`, and `corpus.py`.
+The scan command calls `pipeline/controller/scanning.py`, which coordinates the
+detector in `pipeline/controller/region_detection.py`. The scan command then writes
+the JSON and HTML reports.
+
 The detector scans `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`
 files with incremental scan state:
 
