@@ -474,9 +474,9 @@ def _source_fields(row: dict, entries: list) -> tuple[str | None, str | None, st
     entry = next(
         (
             item for item in entries
-            if item.ghsa_id == row.get("ghsa_id")
-            and item.file_path == row.get("corpus_file_path")
-            and item.function_name == identity.get("function_name")
+            if item.advisory.ghsa_id == row.get("ghsa_id")
+            and item.origin.file_path == row.get("corpus_file_path")
+            and item.origin.function_name == identity.get("function_name")
         ),
         None,
     )
@@ -485,7 +485,7 @@ def _source_fields(row: dict, entries: list) -> tuple[str | None, str | None, st
     rb = entry.release_boundary or {}
     commit_key = "last_affected_commit" if row.get("kind") == "vulnerable" else "first_fixed_commit"
     source = entry.vulnerable_function if row.get("kind") == "vulnerable" else entry.patched_function
-    return entry.repo, rb.get(commit_key), entry.file_path, entry.function_name, hashlib.sha256(source.encode("utf-8")).hexdigest()
+    return entry.origin.repo, rb.get(commit_key), entry.origin.file_path, entry.origin.function_name, hashlib.sha256(source.encode("utf-8")).hexdigest()
 
 
 def main() -> int:
@@ -565,7 +565,6 @@ def main() -> int:
             retrieval_top_k=10,
             retrieval_threshold=0.0,
             max_verification_candidates=10,
-            same_language_only=True,
             include_local_correspondence_fallback=args.experimental_local_correspondence,
         ),
     )
@@ -640,7 +639,7 @@ def main() -> int:
     # at function granularity and exclude the whole pair when the vulnerable digest
     # is absent but the exact patched digest is present.
     entries_by_boundary = {
-        (entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name): entry
+        (entry.advisory.ghsa_id, entry.origin.fix_commit_sha, entry.origin.file_path, entry.origin.function_name): entry
         for entry in entries
     }
     exclusion_reasons = {

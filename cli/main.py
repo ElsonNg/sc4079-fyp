@@ -426,10 +426,10 @@ def _corpus_probe(args: argparse.Namespace) -> int:
 
 def _corpus_stats(args: argparse.Namespace) -> int:
     entries = load_entries(args.db_path) if args.db_path else load_entries()
-    packages = Counter(entry.package_name for entry in entries)
+    packages = Counter(entry.advisory.package_name for entry in entries)
     confirmed = sum(entry.osv_confirmed for entry in entries)
     high_impact = sum(entry.high_impact for entry in entries)
-    languages = Counter(entry.source_language for entry in entries)
+    languages = Counter(entry.origin.source_language for entry in entries)
     print(f"Corpus entries: {len(entries)}")
     print(f"OSV-confirmed:  {confirmed}")
     print(f"High impact:    {high_impact}")
@@ -509,7 +509,7 @@ def _corpus_index(args: argparse.Namespace) -> int:
         "model_id": args.model,
         "max_seq_length": embedding.DEFAULT_MAX_SEQ_LENGTH,
         "fingerprint": _region_fingerprint(pairs, args.model),
-        "pairs": [pair.model_dump() for pair in pairs],
+        "pairs": [pair.to_record() for pair in pairs],
     }
     (args.region_embeddings_dir / f"{args.model}.meta.json").write_text(json.dumps(region_meta), encoding="utf-8")
     print(

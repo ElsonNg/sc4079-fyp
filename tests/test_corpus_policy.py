@@ -82,7 +82,7 @@ def _entry(boundary):
 
 def test_dedup_preserves_distinct_fix_boundaries():
     first = _entry({"last_affected": "1.0.0", "first_fixed": "1.1.0"})
-    duplicate = first.model_copy(update={"ghsa_id": "GHSA-alias"})
+    duplicate = first.model_copy(update={'advisory': first.advisory.model_copy(update={'ghsa_id': "GHSA-alias"})})
     distinct = first.model_copy(update={"release_boundary": {"last_affected": "2.0.0", "first_fixed": "2.1.0"}})
     entries, removed = deduplicate_entries([first, duplicate, distinct])
     assert len(entries) == 2

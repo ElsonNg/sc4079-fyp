@@ -105,17 +105,17 @@ def corpus_fingerprint(entries: list[CorpusEntry]) -> str:
     for entry in entries:
         values.append(
             {
-                "identity": [entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name],
+                "identity": [entry.advisory.ghsa_id, entry.origin.fix_commit_sha, entry.origin.file_path, entry.origin.function_name],
                 "vulnerable": entry.vulnerable_function,
                 "patched": entry.patched_function,
                 "advisory": {
-                    "title": entry.advisory_title,
-                    "description": entry.advisory_description,
-                    "url": entry.advisory_url,
-                    "references": entry.advisory_references,
-                    "severity": entry.severity,
-                    "affected_versions": entry.affected_versions,
-                    "fixed_versions": entry.fixed_versions,
+                    "title": entry.advisory.advisory_title,
+                    "description": entry.advisory.advisory_description,
+                    "url": entry.advisory.advisory_url,
+                    "references": entry.advisory.advisory_references,
+                    "severity": entry.advisory.severity,
+                    "affected_versions": entry.advisory.affected_versions,
+                    "fixed_versions": entry.advisory.fixed_versions,
                 },
             }
         )
@@ -153,7 +153,9 @@ def _rebind_result(result: RegionDetectionResult, candidate_id: str) -> RegionDe
         ]
         aggregates.append(aggregate.model_copy(update={"top_matches": top_matches}))
     evidence = [
-        item.model_copy(update={"candidate_region_id": rebind_region_id(item.candidate_region_id)})
+        item.model_copy(update={"candidate": item.candidate.model_copy(
+            update={"region_id": rebind_region_id(item.candidate.region_id)}
+        )})
         for item in result.evidence
     ]
     return result.model_copy(update={"candidate_id": candidate_id, "aggregates": aggregates, "evidence": evidence})

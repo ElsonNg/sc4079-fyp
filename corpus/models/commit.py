@@ -25,6 +25,4 @@ class ExtractedFunctionPair(BaseModel):
     source_language: str = "javascript"
     patch_hunk: str = ""
     substantive_changed_lines: int = 0
-    removed_executable_nodes: int = 0
-    added_executable_nodes: int = 0
     is_primary: bool = False

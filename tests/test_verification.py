@@ -300,12 +300,12 @@ def test_verify_shares_one_cache_across_all_matches_and_sides():
     entry_b = _authorize_entry()
     corpus_index = index_corpus_entries([entry_a, entry_b])
     match_a = RetrievalMatch(
-        ghsa_id=entry_a.ghsa_id, repo=entry_a.repo, fix_commit_sha=entry_a.fix_commit_sha,
-        file_path=entry_a.file_path, function_name=entry_a.function_name,
+        ghsa_id=entry_a.advisory.ghsa_id, repo=entry_a.origin.repo, fix_commit_sha=entry_a.origin.fix_commit_sha,
+        file_path=entry_a.origin.file_path, function_name=entry_a.origin.function_name,
     )
     match_b = RetrievalMatch(
-        ghsa_id=entry_b.ghsa_id, repo=entry_b.repo, fix_commit_sha=entry_b.fix_commit_sha,
-        file_path=entry_b.file_path, function_name=entry_b.function_name,
+        ghsa_id=entry_b.advisory.ghsa_id, repo=entry_b.origin.repo, fix_commit_sha=entry_b.origin.fix_commit_sha,
+        file_path=entry_b.origin.file_path, function_name=entry_b.origin.function_name,
     )
 
     calls: list[list[str]] = []

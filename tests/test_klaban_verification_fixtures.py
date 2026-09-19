@@ -19,7 +19,7 @@ def _entry(index: int) -> CorpusEntry:
 def test_generate_klaban_verification_fixtures():
     entries = [_entry(index) for index in range(1, 6)]
     entries.append(
-        _entry(99).model_copy(update={"ghsa_id": "GHSA-NOT-KLABAN"})
+        _entry(99).model_copy(update={'advisory': _entry(99).advisory.model_copy(update={'ghsa_id': "GHSA-NOT-KLABAN"})})
     )
 
     positives, negatives = generate_fixtures(entries, count=2)

@@ -6,11 +6,11 @@ from tests.test_windowed_retrieval import _entry
 def test_recall_evaluator_scores_vulnerable_and_patched_queries():
     entry = _entry("function demo() { danger(); }", "function demo() { safe(); }")
     correct = RetrievalMatch(
-        ghsa_id=entry.ghsa_id,
-        fix_commit_sha=entry.fix_commit_sha,
-        file_path=entry.file_path,
-        function_name=entry.function_name,
-        repo=entry.repo,
+        ghsa_id=entry.advisory.ghsa_id,
+        fix_commit_sha=entry.origin.fix_commit_sha,
+        file_path=entry.origin.file_path,
+        function_name=entry.origin.function_name,
+        repo=entry.origin.repo,
     )
 
     result = evaluate_recall(

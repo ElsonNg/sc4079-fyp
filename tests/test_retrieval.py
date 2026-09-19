@@ -65,7 +65,7 @@ def test_renamed_variant_retrieves_matching_entry():
     index = build_faiss_index(_entries(), model_id=DEFAULT_MODEL_ID)
     matches = query(TRANSFER_RENAMED, index, k=2, threshold=0.5)
     assert matches
-    assert matches[0].ghsa_id == "GHSA-demo-0001"
+    assert matches[0].advisory.ghsa_id == "GHSA-demo-0001"
 
 
 def test_save_and_load_round_trips_to_same_top_match(tmp_path):
@@ -78,7 +78,7 @@ def test_save_and_load_round_trips_to_same_top_match(tmp_path):
 
     original_matches = query(TRANSFER_RENAMED, index, k=2, threshold=0.0)
     loaded_matches = query(TRANSFER_RENAMED, loaded, k=2, threshold=0.0)
-    assert [m.ghsa_id for m in original_matches] == [m.ghsa_id for m in loaded_matches]
+    assert [m.advisory.ghsa_id for m in original_matches] == [m.advisory.ghsa_id for m in loaded_matches]
 
 
 def test_build_or_load_reuses_unchanged_corpus_and_rebuilds_on_change(tmp_path):
@@ -92,7 +92,7 @@ def test_build_or_load_reuses_unchanged_corpus_and_rebuilds_on_change(tmp_path):
     rebuilt = build_or_load_index(changed_entries, model_id=DEFAULT_MODEL_ID, dir_path=tmp_path)
     # Long functions may contribute several diagnostic-anchored windows. The
     # rebuilt index must retain all three corpus identities, not one vector each.
-    assert {entry.ghsa_id for entry in rebuilt.entries} == {
+    assert {entry.advisory.ghsa_id for entry in rebuilt.entries} == {
         "GHSA-demo-0001", "GHSA-demo-0002", "GHSA-demo-0003",
     }
 

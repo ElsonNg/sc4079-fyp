@@ -2,7 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from corpus.models.github import CWE
+from shared.metadata import AdvisoryIdentity, SourceReference
+from shared.records import MetadataRecord
 
 
 class DiagnosticLineScore(BaseModel):
@@ -20,18 +21,14 @@ class DiagnosticLineScore(BaseModel):
     patched_score: float | None = None
 
 
-class VerificationResult(BaseModel):
-    """Stage 7's output for one (candidate, shortlisted corpus entry) pair. Metadata
-    fields mirror RetrievalMatch/HashMatch's own established shape."""
+class VerificationResult(MetadataRecord):
+    """Diagnostic-line verification of a shortlisted corpus entry."""
 
-    ghsa_id: str
-    cve_id: str | None = None
-    cwes: list[CWE] = []
-    severity: str = "unknown"
-    repo: str
-    fix_commit_sha: str
-    file_path: str
-    function_name: str | None = None
+    record_exclusions = {"origin": {"source_language"}}
+
+    advisory: AdvisoryIdentity
+    origin: SourceReference
+
     verification_score: float
     status: Literal["flagged", "cleared", "manual_review"]
     sim_vulnerable: float

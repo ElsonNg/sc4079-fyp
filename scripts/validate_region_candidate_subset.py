@@ -36,7 +36,7 @@ def _corpus_key(record: dict) -> tuple[str, str, str, str | None]:
 
 
 def _pair_key(pair) -> tuple[str, str, str, str | None]:
-    return pair.ghsa_id, pair.fix_commit_sha, pair.file_path, pair.function_name
+    return pair.advisory.ghsa_id, pair.origin.fix_commit_sha, pair.origin.file_path, pair.origin.function_name
 
 
 def main() -> None:

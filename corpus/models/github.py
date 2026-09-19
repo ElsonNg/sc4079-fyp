@@ -1,9 +1,7 @@
 from pydantic import BaseModel
 
 
-class CWE(BaseModel):
-    cwe_id: str
-    name: str
+from shared.metadata import CWE
 
 
 class GitHubVulnerability(BaseModel):

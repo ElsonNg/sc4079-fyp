@@ -4,6 +4,8 @@ import pytest
 
 from corpus.models.corpus import CorpusEntry, DiagnosticLine
 from pipeline.controller.edit_distance import EditDistanceEvidence, score_edit_distance
+from pipeline.controller.hashing import HashIndex, build_hash_index
+from pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig, derive_priority
 from pipeline.controller.region_extraction import (
     candidate_region_is_informative,
     enumerate_candidate_regions,
@@ -12,11 +14,16 @@ from pipeline.controller.region_extraction import (
     source_is_supported,
 )
 from pipeline.controller.region_retrieval import aggregate_region_hits
-from pipeline.controller.hashing import HashIndex, build_hash_index
-from pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig, derive_priority
 from pipeline.controller.region_retrieval import RegionRetrievalIndex
 from pipeline.controller.region_verification import (
     classify_boundary, classify_evidence, deduplicate_evidence, verify_region_pair,
+)
+from pipeline.models.boundary import BoundaryIdentity, VerificationGates
+from pipeline.models.evidence import (
+    CandidateEvidenceReference,
+    PairedEvidenceReference,
+    ReferenceSideEvidence,
+    RegionComparison,
 )
 from pipeline.models.regions import (
     LineageAttribution, RegionAggregate, RegionRetrievalMatch,
@@ -69,7 +76,7 @@ def test_extracts_paired_multiresolution_regions_with_source_coordinates():
     ]
     assert all(pair.vulnerable_region.span.start_line >= 0 for pair in pairs)
     assert all(pair.patched_region.span.end_byte <= len(patched.encode("utf-8")) for pair in pairs)
-    assert all(pair.change_kind == "replacement" for pair in pairs)
+    assert all(pair.change.change_kind == "replacement" for pair in pairs)
     assert all(pair.pair_id in pair.vulnerable_region.region_id for pair in pairs)
 
 
@@ -82,11 +89,7 @@ def test_corpus_region_pairs_deduplicate_shared_code_lineages_and_keep_aliases()
         [DiagnosticLine(kind="replacement", vulnerable_line=0, patched_line=0, text="guard")],
     )
     alias = original.model_copy(
-        update={
-            "ghsa_id": "GHSA-alias",
-            "cve_id": "CVE-ALIAS",
-            "package_name": "test-package-fork",
-        }
+        update={'advisory': original.advisory.model_copy(update={'ghsa_id': "GHSA-alias", 'cve_id': "CVE-ALIAS", 'package_name': "test-package-fork"})}
     )
 
     pairs = extract_corpus_region_pairs([original, alias])
@@ -113,7 +116,7 @@ def test_pure_patch_insertion_still_produces_a_paired_vulnerable_region():
     pairs = extract_vulnerability_regions(entry)
 
     assert pairs
-    assert all(pair.change_kind == "insertion" for pair in pairs)
+    assert all(pair.change.change_kind == "insertion" for pair in pairs)
     assert all(pair.vulnerable_region.source for pair in pairs)
     assert all(pair.patched_region.source for pair in pairs)
 
@@ -222,14 +225,14 @@ def test_region_verification_prefers_vulnerable_shape_over_patched_shape():
 
     evidence = verify_region_pair(candidate, pair, retrieval_similarity=0.9)
 
-    assert evidence.vulnerable_score > evidence.patched_score
-    assert evidence.vulnerable_minus_patched > 0
-    assert evidence.ast_coverage > 0
-    assert evidence.local_alignment_vulnerable is None
-    assert evidence.local_alignment_patched is None
-    assert evidence.fallback_used is False
-    assert evidence.vulnerable_score == pytest.approx(
-        min(evidence.structural_vulnerable, evidence.token_vulnerable)
+    assert evidence.vulnerable.score > evidence.patched.score
+    assert evidence.comparison.margin > 0
+    assert evidence.comparison.ast_coverage > 0
+    assert evidence.vulnerable.local_alignment is None
+    assert evidence.patched.local_alignment is None
+    assert evidence.comparison.alignment_fallback_used is False
+    assert evidence.vulnerable.score == pytest.approx(
+        min(evidence.vulnerable.structural, evidence.vulnerable.token)
     )
 
 
@@ -246,10 +249,10 @@ def test_empty_api_anchor_features_are_unavailable_instead_of_perfect_similarity
 
     evidence = verify_region_pair(candidate, pair, retrieval_similarity=0.9)
 
-    assert evidence.api_anchor_vulnerable is None
-    assert evidence.api_anchor_patched is None
-    assert evidence.vulnerable_score == pytest.approx(
-        min(evidence.structural_vulnerable, evidence.token_vulnerable)
+    assert evidence.vulnerable.api_anchor is None
+    assert evidence.patched.api_anchor is None
+    assert evidence.vulnerable.score == pytest.approx(
+        min(evidence.vulnerable.structural, evidence.vulnerable.token)
     )
 
 
@@ -272,8 +275,8 @@ def test_regex_fix_remains_visible_to_token_and_edit_scores():
         retrieval_similarity=0.9,
     )
 
-    assert patched_evidence.token_patched == 1.0
-    assert patched_evidence.token_vulnerable < patched_evidence.token_patched
+    assert patched_evidence.patched.token == 1.0
+    assert patched_evidence.vulnerable.token < patched_evidence.patched.token
     edit = score_edit_distance(
         patched,
         [
@@ -352,10 +355,10 @@ def test_containment_fallback_recovers_type3_region_with_extra_code():
 
     evidence = verify_region_pair(candidate, pair, retrieval_similarity=0.9)
 
-    assert evidence.structural_vulnerable < 0.70
-    assert evidence.containment_fallback_vulnerable is True
-    assert evidence.containment_coverage_vulnerable == pytest.approx(0.50)
-    assert evidence.vulnerable_score >= 0.70
+    assert evidence.vulnerable.structural < 0.70
+    assert evidence.vulnerable.containment_used is True
+    assert evidence.vulnerable.containment_coverage == pytest.approx(0.50)
+    assert evidence.vulnerable.score >= 0.70
 
 
 def test_renamed_api_anchor_receivers_preserve_operation_similarity():
@@ -380,14 +383,14 @@ def test_renamed_api_anchor_receivers_preserve_operation_similarity():
 
     evidence = verify_region_pair(candidate, pair, retrieval_similarity=0.9)
 
-    assert evidence.structural_vulnerable == 1.0
-    assert evidence.token_vulnerable == 1.0
-    assert evidence.api_anchor_vulnerable == 1.0
-    assert evidence.correspondence_score == pytest.approx(
-        max(evidence.vulnerable_score, evidence.patched_score)
+    assert evidence.vulnerable.structural == 1.0
+    assert evidence.vulnerable.token == 1.0
+    assert evidence.vulnerable.api_anchor == 1.0
+    assert evidence.comparison.correspondence_score == pytest.approx(
+        max(evidence.vulnerable.score, evidence.patched.score)
     )
-    assert evidence.vulnerable_score == pytest.approx(1.0)
-    assert evidence.vulnerable_score >= 0.75
+    assert evidence.vulnerable.score == pytest.approx(1.0)
+    assert evidence.vulnerable.score >= 0.75
 
     different_operation = candidate.model_copy(
         update={
@@ -398,7 +401,7 @@ def test_renamed_api_anchor_receivers_preserve_operation_similarity():
     )
     different_evidence = verify_region_pair(different_operation, pair, retrieval_similarity=0.9)
 
-    assert different_evidence.api_anchor_vulnerable == 0.0
+    assert different_evidence.vulnerable.api_anchor == 0.0
 
     weak_token_candidate = candidate.model_copy(
         update={
@@ -408,28 +411,42 @@ def test_renamed_api_anchor_receivers_preserve_operation_similarity():
     )
     weak_evidence = verify_region_pair(weak_token_candidate, pair, retrieval_similarity=0.9)
 
-    assert weak_evidence.structural_vulnerable == 1.0
-    assert weak_evidence.token_vulnerable < 0.95
-    assert weak_evidence.vulnerable_score == pytest.approx(
-        min(weak_evidence.structural_vulnerable, weak_evidence.token_vulnerable)
+    assert weak_evidence.vulnerable.structural == 1.0
+    assert weak_evidence.vulnerable.token < 0.95
+    assert weak_evidence.vulnerable.score == pytest.approx(
+        min(weak_evidence.vulnerable.structural, weak_evidence.vulnerable.token)
     )
+
+
+def _with_evidence_updates(evidence, **changes):
+    return RegionVerificationEvidence.from_record({**evidence.to_record(), **changes})
 
 
 def _evidence(pair_id: str, vulnerable_score: float, margin: float) -> RegionVerificationEvidence:
     return RegionVerificationEvidence(
         pair_id=pair_id,
-        candidate_region_id=f"candidate:{pair_id}",
-        vulnerable_region_id=f"{pair_id}:vulnerable",
-        patched_region_id=f"{pair_id}:patched",
         retrieval_similarity=0.9,
-        structural_vulnerable=vulnerable_score,
-        structural_patched=vulnerable_score - margin,
-        token_vulnerable=vulnerable_score,
-        token_patched=vulnerable_score - margin,
-        vulnerable_score=vulnerable_score,
-        patched_score=vulnerable_score - margin,
-        vulnerable_minus_patched=margin,
-        ast_coverage=1.0,
+        candidate=CandidateEvidenceReference(
+            region_id=f'candidate:{pair_id}',
+        ),
+        reference=PairedEvidenceReference(
+            vulnerable_region_id=f'{pair_id}:vulnerable',
+            patched_region_id=f'{pair_id}:patched',
+        ),
+        vulnerable=ReferenceSideEvidence(
+            structural=vulnerable_score,
+            token=vulnerable_score,
+            score=vulnerable_score,
+        ),
+        patched=ReferenceSideEvidence(
+            structural=vulnerable_score - margin,
+            token=vulnerable_score - margin,
+            score=vulnerable_score - margin,
+        ),
+        comparison=RegionComparison(
+            margin=margin,
+            ast_coverage=1.0,
+        ),
     )
 
 
@@ -438,9 +455,9 @@ def test_classification_does_not_let_a_low_score_large_margin_hide_passing_evide
     passing = _evidence("pair-pass", vulnerable_score=0.90, margin=0.20)
     corroborating = _evidence("pair-corroborating", vulnerable_score=0.86, margin=0.16)
     aggregates = [
-        RegionAggregate(pair_id="pair-low", best_similarity=0.9, support_count=1),
-        RegionAggregate(pair_id="pair-pass", best_similarity=0.9, support_count=1),
-        RegionAggregate(pair_id="pair-corroborating", best_similarity=0.9, support_count=1),
+        RegionAggregate(pair_id="pair-low", best_similarity=0.9, candidate_region_ids=["candidate-1"]),
+        RegionAggregate(pair_id="pair-pass", best_similarity=0.9, candidate_region_ids=["candidate-1"]),
+        RegionAggregate(pair_id="pair-corroborating", best_similarity=0.9, candidate_region_ids=["candidate-1"]),
     ]
 
     status, _ = classify_evidence([low_score, passing, corroborating], aggregates)
@@ -458,9 +475,7 @@ def test_both_signatures_are_neutral_when_side_scores_favor_vulnerable():
         pair for pair in extract_vulnerability_regions(entry)
         if pair.vulnerable_region.granularity == "function"
     )
-    evidence = _evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15).model_copy(
-        update={"fix_signature_coverage": 0.9, "vulnerable_signature_coverage": 0.9}
-    )
+    evidence = _with_evidence_updates(_evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15), **{"fix_signature_coverage": 0.9, "vulnerable_signature_coverage": 0.9})
 
     state = classify_boundary(
         [evidence],
@@ -469,11 +484,11 @@ def test_both_signatures_are_neutral_when_side_scores_favor_vulnerable():
     )
 
     assert state.status == "vulnerable"
-    assert state.signature_evidence_state == "both"
-    assert state.independent_region_count == 1
-    assert state.vulnerable_support_count == 1
-    assert state.patched_support_count == 0
-    assert state.side_consensus_ratio == 1.0
+    assert state.support.signature_evidence_state == "both"
+    assert state.support.independent_region_count == 1
+    assert state.support.vulnerable_support_count == 1
+    assert state.support.patched_support_count == 0
+    assert state.support.side_consensus_ratio == 1.0
 
 
 def test_staged_boundary_requires_structure_and_tokens_on_the_same_side():
@@ -486,14 +501,12 @@ def test_staged_boundary_requires_structure_and_tokens_on_the_same_side():
         pair for pair in extract_vulnerability_regions(entry)
         if pair.vulnerable_region.granularity == "function"
     )
-    evidence = _evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15).model_copy(
-        update={
+    evidence = _with_evidence_updates(_evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15), **{
             "structural_vulnerable": 0.80,
             "token_vulnerable": 0.69,
             "structural_patched": 0.69,
             "token_patched": 0.80,
-        }
-    )
+        })
 
     state = classify_boundary(
         [evidence],
@@ -501,8 +514,8 @@ def test_staged_boundary_requires_structure_and_tokens_on_the_same_side():
         edit=EditDistanceEvidence(vulnerable=1.0, patched=0.60),
     )
 
-    assert state.structure_gate_passed is True
-    assert state.token_gate_passed is False
+    assert state.gates.structure_gate_passed is True
+    assert state.gates.token_gate_passed is False
     assert state.status == "uncertain"
 
 
@@ -531,14 +544,12 @@ def test_uncertain_boundary_records_one_terminal_reason(
         pair for pair in extract_vulnerability_regions(entry)
         if pair.vulnerable_region.granularity == "changed"
     )
-    evidence = _evidence(pair.pair_id, vulnerable_score=structural, margin=0.0).model_copy(
-        update={
+    evidence = _with_evidence_updates(_evidence(pair.pair_id, vulnerable_score=structural, margin=0.0), **{
             "structural_vulnerable": structural,
             "structural_patched": structural,
             "token_vulnerable": token,
             "token_patched": token,
-        }
-    )
+        })
 
     state = classify_boundary([evidence], pair, edit=edit)
 
@@ -564,16 +575,15 @@ def test_staged_boundary_uses_edit_distance_only_after_correspondence():
         edit=EditDistanceEvidence(vulnerable=1.0, patched=0.60),
     )
 
-    assert state.structure_gate_passed is True
-    assert state.token_gate_passed is True
+    assert state.gates.structure_gate_passed is True
+    assert state.gates.token_gate_passed is True
     assert state.status == "vulnerable"
-    assert state.vulnerable_score == 1.0
-    assert state.contrast_score == pytest.approx(0.40)
+    assert state.scores.vulnerable_score == 1.0
+    assert state.scores.contrast_score == pytest.approx(0.40)
 
 
 def test_overlapping_alignment_keeps_strongest_coherent_correspondence():
-    exact = _evidence("boundary:changed", vulnerable_score=1.0, margin=0.23).model_copy(
-        update={
+    exact = _with_evidence_updates(_evidence("boundary:changed", vulnerable_score=1.0, margin=0.23), **{
             "candidate_region_id": "same-candidate-span",
             "candidate_granularity": "changed",
             "reference_granularity": "changed",
@@ -581,18 +591,15 @@ def test_overlapping_alignment_keeps_strongest_coherent_correspondence():
             "token_vulnerable": 1.0,
             "structural_patched": 0.875,
             "token_patched": 0.769,
-        }
-    )
-    decisive_mismatch = exact.model_copy(
-        update={
+        })
+    decisive_mismatch = _with_evidence_updates(exact, **{
             "pair_id": "boundary:context",
             "reference_granularity": "context",
             "token_vulnerable": 0.526,
             "vulnerable_score": 0.526,
             "patched_score": 0.769,
             "vulnerable_minus_patched": -0.243,
-        }
-    )
+        })
 
     selected = deduplicate_evidence(
         [decisive_mismatch, exact],
@@ -612,8 +619,7 @@ def test_boundary_gate_uses_structure_and_tokens_from_one_best_row():
         pair for pair in extract_vulnerability_regions(entry)
         if pair.vulnerable_region.granularity == "changed"
     )
-    exact = _evidence(pair.pair_id, vulnerable_score=1.0, margin=0.23).model_copy(
-        update={
+    exact = _with_evidence_updates(_evidence(pair.pair_id, vulnerable_score=1.0, margin=0.23), **{
             "candidate_region_id": "same-candidate-span",
             "candidate_granularity": "changed",
             "reference_granularity": "changed",
@@ -621,18 +627,15 @@ def test_boundary_gate_uses_structure_and_tokens_from_one_best_row():
             "token_vulnerable": 1.0,
             "structural_patched": 0.875,
             "token_patched": 0.769,
-        }
-    )
-    mismatch = exact.model_copy(
-        update={
+        })
+    mismatch = _with_evidence_updates(exact, **{
             "pair_id": f"{pair.fix_boundary_id}:context",
             "reference_granularity": "context",
             "token_vulnerable": 0.526,
             "vulnerable_score": 0.526,
             "patched_score": 0.769,
             "vulnerable_minus_patched": -0.243,
-        }
-    )
+        })
 
     state = classify_boundary(
         [mismatch, exact],
@@ -645,8 +648,8 @@ def test_boundary_gate_uses_structure_and_tokens_from_one_best_row():
     )
 
     assert state.status == "vulnerable"
-    assert state.structural_vulnerable == 1.0
-    assert state.token_vulnerable == 1.0
+    assert state.scores.structural_vulnerable == 1.0
+    assert state.scores.token_vulnerable == 1.0
 
 
 def test_decisive_raw_edit_result_is_not_overturned_by_contrastive_fallback():
@@ -680,9 +683,9 @@ def test_decisive_raw_edit_result_is_not_overturned_by_contrastive_fallback():
     )
 
     assert state.status == "vulnerable"
-    assert state.edit_vulnerable == 1.0
-    assert state.edit_patched == 0.70
-    assert state.edit_contrastive_used is False
+    assert state.edit.vulnerable == 1.0
+    assert state.edit.patched == 0.70
+    assert state.edit.contrastive_used is False
 
 
 def test_verified_vulnerable_boundary_overrides_low_lineage_confidence():
@@ -691,11 +694,15 @@ def test_verified_vulnerable_boundary_overrides_low_lineage_confidence():
         repo="test/repo", file_path="test.js",
     )]
     states = [VulnerabilityState(
-        lineage_id="lineage-a",
-        fix_boundary_id="boundary-a",
-        fix_commit_sha="deadbeef",
-        status="vulnerable",
-        token_gate_passed=True,
+        status='vulnerable',
+        boundary=BoundaryIdentity(
+            lineage_id='lineage-a',
+            fix_boundary_id='boundary-a',
+            fix_commit_sha='deadbeef',
+        ),
+        gates=VerificationGates(
+            token_gate_passed=True,
+        ),
     )]
 
     assert derive_priority(lineages, states, []) == "automatic_vulnerability"
@@ -713,23 +720,31 @@ def test_patched_boundary_overrides_only_weak_unrelated_uncertainty():
         ),
     ]
     patched = VulnerabilityState(
-        lineage_id="patched-lineage",
-        fix_boundary_id="patched-boundary",
-        fix_commit_sha="patched",
-        status="patched",
-        token_gate_passed=True,
+        status='patched',
+        boundary=BoundaryIdentity(
+            lineage_id='patched-lineage',
+            fix_boundary_id='patched-boundary',
+            fix_commit_sha='patched',
+        ),
+        gates=VerificationGates(
+            token_gate_passed=True,
+        ),
     )
     weak = VulnerabilityState(
-        lineage_id="noise-lineage",
-        fix_boundary_id="noise-boundary",
-        fix_commit_sha="noise",
-        status="uncertain",
-        token_gate_passed=False,
+        status='uncertain',
+        boundary=BoundaryIdentity(
+            lineage_id='noise-lineage',
+            fix_boundary_id='noise-boundary',
+            fix_commit_sha='noise',
+        ),
+        gates=VerificationGates(
+            token_gate_passed=False,
+        ),
     )
 
     assert derive_priority(lineages, [patched, weak], []) == "informational_lineage"
 
-    strong = weak.model_copy(update={"token_gate_passed": True})
+    strong = weak.model_copy(update={"gates": weak.gates.model_copy(update={"token_gate_passed": True})})
     assert derive_priority(lineages, [patched, strong], []) == "manual_review"
 
 
@@ -743,12 +758,10 @@ def test_boundary_identity_gate_abstains_on_generic_changed_only_function_confli
         pair for pair in extract_vulnerability_regions(entry)
         if pair.vulnerable_region.granularity == "changed"
     )
-    evidence = _evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15).model_copy(
-        update={
+    evidence = _with_evidence_updates(_evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15), **{
             "candidate_granularity": "changed",
             "candidate_function_name": "unrelatedFunction",
-        }
-    )
+        })
 
     state = classify_boundary(
         [evidence],
@@ -762,11 +775,11 @@ def test_boundary_identity_gate_abstains_on_generic_changed_only_function_confli
     )
 
     assert state.status == "uncertain"
-    assert state.function_identity_state == "conflict"
-    assert state.context_correspondence_passed is False
-    assert state.edit_anchor_has_identity is False
-    assert state.boundary_identity_gate_passed is False
-    assert state.boundary_rejected is True
+    assert state.gates.function_identity_state == "conflict"
+    assert state.gates.context_correspondence_passed is False
+    assert state.gates.edit_anchor_has_identity is False
+    assert state.gates.boundary_identity_gate_passed is False
+    assert state.gates.boundary_rejected is True
     assert state.abstention_reason == "IDENTITY_REJECTED"
 
 
@@ -776,20 +789,27 @@ def test_rejected_identity_mismatch_does_not_override_verified_patch():
         repo="test/repo", file_path="test.js",
     )]
     patched = VulnerabilityState(
-        lineage_id="lineage-a",
-        fix_boundary_id="patched",
-        fix_commit_sha="patched",
-        status="patched",
-        token_gate_passed=True,
+        status='patched',
+        boundary=BoundaryIdentity(
+            lineage_id='lineage-a',
+            fix_boundary_id='patched',
+            fix_commit_sha='patched',
+        ),
+        gates=VerificationGates(
+            token_gate_passed=True,
+        ),
     )
     rejected = VulnerabilityState(
-        lineage_id="lineage-a",
-        fix_boundary_id="unrelated",
-        fix_commit_sha="unrelated",
-        status="uncertain",
-        token_gate_passed=True,
-        boundary_identity_gate_passed=False,
-        boundary_rejected=True,
+        status='uncertain',
+        boundary=BoundaryIdentity(
+            lineage_id='lineage-a',
+            fix_boundary_id='unrelated',
+            fix_commit_sha='unrelated',
+        ),
+        gates=VerificationGates(
+            token_gate_passed=True,
+            boundary_identity_gate_passed=False,
+        ),
     )
 
     assert derive_priority(lineages, [patched, rejected], []) == "informational_lineage"
@@ -805,12 +825,10 @@ def test_boundary_identity_gate_keeps_named_edit_anchor_despite_function_rename(
         pair for pair in extract_vulnerability_regions(entry)
         if pair.vulnerable_region.granularity == "changed"
     )
-    evidence = _evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15).model_copy(
-        update={
+    evidence = _with_evidence_updates(_evidence(pair.pair_id, vulnerable_score=0.95, margin=0.15), **{
             "candidate_granularity": "changed",
             "candidate_function_name": "renamedFunction",
-        }
-    )
+        })
 
     state = classify_boundary(
         [evidence],
@@ -824,13 +842,13 @@ def test_boundary_identity_gate_keeps_named_edit_anchor_despite_function_rename(
     )
 
     assert state.status == "vulnerable"
-    assert state.function_identity_state == "conflict"
-    assert state.boundary_identity_gate_passed is True
+    assert state.gates.function_identity_state == "conflict"
+    assert state.gates.boundary_identity_gate_passed is True
 
 
 def test_classification_does_not_flag_from_one_supporting_region():
     passing = _evidence("pair-pass", vulnerable_score=0.90, margin=0.20)
-    aggregates = [RegionAggregate(pair_id="pair-pass", best_similarity=0.9, support_count=4)]
+    aggregates = [RegionAggregate(pair_id="pair-pass", best_similarity=0.9, candidate_region_ids=["candidate-1", "candidate-2", "candidate-3", "candidate-4"])]
 
     status, _ = classify_evidence([passing], aggregates)
 
@@ -842,7 +860,7 @@ def test_classification_downgrades_when_patched_contradiction_is_as_strong():
     second = _evidence("pair-second", vulnerable_score=0.86, margin=0.16)
     contradiction = _evidence("pair-patched", vulnerable_score=0.55, margin=-0.25)
     aggregates = [
-        RegionAggregate(pair_id=item.pair_id, best_similarity=0.9, support_count=1)
+        RegionAggregate(pair_id=item.pair_id, best_similarity=0.9, candidate_region_ids=["candidate-1"])
         for item in (first, second, contradiction)
     ]
 
@@ -914,7 +932,52 @@ def test_region_detector_uses_region_path_when_hash_path_is_empty(monkeypatch):
     assert result.retrieval_match_count > 0
     assert result.evidence
     assert len(result.lineages) == 1
-    assert result.lineages[0].associated_advisories[0].ghsa_id == entry.ghsa_id
+    assert result.lineages[0].associated_advisories[0].ghsa_id == entry.advisory.ghsa_id
+
+
+@pytest.mark.parametrize("enabled,local_status", [(False, "patched"), (True, "patched"), (True, "uncertain")])
+def test_grouped_fallback_evidence_preserves_opt_in_and_saved_verdict(monkeypatch, enabled, local_status):
+    from pipeline.models.region import CandidateRegion
+
+    vulnerable = "function checkValue(value) { if (value) { return value; } return null; }"
+    patched = "function checkValue(value) { if (value && typeof value === 'string') { return value; } return null; }"
+    entry = _entry(vulnerable, patched, [])
+    pair = next(pair for pair in extract_vulnerability_regions(entry)
+                if pair.vulnerable_region.granularity == "function")
+    candidate = CandidateRegion(region=pair.vulnerable_region, function_name="checkValue")
+    match = RegionRetrievalMatch(
+        pair_id=pair.pair_id, similarity=1.0, rank=1,
+        candidate_region_id=candidate.region.region_id,
+        candidate_granularity="function", corpus_granularity="function",
+        ghsa_id=entry.advisory.ghsa_id, fix_commit_sha=entry.origin.fix_commit_sha, file_path=entry.origin.file_path,
+    )
+    calls = []
+
+    def local_check(*args, **kwargs):
+        calls.append(True)
+        return {"status": local_status, "decisive": {"fixture_method": True}, "reason": "fixture reason"}
+
+    monkeypatch.setattr("pipeline.controller.region_detection.decide_local_correspondence", local_check)
+    monkeypatch.setattr("pipeline.controller.region_detection.score_edit_distance",
+                        lambda *args: EditDistanceEvidence(vulnerable=0.95, patched=0.93))
+    detector = RegionDetector(
+        [entry], RegionRetrievalIndex(model_id="fake", index=None, pairs=[pair]), HashIndex(),
+        RegionDetectorConfig(include_local_correspondence_fallback=enabled),
+    )
+    result = detector.detect(vulnerable, _candidate_regions=[candidate], _matches=[match])
+    state = result.vulnerability_states[0]
+    record = result.model_dump(mode="json")["vulnerability_states"][0]
+    resolved = enabled and local_status == "patched"
+
+    assert bool(calls) is enabled
+    assert state.fallbacks.local_correspondence_attempted is enabled
+    assert state.fallbacks.local_correspondence_used is resolved
+    assert state.status == ("patched" if resolved else "uncertain")
+    assert record["local_correspondence_used"] is resolved
+    assert record["local_correspondence_prior_abstention_reason"] == ("E_MARGIN_AMBIGUOUS" if enabled else None)
+    assert record["fix_evidence"] == state.support.fix_evidence
+    if resolved:
+        assert any("Experimental local correspondence" in note for note in state.support.fix_evidence)
 
 
 def test_same_language_scope_excludes_cross_language_region_matches(monkeypatch):
@@ -932,11 +995,7 @@ def test_same_language_scope_excludes_cross_language_region_matches(monkeypatch)
 }"""
     diagnostics = [DiagnosticLine(kind="replacement", vulnerable_line=1, patched_line=1, text="guard")]
     javascript_entry = _entry(vulnerable, patched, diagnostics)
-    typescript_entry = javascript_entry.model_copy(update={
-        "ghsa_id": "GHSA-test-typescript",
-        "source_language": "typescript",
-        "file_path": "lib/test.ts",
-    })
+    typescript_entry = javascript_entry.model_copy(update={'advisory': javascript_entry.advisory.model_copy(update={'ghsa_id': "GHSA-test-typescript"}), 'origin': javascript_entry.origin.model_copy(update={'source_language': "typescript", 'file_path': "lib/test.ts"})})
     pairs = extract_vulnerability_regions(javascript_entry) + extract_vulnerability_regions(typescript_entry)
 
     def fake_encode(_model_id, texts, batch_size=32):
@@ -954,7 +1013,6 @@ def test_same_language_scope_excludes_cross_language_region_matches(monkeypatch)
             model_id="fake",
             retrieval_top_k=8,
             max_candidate_regions=24,
-            same_language_only=True,
         ),
     )
 
@@ -966,7 +1024,7 @@ def test_same_language_scope_excludes_cross_language_region_matches(monkeypatch)
 
     matches = [match for aggregate in result.aggregates for match in aggregate.top_matches]
     assert matches
-    assert all(match.source_language == "typescript" for match in matches)
+    assert all(match.origin.source_language == "typescript" for match in matches)
 
 
 def test_hash_verdicts_are_scoped_and_exact_patch_beats_same_identity_region_path():

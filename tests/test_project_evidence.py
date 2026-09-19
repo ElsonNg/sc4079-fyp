@@ -1,6 +1,7 @@
 import json
 
 from pipeline.controller.project_evidence import build_project_evidence
+from pipeline.models.boundary import BoundaryIdentity, BoundarySupport
 from pipeline.models.provenance import AdvisoryAlias
 from pipeline.models.regions import (
     LineageAttribution, PackageApplicability, RegionDetectionResult, VulnerabilityState,
@@ -8,7 +9,11 @@ from pipeline.models.regions import (
 
 
 def _result(package="axios"):
-    alias = AdvisoryAlias(ghsa_id="GHSA-test", package_name=package, ecosystem="npm")
+    alias = AdvisoryAlias(
+        ghsa_id='GHSA-test',
+        package_name=package,
+        ecosystem='npm',
+    )
     return RegionDetectionResult(
         priority="manual_review", candidate_region_count=0, retrieval_match_count=0,
         lineages=[LineageAttribution(
@@ -16,8 +21,16 @@ def _result(package="axios"):
             file_path="lib/code.js", reference_function="run", associated_advisories=[alias],
         )],
         vulnerability_states=[VulnerabilityState(
-            lineage_id="lineage", fix_boundary_id="boundary", fix_commit_sha="fix",
-            status="vulnerable", fix_evidence=["added fix signature absent"], advisories=[alias],
+            status='vulnerable',
+            advisories=[alias],
+            boundary=BoundaryIdentity(
+                lineage_id='lineage',
+                fix_boundary_id='boundary',
+                fix_commit_sha='fix',
+            ),
+            support=BoundarySupport(
+                fix_evidence=['added fix signature absent'],
+            ),
         )],
         package_applicabilities=[PackageApplicability(
             lineage_id="lineage", package=package, ecosystem="npm",

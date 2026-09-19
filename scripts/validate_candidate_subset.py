@@ -38,7 +38,7 @@ def _key_from_record(record: dict) -> tuple[str, str, str, str | None]:
 
 
 def _key_from_match(match) -> tuple[str, str, str, str | None]:
-    return (match.ghsa_id, match.fix_commit_sha, match.file_path, match.function_name)
+    return (match.advisory.ghsa_id, match.origin.fix_commit_sha, match.origin.file_path, match.origin.function_name)
 
 
 def _load_records(path: Path) -> list[dict]:
@@ -85,11 +85,11 @@ def _run_one(
             "rank": rank,
             "similarity": match.similarity,
             "identity": {
-                "ghsa_id": match.ghsa_id,
-                "cve_id": match.cve_id,
-                "fix_commit_sha": match.fix_commit_sha,
-                "file_path": match.file_path,
-                "function_name": match.function_name,
+                "ghsa_id": match.advisory.ghsa_id,
+                "cve_id": match.advisory.cve_id,
+                "fix_commit_sha": match.origin.fix_commit_sha,
+                "file_path": match.origin.file_path,
+                "function_name": match.origin.function_name,
             },
         }
         for rank, match in enumerate(all_matches[:10], start=1)
@@ -139,7 +139,7 @@ def main() -> None:
     records = _load_records(args.input)
     entries = load_entries()
     entry_by_key = {
-        (e.ghsa_id, e.fix_commit_sha, e.file_path, e.function_name): e
+        (e.advisory.ghsa_id, e.origin.fix_commit_sha, e.origin.file_path, e.origin.function_name): e
         for e in entries
     }
     missing = [_key_from_record(record) for record in records if _key_from_record(record) not in entry_by_key]

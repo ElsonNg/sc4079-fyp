@@ -542,7 +542,7 @@ for _ghsa in BUILDPATH_ADVISORIES:
 
 def _select_entries():
     entries = load_entries()
-    by_ghsa = {e.ghsa_id: e for e in entries if e.ghsa_id in SELECTED_GHSA_IDS}
+    by_ghsa = {e.advisory.ghsa_id: e for e in entries if e.advisory.ghsa_id in SELECTED_GHSA_IDS}
     missing = SELECTED_GHSA_IDS - set(by_ghsa)
     if missing:
         raise RuntimeError(f"Selected advisories missing from corpus: {missing}")
@@ -559,7 +559,7 @@ def _stage1(candidate_source, hash_index):
 def _stage2(candidate_source, retrieval_index, correct_key):
     matches = query(candidate_source, retrieval_index, k=10, threshold=0.0)
     for rank, m in enumerate(matches, start=1):
-        key = (m.ghsa_id, m.fix_commit_sha, m.file_path, m.function_name)
+        key = (m.advisory.ghsa_id, m.origin.fix_commit_sha, m.origin.file_path, m.origin.function_name)
         if key == correct_key:
             below_default_threshold = m.similarity < 0.7
             return rank, m.similarity, below_default_threshold
@@ -567,7 +567,7 @@ def _stage2(candidate_source, retrieval_index, correct_key):
 
 
 def _run_one(label, candidate_source, entry, hash_index, retrieval_index, corpus_index, cache, expected_status):
-    correct_key = (entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name)
+    correct_key = (entry.advisory.ghsa_id, entry.origin.fix_commit_sha, entry.origin.file_path, entry.origin.function_name)
 
     hash_result = _stage1(candidate_source, hash_index)
 
@@ -580,7 +580,7 @@ def _run_one(label, candidate_source, entry, hash_index, retrieval_index, corpus
     if matches_at_default_threshold:
         e2e_results = verify(candidate_source, matches_at_default_threshold, corpus_index)
         for m, r in zip(matches_at_default_threshold, e2e_results):
-            key = (m.ghsa_id, m.fix_commit_sha, m.file_path, m.function_name)
+            key = (m.advisory.ghsa_id, m.origin.fix_commit_sha, m.origin.file_path, m.origin.function_name)
             if key == correct_key:
                 e2e_result = r
                 break
@@ -615,12 +615,12 @@ def main(mode: str) -> None:
 
     results = []
     for entry in selected:
-        print(f"\n{entry.ghsa_id} / {entry.function_name or '<anon>'}")
+        print(f"\n{entry.advisory.ghsa_id} / {entry.origin.function_name or '<anon>'}")
         if mode == "validate":
             vuln_candidate = entry.vulnerable_function
             patched_candidate = entry.patched_function
         else:
-            vuln_candidate, patched_candidate = CLONE_PAIRS[entry.ghsa_id]
+            vuln_candidate, patched_candidate = CLONE_PAIRS[entry.advisory.ghsa_id]
 
         results.append(_run_one("vuln-clone", vuln_candidate, entry, hash_index, retrieval_index, corpus_index, cache, "flagged"))
         results.append(_run_one("patch-clone", patched_candidate, entry, hash_index, retrieval_index, corpus_index, cache, "cleared"))

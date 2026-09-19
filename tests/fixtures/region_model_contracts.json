@@ -1,0 +1,942 @@
+{
+  "config_fingerprint": "95506124ba2070a9a037a791792a13a242ce2b56f9cf1f7a17d1c96f4fd66059",
+  "detector_defaults": {
+    "include_local_correspondence_fallback": false,
+    "max_candidate_chars": null,
+    "max_candidate_regions": 96,
+    "max_edit_candidate_chars": null,
+    "max_verification_candidates": 5,
+    "max_verification_regions_per_pair": 3,
+    "model_id": "qwen3-embedding-0.6b",
+    "retrieval_threshold": 0.0,
+    "retrieval_top_k": 10,
+    "same_language_only": true,
+    "use_embedding_alignment_fallback": false,
+    "verifier": {
+      "contradiction_margin": 0.08,
+      "include_containment_fallback": true,
+      "include_local_alignment": false,
+      "local_alignment_trigger": 0.72,
+      "max_containment_cells": null,
+      "minimum_consensus_ratio": 0.6,
+      "minimum_containment_coverage": 0.5,
+      "minimum_edit_margin": 0.1,
+      "minimum_edit_side_score": 0.9,
+      "minimum_structure_score": 0.7,
+      "minimum_supporting_regions": 2,
+      "minimum_token_score": 0.7,
+      "signature_threshold": 0.65
+    }
+  },
+  "origin": "b4925e7c8bff88834d98f3e3da0e4617643192ab, before Phase 1",
+  "payloads": {
+    "empty": {
+      "model": "RegionDetectionResult",
+      "payload": {
+        "aggregates": [],
+        "candidate_id": null,
+        "candidate_region_count": 0,
+        "evidence": [],
+        "hash_match_types": [],
+        "hash_matches": [],
+        "lineages": [],
+        "message": null,
+        "package_applicabilities": [],
+        "parser_supported": true,
+        "priority": "none",
+        "retrieval_match_count": 0,
+        "vulnerability_states": []
+      }
+    },
+    "hash_match": {
+      "model": "HashMatch",
+      "payload": {
+        "advisories": [],
+        "advisory_description": "",
+        "advisory_references": [
+          "https://example.com/advisory"
+        ],
+        "advisory_title": "Fixture advisory",
+        "advisory_url": "",
+        "affected_versions": [
+          "<1.1.0"
+        ],
+        "cve_id": "CVE-2025-12345",
+        "cwes": [],
+        "ecosystem": "npm",
+        "file_path": "index.js",
+        "fix_boundary_id": null,
+        "fix_commit_sha": "abc",
+        "fixed_versions": [
+          "1.1.0"
+        ],
+        "function_name": null,
+        "ghsa_id": "GHSA-baseline",
+        "lineage_id": null,
+        "match_type": "exact",
+        "osv_id": "GHSA-baseline",
+        "package_name": "fixture",
+        "repo": "fixture/repo",
+        "severity": "unknown",
+        "side": "vulnerable",
+        "source_language": "javascript"
+      }
+    },
+    "lineage_only": {
+      "model": "RegionDetectionResult",
+      "payload": {
+        "aggregates": [],
+        "candidate_id": null,
+        "candidate_region_count": 0,
+        "evidence": [],
+        "hash_match_types": [],
+        "hash_matches": [],
+        "lineages": [
+          {
+            "associated_advisories": [
+              {
+                "advisory_description": "",
+                "advisory_references": [],
+                "advisory_title": "",
+                "advisory_url": "",
+                "affected_versions": [],
+                "cve_id": null,
+                "cwes": [],
+                "ecosystem": null,
+                "fixed_versions": [],
+                "ghsa_id": "GHSA-baseline",
+                "osv_id": null,
+                "package_name": "fixture",
+                "severity": "unknown"
+              }
+            ],
+            "confidence": "high",
+            "evidence_pair_ids": [],
+            "file_path": "index.js",
+            "lineage_id": "lineage",
+            "reference_function": null,
+            "repo": "fixture/repo",
+            "score": 0.95
+          }
+        ],
+        "message": null,
+        "package_applicabilities": [],
+        "parser_supported": true,
+        "priority": "none",
+        "retrieval_match_count": 0,
+        "vulnerability_states": []
+      }
+    },
+    "patched": {
+      "model": "RegionDetectionResult",
+      "payload": {
+        "aggregates": [
+          {
+            "best_similarity": 0.95,
+            "candidate_region_ids": [],
+            "fix_boundary_id": null,
+            "granularities": [],
+            "lineage_id": null,
+            "pair_id": "pair",
+            "support_count": 1,
+            "top_matches": [
+              {
+                "advisories": [
+                  {
+                    "advisory_description": "",
+                    "advisory_references": [],
+                    "advisory_title": "",
+                    "advisory_url": "",
+                    "affected_versions": [],
+                    "cve_id": null,
+                    "cwes": [],
+                    "ecosystem": null,
+                    "fixed_versions": [],
+                    "ghsa_id": "GHSA-baseline",
+                    "osv_id": null,
+                    "package_name": "fixture",
+                    "severity": "unknown"
+                  }
+                ],
+                "advisory_description": "",
+                "advisory_references": [],
+                "advisory_title": "",
+                "advisory_url": "",
+                "affected_versions": [],
+                "candidate_granularity": "function",
+                "candidate_region_id": "region",
+                "corpus_granularity": "function",
+                "cve_id": null,
+                "cwes": [],
+                "ecosystem": null,
+                "file_path": "index.js",
+                "fix_boundary_id": "",
+                "fix_commit_sha": "abc",
+                "fixed_versions": [],
+                "function_name": null,
+                "ghsa_id": "GHSA-baseline",
+                "lineage_id": null,
+                "osv_id": null,
+                "package_name": null,
+                "pair_id": "pair",
+                "rank": 1,
+                "reference_side": "vulnerable",
+                "severity": "unknown",
+                "similarity": 0.95,
+                "source_language": "javascript"
+              }
+            ]
+          }
+        ],
+        "candidate_id": "index.js::0:20",
+        "candidate_region_count": 1,
+        "evidence": [
+          {
+            "api_anchor_patched": null,
+            "api_anchor_vulnerable": null,
+            "ast_coverage": 1.0,
+            "candidate_function_name": null,
+            "candidate_granularity": "function",
+            "candidate_region_id": "region",
+            "candidate_span": {
+              "end_byte": 20,
+              "end_line": 1,
+              "start_byte": 0,
+              "start_line": 1
+            },
+            "containment_coverage_patched": null,
+            "containment_coverage_vulnerable": null,
+            "containment_fallback_attempted_patched": false,
+            "containment_fallback_attempted_vulnerable": false,
+            "containment_fallback_patched": false,
+            "containment_fallback_vulnerable": false,
+            "containment_structural_patched": null,
+            "containment_structural_vulnerable": null,
+            "containment_token_patched": null,
+            "containment_token_vulnerable": null,
+            "correspondence_score": null,
+            "fallback_used": false,
+            "fix_signature_coverage": 0.0,
+            "lineage_confidence": "none",
+            "local_alignment_patched": null,
+            "local_alignment_vulnerable": null,
+            "pair_id": "pair",
+            "patched_region_id": "new",
+            "patched_score": 0.8,
+            "reference_granularity": null,
+            "retrieval_similarity": 0.95,
+            "structural_patched": 0.8,
+            "structural_vulnerable": 1.0,
+            "token_patched": 0.8,
+            "token_vulnerable": 1.0,
+            "vulnerable_minus_patched": 0.2,
+            "vulnerable_region_id": "old",
+            "vulnerable_score": 1.0,
+            "vulnerable_signature_coverage": 0.0
+          }
+        ],
+        "hash_match_types": [],
+        "hash_matches": [],
+        "lineages": [
+          {
+            "associated_advisories": [
+              {
+                "advisory_description": "",
+                "advisory_references": [],
+                "advisory_title": "",
+                "advisory_url": "",
+                "affected_versions": [],
+                "cve_id": null,
+                "cwes": [],
+                "ecosystem": null,
+                "fixed_versions": [],
+                "ghsa_id": "GHSA-baseline",
+                "osv_id": null,
+                "package_name": "fixture",
+                "severity": "unknown"
+              }
+            ],
+            "confidence": "high",
+            "evidence_pair_ids": [],
+            "file_path": "index.js",
+            "lineage_id": "lineage",
+            "reference_function": null,
+            "repo": "fixture/repo",
+            "score": 0.95
+          }
+        ],
+        "message": null,
+        "package_applicabilities": [
+          {
+            "ecosystem": "npm",
+            "evidence": [
+              {
+                "detail": null,
+                "kind": "manifest",
+                "package": null,
+                "source": "package.json",
+                "version": "1.0"
+              }
+            ],
+            "lineage_id": "lineage",
+            "package": "fixture",
+            "status": "confirmed"
+          }
+        ],
+        "parser_supported": true,
+        "priority": "informational_lineage",
+        "retrieval_match_count": 1,
+        "vulnerability_states": [
+          {
+            "abstention_reason": null,
+            "advisories": [
+              {
+                "advisory_description": "",
+                "advisory_references": [],
+                "advisory_title": "",
+                "advisory_url": "",
+                "affected_versions": [],
+                "cve_id": null,
+                "cwes": [],
+                "ecosystem": null,
+                "fixed_versions": [],
+                "ghsa_id": "GHSA-baseline",
+                "osv_id": null,
+                "package_name": "fixture",
+                "severity": "unknown"
+              }
+            ],
+            "boundary_identity_gate_passed": true,
+            "boundary_rejected": false,
+            "containment_fallback_attempted": false,
+            "containment_fallback_used": false,
+            "context_correspondence_passed": false,
+            "contradictions": [],
+            "contrast_score": null,
+            "correspondence_score": null,
+            "edit_anchor_has_identity": null,
+            "edit_contrastive_patched": null,
+            "edit_contrastive_used": false,
+            "edit_contrastive_vulnerable": null,
+            "edit_margin": null,
+            "edit_patched": null,
+            "edit_patched_anchor_has_identity": null,
+            "edit_raw_patched": null,
+            "edit_raw_vulnerable": null,
+            "edit_strategy": "not_run",
+            "edit_vulnerable": null,
+            "edit_vulnerable_anchor_has_identity": null,
+            "evidence_pair_ids": [],
+            "fix_boundary_id": "boundary",
+            "fix_commit_sha": "abc",
+            "fix_evidence": [],
+            "fix_signature_coverage": 0.0,
+            "function_identity_state": "unknown",
+            "independent_region_count": 0,
+            "lineage_id": "lineage",
+            "local_correspondence_attempted": false,
+            "local_correspondence_methods": [],
+            "local_correspondence_prior_abstention_reason": null,
+            "local_correspondence_reason": null,
+            "local_correspondence_status": null,
+            "local_correspondence_used": false,
+            "patched_score": null,
+            "patched_support_count": 0,
+            "side_consensus_ratio": 0.0,
+            "signature_evidence_state": "neither",
+            "status": "patched",
+            "structural_patched": null,
+            "structural_vulnerable": null,
+            "structure_gate_passed": false,
+            "token_gate_passed": false,
+            "token_patched": null,
+            "token_vulnerable": null,
+            "vulnerable_score": null,
+            "vulnerable_signature_coverage": 0.0,
+            "vulnerable_support_count": 0
+          }
+        ]
+      }
+    },
+    "region_pair": {
+      "model": "VulnerableRegionPair",
+      "payload": {
+        "advisories": [
+          {
+            "advisory_description": "",
+            "advisory_references": [],
+            "advisory_title": "",
+            "advisory_url": "",
+            "affected_versions": [],
+            "cve_id": null,
+            "cwes": [],
+            "ecosystem": null,
+            "fixed_versions": [],
+            "ghsa_id": "GHSA-baseline",
+            "osv_id": null,
+            "package_name": "fixture",
+            "severity": "unknown"
+          }
+        ],
+        "advisory_description": "",
+        "advisory_references": [],
+        "advisory_title": "",
+        "advisory_url": "",
+        "affected_versions": [],
+        "change_kind": "unknown",
+        "cve_id": null,
+        "cwes": [],
+        "diagnostic_line_count": 0,
+        "ecosystem": "npm",
+        "file_path": "index.js",
+        "fix_boundary_id": "boundary",
+        "fix_commit_sha": "abc",
+        "fix_signature_tokens": [],
+        "fixed_versions": [],
+        "function_name": null,
+        "ghsa_id": "GHSA-baseline",
+        "lineage_id": "lineage",
+        "osv_id": null,
+        "package_name": "fixture",
+        "pair_id": "pair",
+        "patched_region": {
+          "ast_path": [],
+          "ast_shape": [],
+          "calls": [],
+          "embedding_text": "f",
+          "granularity": "function",
+          "identifiers": [],
+          "literals": [],
+          "member_accesses": [],
+          "node_type": "function_declaration",
+          "normalized_tokens": [],
+          "region_id": "region",
+          "source": "function f() {}",
+          "span": {
+            "end_byte": 20,
+            "end_line": 1,
+            "start_byte": 0,
+            "start_line": 1
+          }
+        },
+        "patched_source_sha256": "new",
+        "repo": "fixture/repo",
+        "severity": "unknown",
+        "source_language": "javascript",
+        "vulnerable_region": {
+          "ast_path": [],
+          "ast_shape": [],
+          "calls": [],
+          "embedding_text": "f",
+          "granularity": "function",
+          "identifiers": [],
+          "literals": [],
+          "member_accesses": [],
+          "node_type": "function_declaration",
+          "normalized_tokens": [],
+          "region_id": "region",
+          "source": "function f() {}",
+          "span": {
+            "end_byte": 20,
+            "end_line": 1,
+            "start_byte": 0,
+            "start_line": 1
+          }
+        },
+        "vulnerable_signature_tokens": [],
+        "vulnerable_source_sha256": "old"
+      }
+    },
+    "uncertain": {
+      "model": "RegionDetectionResult",
+      "payload": {
+        "aggregates": [
+          {
+            "best_similarity": 0.95,
+            "candidate_region_ids": [],
+            "fix_boundary_id": null,
+            "granularities": [],
+            "lineage_id": null,
+            "pair_id": "pair",
+            "support_count": 1,
+            "top_matches": [
+              {
+                "advisories": [
+                  {
+                    "advisory_description": "",
+                    "advisory_references": [],
+                    "advisory_title": "",
+                    "advisory_url": "",
+                    "affected_versions": [],
+                    "cve_id": null,
+                    "cwes": [],
+                    "ecosystem": null,
+                    "fixed_versions": [],
+                    "ghsa_id": "GHSA-baseline",
+                    "osv_id": null,
+                    "package_name": "fixture",
+                    "severity": "unknown"
+                  }
+                ],
+                "advisory_description": "",
+                "advisory_references": [],
+                "advisory_title": "",
+                "advisory_url": "",
+                "affected_versions": [],
+                "candidate_granularity": "function",
+                "candidate_region_id": "region",
+                "corpus_granularity": "function",
+                "cve_id": null,
+                "cwes": [],
+                "ecosystem": null,
+                "file_path": "index.js",
+                "fix_boundary_id": "",
+                "fix_commit_sha": "abc",
+                "fixed_versions": [],
+                "function_name": null,
+                "ghsa_id": "GHSA-baseline",
+                "lineage_id": null,
+                "osv_id": null,
+                "package_name": null,
+                "pair_id": "pair",
+                "rank": 1,
+                "reference_side": "vulnerable",
+                "severity": "unknown",
+                "similarity": 0.95,
+                "source_language": "javascript"
+              }
+            ]
+          }
+        ],
+        "candidate_id": "index.js::0:20",
+        "candidate_region_count": 1,
+        "evidence": [
+          {
+            "api_anchor_patched": null,
+            "api_anchor_vulnerable": null,
+            "ast_coverage": 1.0,
+            "candidate_function_name": null,
+            "candidate_granularity": "function",
+            "candidate_region_id": "region",
+            "candidate_span": {
+              "end_byte": 20,
+              "end_line": 1,
+              "start_byte": 0,
+              "start_line": 1
+            },
+            "containment_coverage_patched": null,
+            "containment_coverage_vulnerable": null,
+            "containment_fallback_attempted_patched": false,
+            "containment_fallback_attempted_vulnerable": false,
+            "containment_fallback_patched": false,
+            "containment_fallback_vulnerable": false,
+            "containment_structural_patched": null,
+            "containment_structural_vulnerable": null,
+            "containment_token_patched": null,
+            "containment_token_vulnerable": null,
+            "correspondence_score": null,
+            "fallback_used": false,
+            "fix_signature_coverage": 0.0,
+            "lineage_confidence": "none",
+            "local_alignment_patched": null,
+            "local_alignment_vulnerable": null,
+            "pair_id": "pair",
+            "patched_region_id": "new",
+            "patched_score": 0.8,
+            "reference_granularity": null,
+            "retrieval_similarity": 0.95,
+            "structural_patched": 0.8,
+            "structural_vulnerable": 1.0,
+            "token_patched": 0.8,
+            "token_vulnerable": 1.0,
+            "vulnerable_minus_patched": 0.2,
+            "vulnerable_region_id": "old",
+            "vulnerable_score": 1.0,
+            "vulnerable_signature_coverage": 0.0
+          }
+        ],
+        "hash_match_types": [],
+        "hash_matches": [],
+        "lineages": [
+          {
+            "associated_advisories": [
+              {
+                "advisory_description": "",
+                "advisory_references": [],
+                "advisory_title": "",
+                "advisory_url": "",
+                "affected_versions": [],
+                "cve_id": null,
+                "cwes": [],
+                "ecosystem": null,
+                "fixed_versions": [],
+                "ghsa_id": "GHSA-baseline",
+                "osv_id": null,
+                "package_name": "fixture",
+                "severity": "unknown"
+              }
+            ],
+            "confidence": "high",
+            "evidence_pair_ids": [],
+            "file_path": "index.js",
+            "lineage_id": "lineage",
+            "reference_function": null,
+            "repo": "fixture/repo",
+            "score": 0.95
+          }
+        ],
+        "message": null,
+        "package_applicabilities": [
+          {
+            "ecosystem": "npm",
+            "evidence": [
+              {
+                "detail": null,
+                "kind": "manifest",
+                "package": null,
+                "source": "package.json",
+                "version": "1.0"
+              }
+            ],
+            "lineage_id": "lineage",
+            "package": "fixture",
+            "status": "confirmed"
+          }
+        ],
+        "parser_supported": true,
+        "priority": "manual_review",
+        "retrieval_match_count": 1,
+        "vulnerability_states": [
+          {
+            "abstention_reason": "E_MARGIN_AMBIGUOUS",
+            "advisories": [
+              {
+                "advisory_description": "",
+                "advisory_references": [],
+                "advisory_title": "",
+                "advisory_url": "",
+                "affected_versions": [],
+                "cve_id": null,
+                "cwes": [],
+                "ecosystem": null,
+                "fixed_versions": [],
+                "ghsa_id": "GHSA-baseline",
+                "osv_id": null,
+                "package_name": "fixture",
+                "severity": "unknown"
+              }
+            ],
+            "boundary_identity_gate_passed": true,
+            "boundary_rejected": false,
+            "containment_fallback_attempted": false,
+            "containment_fallback_used": false,
+            "context_correspondence_passed": false,
+            "contradictions": [],
+            "contrast_score": null,
+            "correspondence_score": null,
+            "edit_anchor_has_identity": null,
+            "edit_contrastive_patched": null,
+            "edit_contrastive_used": false,
+            "edit_contrastive_vulnerable": null,
+            "edit_margin": null,
+            "edit_patched": null,
+            "edit_patched_anchor_has_identity": null,
+            "edit_raw_patched": null,
+            "edit_raw_vulnerable": null,
+            "edit_strategy": "not_run",
+            "edit_vulnerable": null,
+            "edit_vulnerable_anchor_has_identity": null,
+            "evidence_pair_ids": [],
+            "fix_boundary_id": "boundary",
+            "fix_commit_sha": "abc",
+            "fix_evidence": [],
+            "fix_signature_coverage": 0.0,
+            "function_identity_state": "unknown",
+            "independent_region_count": 0,
+            "lineage_id": "lineage",
+            "local_correspondence_attempted": false,
+            "local_correspondence_methods": [],
+            "local_correspondence_prior_abstention_reason": null,
+            "local_correspondence_reason": null,
+            "local_correspondence_status": null,
+            "local_correspondence_used": false,
+            "patched_score": null,
+            "patched_support_count": 0,
+            "side_consensus_ratio": 0.0,
+            "signature_evidence_state": "neither",
+            "status": "uncertain",
+            "structural_patched": null,
+            "structural_vulnerable": null,
+            "structure_gate_passed": false,
+            "token_gate_passed": false,
+            "token_patched": null,
+            "token_vulnerable": null,
+            "vulnerable_score": null,
+            "vulnerable_signature_coverage": 0.0,
+            "vulnerable_support_count": 0
+          }
+        ]
+      }
+    },
+    "vulnerable": {
+      "model": "RegionDetectionResult",
+      "payload": {
+        "aggregates": [
+          {
+            "best_similarity": 0.95,
+            "candidate_region_ids": [],
+            "fix_boundary_id": null,
+            "granularities": [],
+            "lineage_id": null,
+            "pair_id": "pair",
+            "support_count": 1,
+            "top_matches": [
+              {
+                "advisories": [
+                  {
+                    "advisory_description": "",
+                    "advisory_references": [],
+                    "advisory_title": "",
+                    "advisory_url": "",
+                    "affected_versions": [],
+                    "cve_id": null,
+                    "cwes": [],
+                    "ecosystem": null,
+                    "fixed_versions": [],
+                    "ghsa_id": "GHSA-baseline",
+                    "osv_id": null,
+                    "package_name": "fixture",
+                    "severity": "unknown"
+                  }
+                ],
+                "advisory_description": "",
+                "advisory_references": [],
+                "advisory_title": "",
+                "advisory_url": "",
+                "affected_versions": [],
+                "candidate_granularity": "function",
+                "candidate_region_id": "region",
+                "corpus_granularity": "function",
+                "cve_id": null,
+                "cwes": [],
+                "ecosystem": null,
+                "file_path": "index.js",
+                "fix_boundary_id": "",
+                "fix_commit_sha": "abc",
+                "fixed_versions": [],
+                "function_name": null,
+                "ghsa_id": "GHSA-baseline",
+                "lineage_id": null,
+                "osv_id": null,
+                "package_name": null,
+                "pair_id": "pair",
+                "rank": 1,
+                "reference_side": "vulnerable",
+                "severity": "unknown",
+                "similarity": 0.95,
+                "source_language": "javascript"
+              }
+            ]
+          }
+        ],
+        "candidate_id": "index.js::0:20",
+        "candidate_region_count": 1,
+        "evidence": [
+          {
+            "api_anchor_patched": null,
+            "api_anchor_vulnerable": null,
+            "ast_coverage": 1.0,
+            "candidate_function_name": null,
+            "candidate_granularity": "function",
+            "candidate_region_id": "region",
+            "candidate_span": {
+              "end_byte": 20,
+              "end_line": 1,
+              "start_byte": 0,
+              "start_line": 1
+            },
+            "containment_coverage_patched": null,
+            "containment_coverage_vulnerable": null,
+            "containment_fallback_attempted_patched": false,
+            "containment_fallback_attempted_vulnerable": false,
+            "containment_fallback_patched": false,
+            "containment_fallback_vulnerable": false,
+            "containment_structural_patched": null,
+            "containment_structural_vulnerable": null,
+            "containment_token_patched": null,
+            "containment_token_vulnerable": null,
+            "correspondence_score": null,
+            "fallback_used": false,
+            "fix_signature_coverage": 0.0,
+            "lineage_confidence": "none",
+            "local_alignment_patched": null,
+            "local_alignment_vulnerable": null,
+            "pair_id": "pair",
+            "patched_region_id": "new",
+            "patched_score": 0.8,
+            "reference_granularity": null,
+            "retrieval_similarity": 0.95,
+            "structural_patched": 0.8,
+            "structural_vulnerable": 1.0,
+            "token_patched": 0.8,
+            "token_vulnerable": 1.0,
+            "vulnerable_minus_patched": 0.2,
+            "vulnerable_region_id": "old",
+            "vulnerable_score": 1.0,
+            "vulnerable_signature_coverage": 0.0
+          }
+        ],
+        "hash_match_types": [],
+        "hash_matches": [],
+        "lineages": [
+          {
+            "associated_advisories": [
+              {
+                "advisory_description": "",
+                "advisory_references": [],
+                "advisory_title": "",
+                "advisory_url": "",
+                "affected_versions": [],
+                "cve_id": null,
+                "cwes": [],
+                "ecosystem": null,
+                "fixed_versions": [],
+                "ghsa_id": "GHSA-baseline",
+                "osv_id": null,
+                "package_name": "fixture",
+                "severity": "unknown"
+              }
+            ],
+            "confidence": "high",
+            "evidence_pair_ids": [],
+            "file_path": "index.js",
+            "lineage_id": "lineage",
+            "reference_function": null,
+            "repo": "fixture/repo",
+            "score": 0.95
+          }
+        ],
+        "message": null,
+        "package_applicabilities": [
+          {
+            "ecosystem": "npm",
+            "evidence": [
+              {
+                "detail": null,
+                "kind": "manifest",
+                "package": null,
+                "source": "package.json",
+                "version": "1.0"
+              }
+            ],
+            "lineage_id": "lineage",
+            "package": "fixture",
+            "status": "confirmed"
+          }
+        ],
+        "parser_supported": true,
+        "priority": "automatic_vulnerability",
+        "retrieval_match_count": 1,
+        "vulnerability_states": [
+          {
+            "abstention_reason": null,
+            "advisories": [
+              {
+                "advisory_description": "",
+                "advisory_references": [],
+                "advisory_title": "",
+                "advisory_url": "",
+                "affected_versions": [],
+                "cve_id": null,
+                "cwes": [],
+                "ecosystem": null,
+                "fixed_versions": [],
+                "ghsa_id": "GHSA-baseline",
+                "osv_id": null,
+                "package_name": "fixture",
+                "severity": "unknown"
+              }
+            ],
+            "boundary_identity_gate_passed": true,
+            "boundary_rejected": false,
+            "containment_fallback_attempted": false,
+            "containment_fallback_used": false,
+            "context_correspondence_passed": false,
+            "contradictions": [],
+            "contrast_score": null,
+            "correspondence_score": null,
+            "edit_anchor_has_identity": null,
+            "edit_contrastive_patched": null,
+            "edit_contrastive_used": false,
+            "edit_contrastive_vulnerable": null,
+            "edit_margin": null,
+            "edit_patched": null,
+            "edit_patched_anchor_has_identity": null,
+            "edit_raw_patched": null,
+            "edit_raw_vulnerable": null,
+            "edit_strategy": "not_run",
+            "edit_vulnerable": null,
+            "edit_vulnerable_anchor_has_identity": null,
+            "evidence_pair_ids": [],
+            "fix_boundary_id": "boundary",
+            "fix_commit_sha": "abc",
+            "fix_evidence": [],
+            "fix_signature_coverage": 0.0,
+            "function_identity_state": "unknown",
+            "independent_region_count": 0,
+            "lineage_id": "lineage",
+            "local_correspondence_attempted": false,
+            "local_correspondence_methods": [],
+            "local_correspondence_prior_abstention_reason": null,
+            "local_correspondence_reason": null,
+            "local_correspondence_status": null,
+            "local_correspondence_used": false,
+            "patched_score": null,
+            "patched_support_count": 0,
+            "side_consensus_ratio": 0.0,
+            "signature_evidence_state": "neither",
+            "status": "vulnerable",
+            "structural_patched": null,
+            "structural_vulnerable": null,
+            "structure_gate_passed": false,
+            "token_gate_passed": false,
+            "token_patched": null,
+            "token_vulnerable": null,
+            "vulnerable_score": null,
+            "vulnerable_signature_coverage": 0.0,
+            "vulnerable_support_count": 0
+          }
+        ]
+      }
+    }
+  },
+  "schema_hashes": {
+    "ApplicabilityEvidence": "950b7e772b66afbbea7180eaa4aae6d74bc566f23f87a865ab5f1affb651db46",
+    "AstRegion": "0fb2675f2167c2fda7c99b450c925fa15dc498641f2c705e810deb9fef00355c",
+    "CandidateRegion": "e1f9100a85083a17cb96eee660cf686623c473502dd23cb9398cf4f426435a8c",
+    "LineageAttribution": "63fc236f87e86a92bd6cadd58850c6cba669033ea99c129e2aa9c4a17e090d85",
+    "PackageApplicability": "54b78286d96b747608da2784a9b0169938c8f3901513e0c5dc99ce87e114b23e",
+    "RegionAggregate": "2cff5e5320c95a51774b2c14a6cae5ffed604c8605e4b0cc434f76b709ad48f7",
+    "RegionDetectionResult": "dd0a6e8e5a42818da43b884b9cbf6917a8a2c2a76d4023219fe13fd643e806ed",
+    "RegionRetrievalMatch": "35eaf3a74a73bc7c47e97f428a59de022b78c30e6a3dc308d6db7050f8b5c334",
+    "RegionVerificationEvidence": "91aab41398bc1473bed75f6aab18f0555e4bc97a0e5a92c9c84433b970199e47",
+    "SourceSpan": "b16697cf967b1a688f34971aced736f04b4c22a3d151d9774fed000490cccf65",
+    "VulnerabilityState": "cc49c655ecdf9c4e33941cdab836054d3c605ffd183a6e30b79c97280bb54809",
+    "VulnerableRegionPair": "a8d392b06565788248ab9d2df728f6e228be2727fa4da7916dc5cd143ce1088a"
+  },
+  "verifier_defaults": {
+    "contradiction_margin": 0.08,
+    "include_containment_fallback": true,
+    "include_local_alignment": false,
+    "local_alignment_trigger": 0.72,
+    "max_containment_cells": null,
+    "minimum_consensus_ratio": 0.6,
+    "minimum_containment_coverage": 0.5,
+    "minimum_edit_margin": 0.1,
+    "minimum_edit_side_score": 0.9,
+    "minimum_structure_score": 0.7,
+    "minimum_supporting_regions": 2,
+    "minimum_token_score": 0.7,
+    "signature_threshold": 0.65
+  }
+}

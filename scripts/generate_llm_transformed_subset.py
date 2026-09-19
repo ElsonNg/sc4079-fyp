@@ -35,11 +35,11 @@ def _select_entries(entries, *, total: int, per_category: int):
     for entry in entries:
         if not has_high_signal_anchor(entry.diagnostic_lines, "vulnerable"):
             continue
-        by_category[category_for(entry.package_name)].append(entry)
+        by_category[category_for(entry.advisory.package_name)].append(entry)
     selected: list = []
     for category, bucket in sorted(by_category.items()):
-        js = [e for e in bucket if e.source_language == "javascript"]
-        ts = [e for e in bucket if e.source_language != "javascript"]
+        js = [e for e in bucket if e.origin.source_language == "javascript"]
+        ts = [e for e in bucket if e.origin.source_language != "javascript"]
         interleaved: list = []
         for a, b in zip(js, ts):
             interleaved.extend([a, b])
@@ -54,16 +54,16 @@ def _base_record(entry, candidate_source: str, clone_type: str) -> dict:
         "clone_type": clone_type,
         "transformation_family": f"llm_{clone_type}",
         "corpus_entry": entry_key(entry),
-        "package_name": entry.package_name,
-        "category": category_for(entry.package_name),
-        "ecosystem": entry.ecosystem,
-        "osv_id": entry.osv_id,
-        "severity": entry.severity,
-        "cwes": [c.model_dump() for c in entry.cwes],
+        "package_name": entry.advisory.package_name,
+        "category": category_for(entry.advisory.package_name),
+        "ecosystem": entry.advisory.ecosystem,
+        "osv_id": entry.advisory.osv_id,
+        "severity": entry.advisory.severity,
+        "cwes": [c.model_dump() for c in entry.advisory.cwes],
         "osv_confirmed": entry.osv_confirmed,
-        "source_language": entry.source_language,
-        "affected_versions": entry.affected_versions,
-        "fixed_versions": entry.fixed_versions,
+        "source_language": entry.origin.source_language,
+        "affected_versions": entry.advisory.affected_versions,
+        "fixed_versions": entry.advisory.fixed_versions,
         "vulnerable_source_sha256": digest(entry.vulnerable_function),
         "patched_source_sha256": digest(entry.patched_function),
         "candidate_source_sha256": digest(candidate_source),
@@ -86,7 +86,7 @@ def _generate_one(transformer, entry, *, clone_type, side):
                 source,
                 clone_type=clone_type,
                 side=side,
-                language=entry.source_language,
+                language=entry.origin.source_language,
                 temperature=min(base + 0.15 * attempt, 1.1),
             )
         except LlmTransformError as exc:
@@ -120,7 +120,7 @@ def _task_key(record: dict) -> tuple:
 
 def _entry_task_key(entry, clone_type: str, expected_status: str) -> tuple:
     return (
-        entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name,
+        entry.advisory.ghsa_id, entry.origin.fix_commit_sha, entry.origin.file_path, entry.origin.function_name,
         clone_type, expected_status,
     )
 
@@ -160,7 +160,7 @@ def main() -> int:
         args.per_category = len(entries)
     sampled = _select_entries(entries, total=args.entries, per_category=args.per_category)
     print(f"Sampled {len(sampled)} entries across "
-          f"{len({category_for(e.package_name) for e in sampled})} categories")
+          f"{len({category_for(e.advisory.package_name) for e in sampled})} categories")
 
     positives: list[dict] = _load_existing(positive_output) if args.expanded else []
     negatives: list[dict] = _load_existing(negative_output) if args.expanded else []
@@ -169,7 +169,7 @@ def main() -> int:
     attrition: Counter = Counter()
 
     for index, entry in enumerate(sampled, start=1):
-        print(f"[{index}/{len(sampled)}] {entry.ghsa_id} {entry.package_name} ({entry.source_language})")
+        print(f"[{index}/{len(sampled)}] {entry.advisory.ghsa_id} {entry.advisory.package_name} ({entry.origin.source_language})")
         for clone_type in ("type_3", "type_4"):
             task_key = _entry_task_key(entry, clone_type, "flagged")
             if task_key in completed or (target_per_class and len(positives) >= target_per_class):

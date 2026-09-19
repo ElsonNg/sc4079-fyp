@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 
+from pipeline.detection.config import DEFAULT_MODEL_ID
 from pipeline.models.embedding import ModelSpec
 
 if TYPE_CHECKING:
@@ -22,8 +23,6 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
         label="EmbeddingGemma-300M",
     ),
 }
-
-DEFAULT_MODEL_ID = "qwen3-embedding-0.6b"
 
 # Qwen3-Embedding-0.6B's own default max_seq_length is 32768 tokens -- appropriate for
 # a general-purpose embedding model, not for this pipeline. A handful of real corpus

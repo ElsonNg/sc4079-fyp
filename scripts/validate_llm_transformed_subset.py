@@ -115,16 +115,16 @@ def _expected_pair_ids(record: dict, pairs: dict) -> set[str]:
 
     matches: set[str] = set()
     for pair_id, pair in pairs.items():
-        if language and pair.source_language != language:
+        if language and pair.origin.source_language != language:
             continue
-        if vulnerable_digest and pair.vulnerable_source_sha256 == vulnerable_digest:
+        if vulnerable_digest and pair.change.vulnerable_source_sha256 == vulnerable_digest:
             matches.add(pair_id)
             continue
         if (
-            pair.fix_commit_sha == expected_commit
-            and pair.file_path.replace("\\", "/") == expected_path
-            and pair.function_name == expected_function
-            and (not expected_ghsa or pair.ghsa_id == expected_ghsa)
+            pair.origin.fix_commit_sha == expected_commit
+            and pair.origin.file_path.replace("\\", "/") == expected_path
+            and pair.origin.function_name == expected_function
+            and (not expected_ghsa or pair.advisory.ghsa_id == expected_ghsa)
         ):
             matches.add(pair_id)
     return matches
@@ -150,8 +150,8 @@ def _review_contributor_keys(detection) -> set[tuple[str, str]]:
     ]
     if vulnerable:
         return {
-            (state.lineage_id, state.fix_boundary_id)
-            for state in vulnerable if state.contradictions
+            (state.boundary.lineage_id, state.boundary.fix_boundary_id)
+            for state in vulnerable if state.support.contradictions
         }
     credible = {
         lineage.lineage_id for lineage in detection.lineages
@@ -159,16 +159,16 @@ def _review_contributor_keys(detection) -> set[tuple[str, str]]:
     }
     unresolved = [
         state for state in detection.vulnerability_states
-        if state.lineage_id in credible
+        if state.boundary.lineage_id in credible
         and state.status == "uncertain"
-        and not state.boundary_rejected
+        and not state.gates.boundary_rejected
     ]
     strong = [
         state for state in unresolved
-        if state.token_gate_passed or state.contradictions
+        if state.gates.token_gate_passed or state.support.contradictions
     ]
     contributors = strong or unresolved
-    return {(state.lineage_id, state.fix_boundary_id) for state in contributors}
+    return {(state.boundary.lineage_id, state.boundary.fix_boundary_id) for state in contributors}
 
 
 def main() -> int:
@@ -200,7 +200,6 @@ def main() -> int:
             retrieval_top_k=10,
             retrieval_threshold=0.0,
             max_verification_candidates=10,
-            same_language_only=True,
             include_local_correspondence_fallback=args.experimental_local_correspondence,
             verifier=RegionVerifierConfig(
                 minimum_edit_side_score=args.minimum_e_side,
@@ -244,24 +243,24 @@ def main() -> int:
         review_contributors = _review_contributor_keys(detection)
         boundary_verification = [
             {
-                "lineage_id": state.lineage_id,
-                "fix_boundary_id": state.fix_boundary_id,
+                "lineage_id": state.boundary.lineage_id,
+                "fix_boundary_id": state.boundary.fix_boundary_id,
                 "status": state.status,
                 "abstention_reason": state.abstention_reason,
-                "edit_strategy": state.edit_strategy,
-                "structure_gate_passed": state.structure_gate_passed,
-                "token_gate_passed": state.token_gate_passed,
-                "containment_fallback_attempted": state.containment_fallback_attempted,
-                "containment_fallback_used": state.containment_fallback_used,
-                "boundary_rejected": state.boundary_rejected,
-                "local_correspondence_attempted": state.local_correspondence_attempted,
-                "local_correspondence_used": state.local_correspondence_used,
-                "local_correspondence_status": state.local_correspondence_status,
-                "local_correspondence_methods": state.local_correspondence_methods,
-                "local_correspondence_reason": state.local_correspondence_reason,
-                "local_correspondence_prior_abstention_reason": state.local_correspondence_prior_abstention_reason,
+                "edit_strategy": state.edit.strategy,
+                "structure_gate_passed": state.gates.structure_gate_passed,
+                "token_gate_passed": state.gates.token_gate_passed,
+                "containment_fallback_attempted": state.fallbacks.containment_attempted,
+                "containment_fallback_used": state.fallbacks.containment_used,
+                "boundary_rejected": state.gates.boundary_rejected,
+                "local_correspondence_attempted": state.fallbacks.local_correspondence_attempted,
+                "local_correspondence_used": state.fallbacks.local_correspondence_used,
+                "local_correspondence_status": state.fallbacks.local_correspondence_status,
+                "local_correspondence_methods": state.fallbacks.local_correspondence_methods,
+                "local_correspondence_reason": state.fallbacks.local_correspondence_reason,
+                "local_correspondence_prior_abstention_reason": state.fallbacks.local_correspondence_prior_abstention_reason,
                 "review_contributor": (
-                    state.lineage_id, state.fix_boundary_id
+                    state.boundary.lineage_id, state.boundary.fix_boundary_id
                 ) in review_contributors,
             }
             for state in detection.vulnerability_states

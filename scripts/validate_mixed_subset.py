@@ -32,7 +32,7 @@ def _corpus_key(record: dict) -> tuple[str, str, str, str | None]:
 
 
 def _pair_key(pair) -> tuple[str, str, str, str | None]:
-    return pair.ghsa_id, pair.fix_commit_sha, pair.file_path, pair.function_name
+    return pair.advisory.ghsa_id, pair.origin.fix_commit_sha, pair.origin.file_path, pair.origin.function_name
 
 
 def _expected_category(record: dict) -> str:
@@ -66,7 +66,7 @@ def main() -> None:
     )
     entries = load_entries(args.db_path)
     if args.corpus_prefix:
-        entries = [entry for entry in entries if entry.ghsa_id.startswith(args.corpus_prefix)]
+        entries = [entry for entry in entries if entry.advisory.ghsa_id.startswith(args.corpus_prefix)]
     if not entries:
         raise RuntimeError("No corpus entries matched the requested database/filter")
     config = RegionDetectorConfig(

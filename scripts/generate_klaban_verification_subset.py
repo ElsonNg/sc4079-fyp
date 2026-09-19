@@ -34,10 +34,10 @@ DEFAULT_NEGATIVE_OUTPUT = Path("eval/klaban_verification_negative.jsonl")
 
 def _identity(entry: CorpusEntry) -> tuple[str, str, str, str]:
     return (
-        entry.ghsa_id,
-        entry.fix_commit_sha,
-        entry.file_path,
-        entry.function_name or "",
+        entry.advisory.ghsa_id,
+        entry.origin.fix_commit_sha,
+        entry.origin.file_path,
+        entry.origin.function_name or "",
     )
 
 
@@ -49,7 +49,7 @@ def _transform(source: str) -> str:
 
 
 def _eligible(entry: CorpusEntry, max_source_bytes: int) -> bool:
-    if not entry.ghsa_id.startswith(KLABAN_ID_PREFIX):
+    if not entry.advisory.ghsa_id.startswith(KLABAN_ID_PREFIX):
         return False
     if not entry.vulnerable_function.strip() or not entry.patched_function.strip():
         return False
@@ -75,11 +75,11 @@ def _select_diverse(entries: list[CorpusEntry], count: int) -> list[CorpusEntry]
     deferred: list[CorpusEntry] = []
     seen_advisories: set[str] = set()
     for entry in ordered:
-        if entry.ghsa_id in seen_advisories:
+        if entry.advisory.ghsa_id in seen_advisories:
             deferred.append(entry)
         else:
             selected.append(entry)
-            seen_advisories.add(entry.ghsa_id)
+            seen_advisories.add(entry.advisory.ghsa_id)
     selected.extend(deferred)
     if len(selected) < count:
         raise RuntimeError(
@@ -91,13 +91,13 @@ def _select_diverse(entries: list[CorpusEntry], count: int) -> list[CorpusEntry]
 def _base_record(entry: CorpusEntry, candidate_source: str) -> dict:
     return {
         "corpus_entry": entry_key(entry),
-        "package_name": entry.package_name,
-        "ecosystem": entry.ecosystem,
-        "osv_id": entry.osv_id,
-        "affected_versions": entry.affected_versions,
-        "fixed_versions": entry.fixed_versions,
-        "severity": entry.severity,
-        "cwes": [c.model_dump() for c in entry.cwes],
+        "package_name": entry.advisory.package_name,
+        "ecosystem": entry.advisory.ecosystem,
+        "osv_id": entry.advisory.osv_id,
+        "affected_versions": entry.advisory.affected_versions,
+        "fixed_versions": entry.advisory.fixed_versions,
+        "severity": entry.advisory.severity,
+        "cwes": [c.model_dump() for c in entry.advisory.cwes],
         "osv_confirmed": entry.osv_confirmed,
         "vulnerable_source_sha256": digest(entry.vulnerable_function),
         "patched_source_sha256": digest(entry.patched_function),

@@ -57,7 +57,7 @@ def _reclassify(result, pairs: dict, verifier: RegionVerifierConfig):
         grouped[pairs[evidence.pair_id].fix_boundary_id].append(evidence)
     states = []
     previous_states = {
-        state.fix_boundary_id: state
+        state.boundary.fix_boundary_id: state
         for state in result.vulnerability_states
     }
     for boundary_id, evidence in sorted(grouped.items()):
@@ -65,14 +65,14 @@ def _reclassify(result, pairs: dict, verifier: RegionVerifierConfig):
         previous = previous_states.get(boundary_id)
         edit = (
             EditDistanceEvidence(
-                previous.vulnerable_score,
-                previous.patched_score,
-                vulnerable_anchor_has_identity=previous.edit_vulnerable_anchor_has_identity,
-                patched_anchor_has_identity=previous.edit_patched_anchor_has_identity,
+                previous.scores.vulnerable_score,
+                previous.scores.patched_score,
+                vulnerable_anchor_has_identity=previous.edit.vulnerable_anchor_has_identity,
+                patched_anchor_has_identity=previous.edit.patched_anchor_has_identity,
             )
             if previous is not None
-            and previous.vulnerable_score is not None
-            and previous.patched_score is not None
+            and previous.scores.vulnerable_score is not None
+            and previous.scores.patched_score is not None
             else None
         )
         states.append(classify_boundary(evidence, pair, verifier, edit=edit))

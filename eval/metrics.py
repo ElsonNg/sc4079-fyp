@@ -55,16 +55,18 @@ def expected_hash_match_types(
     expected_ghsa, expected_commit, expected_path, expected_function = expected
     matched: set[str] = set()
     for match in field(detection, "hash_matches", []) or []:
+        origin = field(match, "origin", match)
+        advisory = field(match, "advisory", match)
         aliases = {
             str(field(alias, "ghsa_id", "") or "")
             for alias in (field(match, "advisories", []) or [])
         }
         identity_matches = (
-            str(field(match, "fix_commit_sha", "") or "") == expected_commit
-            and str(field(match, "file_path", "") or "").replace("\\", "/") == expected_path
-            and field(match, "function_name") == expected_function
+            str(field(origin, "fix_commit_sha", "") or "") == expected_commit
+            and str(field(origin, "file_path", "") or "").replace("\\", "/") == expected_path
+            and field(origin, "function_name") == expected_function
             and (
-                str(field(match, "ghsa_id", "") or "") == expected_ghsa
+                str(field(advisory, "ghsa_id", "") or "") == expected_ghsa
                 or expected_ghsa in aliases
             )
         )
@@ -94,11 +96,13 @@ def detection_rank(detection: Any, expected: tuple[str, str, str, str | None], p
 
     matching_ids = set()
     for pair_id, pair in pairs.items():
+        origin = field(pair, "origin", pair)
+        advisory = field(pair, "advisory", pair)
         fields = (
-            str(field(pair, "ghsa_id", "") or ""),
-            str(field(pair, "fix_commit_sha", "") or ""),
-            str(field(pair, "file_path", "") or "").replace("\\", "/"),
-            field(pair, "function_name"),
+            str(field(advisory, "ghsa_id", "") or ""),
+            str(field(origin, "fix_commit_sha", "") or ""),
+            str(field(origin, "file_path", "") or "").replace("\\", "/"),
+            field(origin, "function_name"),
         )
         if fields[1:] == expected[1:] and (fields[0] == expected[0] or expected[0] in {
             str(field(alias, "ghsa_id", "") or "")

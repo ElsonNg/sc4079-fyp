@@ -1,6 +1,15 @@
+import json
+from pathlib import Path
+
+import pytest
+
 from pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
+from pipeline.models.boundary import VulnerableRegionPair
+from pipeline.models.hashing import HashMatch
+from scripts.compare_clone_30 import _identity
 from eval.metrics import (
     classification_outcome,
+    detection_rank,
     expected_hash_match_types,
     llm_metrics,
     retrieval_metrics,
@@ -9,6 +18,45 @@ from eval.metrics import (
 
 
 EXPECTED = ("GHSA-test", "fix-test", "lib/request.js", "request")
+
+
+def _representation(model, kind):
+    if kind == "record":
+        return model.to_record()
+    if kind == "nested":
+        return model.model_dump(mode="json")
+    return model
+
+
+@pytest.mark.parametrize("kind", ["model", "record", "nested"])
+def test_hash_metrics_accept_grouped_identity_and_advisory_aliases(kind):
+    match = HashMatch.from_record({
+        "ghsa_id": "GHSA-representative", "advisories": [{"ghsa_id": EXPECTED[0]}],
+        "repo": "test/repo", "fix_commit_sha": EXPECTED[1],
+        "file_path": EXPECTED[2], "function_name": EXPECTED[3],
+        "side": "vulnerable", "match_type": "abstracted",
+    })
+    value = _representation(match, kind)
+    assert expected_hash_match_types({"hash_matches": [value]}, EXPECTED) == {"abstracted"}
+    assert _identity(value) == ("GHSA-representative", *EXPECTED[1:])
+    assert expected_hash_match_types({"hash_matches": [value]}, (EXPECTED[0], "wrong", *EXPECTED[2:])) == set()
+
+
+@pytest.mark.parametrize("kind", ["model", "record", "nested"])
+def test_pair_metrics_accept_grouped_identity_and_advisory_aliases(kind):
+    contracts = json.loads((Path(__file__).parent / "fixtures/region_model_contracts.json").read_text())
+    record = dict(contracts["payloads"]["region_pair"]["payload"],
+                  ghsa_id="GHSA-representative", advisories=[{"ghsa_id": EXPECTED[0]}],
+                  fix_commit_sha=EXPECTED[1], file_path=EXPECTED[2], function_name=EXPECTED[3])
+    pair = VulnerableRegionPair.from_record(record)
+    value = _representation(pair, kind)
+    pairs = {pair.pair_id: value}
+    result = {"aggregates": [{"pair_id": pair.pair_id}], "evidence": [{"pair_id": pair.pair_id}]}
+    assert detection_rank(result, EXPECTED, pairs) == 1
+    stages = vulnerable_origin_stages(result, expected=EXPECTED, pairs=pairs)
+    assert stages["origin_shortlisted"] is True
+    assert stages["origin_verified"] is True
+    assert _identity(value) == ("GHSA-representative", *EXPECTED[1:])
 
 
 def test_vulnerable_origin_metrics_track_each_evidence_stage():

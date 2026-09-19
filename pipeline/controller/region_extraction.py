@@ -9,13 +9,15 @@ from dataclasses import dataclass
 import tree_sitter
 
 from corpus.models.corpus import CorpusEntry
+from pipeline.controller.parsing import FUNCTION_NODE_TYPES, normalize_source, parse_source
 from pipeline.controller.provenance import (
     advisory_alias,
     cluster_corpus_entries,
     fix_boundary_id,
     provenance_lineage_id,
 )
-from pipeline.controller.parsing import FUNCTION_NODE_TYPES, normalize_source, parse_source
+from pipeline.models.boundary import RegionChangeEvidence
+from shared.metadata import AdvisoryAlias
 from pipeline.models.regions import (
     AstRegion,
     CandidateRegion,
@@ -23,7 +25,6 @@ from pipeline.models.regions import (
     SourceSpan,
     VulnerableRegionPair,
 )
-from pipeline.models.provenance import AdvisoryAlias
 
 _SYNTHETIC_PREFIX = "class __CodexRegionWrapper {\n"
 _SYNTHETIC_SUFFIX = "\n}\n"
@@ -400,8 +401,8 @@ def extract_vulnerability_regions(
     patched_source = entry.patched_function
     vulnerable_lines = [line.vulnerable_line for line in entry.diagnostic_lines if line.vulnerable_line is not None]
     patched_lines = [line.patched_line for line in entry.diagnostic_lines if line.patched_line is not None]
-    vulnerable = _regions_for_anchor(vulnerable_source, vulnerable_lines, f"{entry.ghsa_id}:v", entry.file_path)
-    patched = _regions_for_anchor(patched_source, patched_lines, f"{entry.ghsa_id}:p", entry.file_path)
+    vulnerable = _regions_for_anchor(vulnerable_source, vulnerable_lines, f"{entry.advisory.ghsa_id}:v", entry.origin.file_path)
+    patched = _regions_for_anchor(patched_source, patched_lines, f"{entry.advisory.ghsa_id}:p", entry.origin.file_path)
     vulnerable_digest = hashlib.sha256(entry.vulnerable_function.encode("utf-8")).hexdigest()
     patched_digest = hashlib.sha256(entry.patched_function.encode("utf-8")).hexdigest()
 
@@ -429,32 +430,18 @@ def extract_vulnerability_regions(
                 lineage_id=actual_lineage_id,
                 fix_boundary_id=actual_boundary_id,
                 advisories=actual_advisories,
-                ghsa_id=entry.ghsa_id,
-                cve_id=entry.cve_id,
-                advisory_title=entry.advisory_title,
-                advisory_description=entry.advisory_description,
-                advisory_url=entry.advisory_url,
-                advisory_references=entry.advisory_references,
-                cwes=entry.cwes,
-                severity=entry.severity,
-                repo=entry.repo,
-                fix_commit_sha=entry.fix_commit_sha,
-                file_path=entry.file_path,
-                function_name=entry.function_name,
-                package_name=entry.package_name,
-                ecosystem=entry.ecosystem,
-                osv_id=entry.osv_id,
-                affected_versions=entry.affected_versions,
-                fixed_versions=entry.fixed_versions,
-                vulnerable_region=vulnerable[granularity].model_copy(update={"region_id": pair_id + ":vulnerable"}),
-                patched_region=patched[granularity].model_copy(update={"region_id": pair_id + ":patched"}),
-                change_kind=_change_kind(entry),
-                diagnostic_line_count=len(entry.diagnostic_lines),
-                vulnerable_signature_tokens=vulnerable_signature,
-                fix_signature_tokens=fix_signature,
-                vulnerable_source_sha256=vulnerable_digest,
-                patched_source_sha256=patched_digest,
-                source_language=entry.source_language,
+                vulnerable_region=vulnerable[granularity].model_copy(update={'region_id': pair_id + ':vulnerable'}),
+                patched_region=patched[granularity].model_copy(update={'region_id': pair_id + ':patched'}),
+                advisory=entry.advisory,
+                origin=entry.origin,
+                change=RegionChangeEvidence(
+                    change_kind=_change_kind(entry),
+                    diagnostic_line_count=len(entry.diagnostic_lines),
+                    vulnerable_signature_tokens=vulnerable_signature,
+                    fix_signature_tokens=fix_signature,
+                    vulnerable_source_sha256=vulnerable_digest,
+                    patched_source_sha256=patched_digest,
+                ),
             )
         )
     return pairs

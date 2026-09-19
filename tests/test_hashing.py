@@ -167,7 +167,7 @@ def test_hash_index_round_trip_finds_vulnerable_and_patched_sides():
 def test_hash_index_deduplicates_shared_lineage_and_retains_advisory_aliases():
     original = _entry("GHSA-original", TRANSFER_A, TRANSFER_SWAPPED)
     alias = original.model_copy(
-        update={"ghsa_id": "GHSA-alias", "package_name": "pkg-fork"}
+        update={'advisory': original.advisory.model_copy(update={'ghsa_id': "GHSA-alias", 'package_name': "pkg-fork"})}
     )
 
     matches = lookup(TRANSFER_A, build_hash_index([original, alias]))

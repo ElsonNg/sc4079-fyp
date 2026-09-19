@@ -265,8 +265,6 @@ def extract_function_pairs_from_commit(
                     source_language=language,
                     patch_hunk=f.patch,
                     substantive_changed_lines=len(diagnostics),
-                    removed_executable_nodes=removed_nodes,
-                    added_executable_nodes=added_nodes,
                 )
             )
 

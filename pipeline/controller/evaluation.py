@@ -14,11 +14,13 @@ def _value(item: Any, name: str, default: Any = None) -> Any:
 
 
 def _origin_key(item: Any) -> OriginKey:
+    origin = _value(item, "origin", item)
+    advisory = _value(item, "advisory", item)
     return (
-        str(_value(item, "ghsa_id") or ""),
-        str(_value(item, "fix_commit_sha") or ""),
-        str(_value(item, "file_path") or ""),
-        _value(item, "function_name"),
+        str(_value(advisory, "ghsa_id") or ""),
+        str(_value(origin, "fix_commit_sha") or ""),
+        str(_value(origin, "file_path") or ""),
+        _value(origin, "function_name"),
     )
 
 

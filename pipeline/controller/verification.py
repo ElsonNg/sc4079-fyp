@@ -43,11 +43,11 @@ DEFAULT_VERIFICATION_MARGIN = 0.1
 
 
 def _entry_key(entry: CorpusEntry) -> IdentityKey:
-    return (entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name)
+    return (entry.advisory.ghsa_id, entry.origin.fix_commit_sha, entry.origin.file_path, entry.origin.function_name)
 
 
 def _match_key(match: RetrievalMatch) -> IdentityKey:
-    return (match.ghsa_id, match.fix_commit_sha, match.file_path, match.function_name)
+    return (match.advisory.ghsa_id, match.origin.fix_commit_sha, match.origin.file_path, match.origin.function_name)
 
 
 def index_corpus_entries(entries: list[CorpusEntry]) -> dict[IdentityKey, CorpusEntry]:
@@ -159,14 +159,8 @@ def verify_candidate(
     verification_score = sim_vulnerable - sim_patched
 
     return VerificationResult(
-        ghsa_id=entry.ghsa_id,
-        cve_id=entry.cve_id,
-        cwes=entry.cwes,
-        severity=entry.severity,
-        repo=entry.repo,
-        fix_commit_sha=entry.fix_commit_sha,
-        file_path=entry.file_path,
-        function_name=entry.function_name,
+        advisory=entry.advisory,
+        origin=entry.origin,
         verification_score=verification_score,
         status=_bucket(verification_score, margin),
         sim_vulnerable=sim_vulnerable,

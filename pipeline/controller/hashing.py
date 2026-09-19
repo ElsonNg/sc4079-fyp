@@ -5,7 +5,6 @@ from typing import Literal
 import tree_sitter
 
 from corpus.models.corpus import CorpusEntry
-from pipeline.controller.provenance import CorpusLineage, cluster_corpus_entries
 from pipeline.controller.parsing import (
     _apply_replacements,
     _collapse_whitespace,
@@ -14,6 +13,7 @@ from pipeline.controller.parsing import (
     parse_source,
     source_language,
 )
+from pipeline.controller.provenance import CorpusLineage, cluster_corpus_entries
 from pipeline.models.hashing import FunctionFingerprint, HashMatch
 
 # VUDDY's own reported threshold: "the shortest vulnerable function consists of 51
@@ -196,27 +196,11 @@ def _match_from_entry(
     return HashMatch(
         lineage_id=lineage.lineage_id if lineage else None,
         fix_boundary_id=boundary_id,
-        advisories=advisories if advisories is not None else (list(lineage.advisories) if lineage else []),
-        ghsa_id=entry.ghsa_id,
-        cve_id=entry.cve_id,
-        osv_id=entry.osv_id,
-        advisory_title=entry.advisory_title,
-        advisory_description=entry.advisory_description,
-        advisory_url=entry.advisory_url,
-        advisory_references=entry.advisory_references,
+        advisories=advisories if advisories is not None else list(lineage.advisories) if lineage else [],
         side=side,
         match_type=match_type,
-        cwes=entry.cwes,
-        severity=entry.severity,
-        package_name=entry.package_name,
-        ecosystem=entry.ecosystem,
-        affected_versions=entry.affected_versions,
-        fixed_versions=entry.fixed_versions,
-        repo=entry.repo,
-        fix_commit_sha=entry.fix_commit_sha,
-        file_path=entry.file_path,
-        function_name=entry.function_name,
-        source_language=entry.source_language,
+        advisory=entry.advisory,
+        origin=entry.origin,
     )
 
 
@@ -280,7 +264,7 @@ def lookup(target_source: str, index: HashIndex, *, filename: str | None = None)
             fingerprint.abstracted_hash, []
         )
     )
-    matches = [match for match in matches if match.source_language == language]
+    matches = [match for match in matches if match.origin.source_language == language]
     unique = {}
     for match in matches:
         key = (match.lineage_id, match.fix_boundary_id, match.side, match.match_type)

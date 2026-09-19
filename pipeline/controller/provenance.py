@@ -6,7 +6,7 @@ import hashlib
 from dataclasses import dataclass
 
 from corpus.models.corpus import CorpusEntry
-from pipeline.models.provenance import AdvisoryAlias
+from shared.metadata import AdvisoryAlias
 
 
 def _source_digest(source: str) -> str:
@@ -17,9 +17,9 @@ def provenance_lineage_id(entry: CorpusEntry) -> str:
     """Stable identity for an upstream repository/file/function code family."""
 
     values = (
-        entry.repo,
-        entry.file_path,
-        entry.function_name or "",
+        entry.origin.repo,
+        entry.origin.file_path,
+        entry.origin.function_name or "",
     )
     digest = hashlib.sha256("\0".join(values).encode("utf-8")).hexdigest()
     return f"lineage-{digest}"
@@ -30,7 +30,7 @@ def fix_boundary_id(entry: CorpusEntry) -> str:
 
     values = (
         provenance_lineage_id(entry),
-        entry.fix_commit_sha,
+        entry.origin.fix_commit_sha,
         _source_digest(entry.vulnerable_function),
         _source_digest(entry.patched_function),
     )
@@ -39,21 +39,8 @@ def fix_boundary_id(entry: CorpusEntry) -> str:
 
 
 def advisory_alias(entry: CorpusEntry) -> AdvisoryAlias:
-    return AdvisoryAlias(
-        ghsa_id=entry.ghsa_id,
-        cve_id=entry.cve_id,
-        osv_id=entry.osv_id,
-        advisory_title=entry.advisory_title,
-        advisory_description=entry.advisory_description,
-        advisory_url=entry.advisory_url,
-        advisory_references=entry.advisory_references,
-        cwes=entry.cwes,
-        severity=entry.severity,
-        package_name=entry.package_name,
-        ecosystem=entry.ecosystem,
-        affected_versions=entry.affected_versions,
-        fixed_versions=entry.fixed_versions,
-    )
+    return entry.advisory
+
 
 
 @dataclass(frozen=True)
@@ -85,10 +72,10 @@ def cluster_corpus_entries(entries: list[CorpusEntry]) -> list[CorpusLineage]:
         ordered = sorted(
             members,
             key=lambda item: (
-                item.ghsa_id,
-                item.package_name,
-                item.cve_id or "",
-                item.osv_id or "",
+                item.advisory.ghsa_id,
+                item.advisory.package_name,
+                item.advisory.cve_id or "",
+                item.advisory.osv_id or "",
             ),
         )
         aliases: dict[tuple[str, str | None, str | None, str, str], AdvisoryAlias] = {}

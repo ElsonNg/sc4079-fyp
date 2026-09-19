@@ -26,8 +26,8 @@ def _canonical_json(value: object) -> str:
 def _entry_identity(entry) -> list[str | None]:
     """The full row identity: matches corpus_entries' UNIQUE constraint in store.py."""
     return [
-        entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name,
-        entry.package_name, entry.release_boundary.get("last_affected"), entry.release_boundary.get("first_fixed"),
+        entry.advisory.ghsa_id, entry.origin.fix_commit_sha, entry.origin.file_path, entry.origin.function_name,
+        entry.advisory.package_name, entry.release_boundary.get("last_affected"), entry.release_boundary.get("first_fixed"),
     ]
 
 
@@ -98,10 +98,10 @@ def promote_snapshot(result: BuildResult, snapshots_dir: Path = DEFAULT_SNAPSHOT
             _write_json(stage / "cohorts.json", {
                 "complete": len(result.entries),
                 "high_impact": sum(entry.high_impact for entry in result.entries),
-                "languages": {language: sum(e.source_language == language for e in result.entries) for language in sorted({e.source_language for e in result.entries})},
+                "languages": {language: sum(e.origin.source_language == language for e in result.entries) for language in sorted({e.origin.source_language for e in result.entries})},
             })
             _write_json(stage / "source-hashes.json", [
-                {"identity": _entry_identity(e), "native_sha256": e.native_hash, "patch_sha256": hashlib.sha256(e.patch_hunk.encode()).hexdigest(), "advisory_sha256": hashlib.sha256(_canonical_json({"title": e.advisory_title, "description": e.advisory_description, "references": e.advisory_references, "affected": e.affected_versions, "fixed": e.fixed_versions}).encode()).hexdigest()}
+                {"identity": _entry_identity(e), "native_sha256": e.native_hash, "patch_sha256": hashlib.sha256(e.patch_hunk.encode()).hexdigest(), "advisory_sha256": hashlib.sha256(_canonical_json({"title": e.advisory.advisory_title, "description": e.advisory.advisory_description, "references": e.advisory.advisory_references, "affected": e.advisory.affected_versions, "fixed": e.advisory.fixed_versions}).encode()).hexdigest()}
                 for e in result.entries
             ])
             (stage / "indexes").mkdir()
@@ -112,7 +112,7 @@ def promote_snapshot(result: BuildResult, snapshots_dir: Path = DEFAULT_SNAPSHOT
             _write_json(stage / "retrieval-index.json", {
                 "schema": "native-hash-v2",
                 "entries": [
-                    {"identity": _entry_identity(e), "language": e.source_language, "native_hash": e.native_hash, "native_match_label": "Flagged (Exact)"}
+                    {"identity": _entry_identity(e), "language": e.origin.source_language, "native_hash": e.native_hash, "native_match_label": "Flagged (Exact)"}
                     for e in result.entries
                 ],
             })

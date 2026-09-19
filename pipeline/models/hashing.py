@@ -2,8 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from corpus.models.github import CWE
-from pipeline.models.provenance import AdvisoryAlias
+from shared.metadata import AdvisoryAlias, SourceReference
+from pipeline.models.records import FlatRecordModel, HASH_MATCH_FIELDS
 
 
 class FunctionFingerprint(BaseModel):
@@ -14,27 +14,20 @@ class FunctionFingerprint(BaseModel):
     abstracted_length: int
 
 
-class HashMatch(BaseModel):
+class HashMatch(FlatRecordModel):
+    record_groups = HASH_MATCH_FIELDS
+
+    # Shared code-family identifier, when attribution is available.
     lineage_id: str | None = None
+    # Identifier of the specific vulnerable-to-patched transition.
     fix_boundary_id: str | None = None
+    # All advisory aliases attached to this boundary, including shared CVEs.
     advisories: list[AdvisoryAlias] = Field(default_factory=list)
-    ghsa_id: str
-    cve_id: str | None = None
-    osv_id: str | None = None
-    advisory_title: str = ""
-    advisory_description: str = ""
-    advisory_url: str = ""
-    advisory_references: list[str] = []
+    # Reference side matched by the hash: vulnerable or patched.
     side: Literal["vulnerable", "patched"]
+    # Hash representation matched: exact or abstracted.
     match_type: Literal["exact", "abstracted"]
-    cwes: list[CWE] = []
-    severity: str = "unknown"
-    package_name: str | None = None
-    ecosystem: str | None = None
-    affected_versions: list[str] = []
-    fixed_versions: list[str] = []
-    repo: str
-    fix_commit_sha: str
-    file_path: str
-    function_name: str | None = None
-    source_language: str = "javascript"
+    # Primary advisory and package metadata, e.g. GHSA, CVE and affected versions.
+    advisory: AdvisoryAlias
+    # Upstream repository, fix commit and source location, e.g. "src/parse.js".
+    origin: SourceReference

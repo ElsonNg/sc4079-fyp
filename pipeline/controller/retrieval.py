@@ -37,7 +37,7 @@ def _normalized_text(source: str) -> str:
 
 def _corpus_fingerprint(entries: list[CorpusEntry]) -> str:
     keys = sorted(
-        f"{e.ghsa_id}|{e.advisory_title}|{e.fix_commit_sha}|{e.file_path}|{e.function_name}|"
+        f"{e.advisory.ghsa_id}|{e.advisory.advisory_title}|{e.origin.fix_commit_sha}|{e.origin.file_path}|{e.origin.function_name}|"
         f"{hashlib.sha256(e.vulnerable_function.encode('utf-8')).hexdigest()}"
         for e in entries
     )
@@ -96,19 +96,8 @@ def _corpus_windows(entry: CorpusEntry) -> list[str]:
 
 def _match_from_entry(entry: CorpusEntry) -> RetrievalMatch:
     return RetrievalMatch(
-        ghsa_id=entry.ghsa_id,
-        cve_id=entry.cve_id,
-        advisory_title=entry.advisory_title,
-        advisory_description=entry.advisory_description,
-        advisory_url=entry.advisory_url,
-        advisory_references=entry.advisory_references,
-        cwes=entry.cwes,
-        severity=entry.severity,
-        repo=entry.repo,
-        fix_commit_sha=entry.fix_commit_sha,
-        file_path=entry.file_path,
-        function_name=entry.function_name,
-        source_language=entry.source_language,
+        advisory=entry.advisory,
+        origin=entry.origin,
     )
 
 
@@ -275,7 +264,7 @@ def query_batch(
             if idx < 0 or sim < threshold:
                 continue
             base = retrieval_index.entries[idx]
-            key = (base.ghsa_id, base.fix_commit_sha, base.file_path, base.function_name)
+            key = (base.advisory.ghsa_id, base.origin.fix_commit_sha, base.origin.file_path, base.origin.function_name)
             previous = aggregated[owner].get(key)
             if previous is None or float(sim) > previous.similarity:
                 aggregated[owner][key] = base.model_copy(update={"similarity": float(sim)})

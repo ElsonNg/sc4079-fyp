@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 
-from corpus.models.github import CWE
+from shared.metadata import CorpusAdvisory, SourceReference
+from shared.records import MetadataRecord
 
 
 class DiagnosticLine(BaseModel):
@@ -10,29 +11,14 @@ class DiagnosticLine(BaseModel):
     text: str
 
 
-class CorpusEntry(BaseModel):
-    ghsa_id: str
-    cve_id: str | None = None
-    osv_id: str | None = None
-    advisory_title: str = ""
-    advisory_description: str = ""
-    advisory_url: str = ""
-    advisory_references: list[str] = []
-    cwes: list[CWE] = []
-    severity: str = "unknown"
-    package_name: str
-    ecosystem: str
-    repo: str
-    fix_commit_sha: str
-    file_path: str
-    function_name: str | None = None
+class CorpusEntry(MetadataRecord):
+    advisory: CorpusAdvisory
+    origin: SourceReference
+
     vulnerable_function: str
     patched_function: str
     diagnostic_lines: list[DiagnosticLine] = []
-    affected_versions: list[str] = []
-    fixed_versions: list[str] = []
     osv_confirmed: bool = False
-    source_language: str = "javascript"
     patch_hunk: str = ""
     native_hash: str = ""
     normalized_hash: str = ""

@@ -53,9 +53,9 @@ def _expected_pair_ids(record: dict, pairs: dict) -> set[str]:
     expected = _expected(record)
     values = set()
     for pair_id, pair in pairs.items():
-        core = (pair.fix_commit_sha, pair.file_path, pair.function_name)
+        core = (pair.origin.fix_commit_sha, pair.origin.file_path, pair.origin.function_name)
         aliases = {item.ghsa_id for item in pair.advisories}
-        if core == expected[1:] and (pair.ghsa_id == expected[0] or expected[0] in aliases):
+        if core == expected[1:] and (pair.advisory.ghsa_id == expected[0] or expected[0] in aliases):
             values.add(pair_id)
     return values
 

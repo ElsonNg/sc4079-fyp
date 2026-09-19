@@ -54,7 +54,7 @@ _AUDITED_ABSENT_BOUNDARIES = {
 
 
 def _boundary_identity(entry) -> tuple:
-    return entry.ghsa_id, entry.fix_commit_sha, entry.file_path, entry.function_name
+    return entry.advisory.ghsa_id, entry.origin.fix_commit_sha, entry.origin.file_path, entry.origin.function_name
 
 def _complete(entry) -> bool:
     rb = entry.release_boundary or {}
@@ -65,11 +65,11 @@ def _stratified(entries, *, total: int, per_category: int):
     by_category: dict[str, list] = defaultdict(list)
     for entry in entries:
         if _complete(entry):
-            by_category[category_for(entry.package_name)].append(entry)
+            by_category[category_for(entry.advisory.package_name)].append(entry)
     selected: list = []
     for _category, bucket in sorted(by_category.items()):
-        js = [e for e in bucket if e.source_language == "javascript"]
-        ts = [e for e in bucket if e.source_language != "javascript"]
+        js = [e for e in bucket if e.origin.source_language == "javascript"]
+        ts = [e for e in bucket if e.origin.source_language != "javascript"]
         interleaved: list = []
         for a, b in zip(js, ts):
             interleaved.extend([a, b])
@@ -81,10 +81,10 @@ def _stratified(entries, *, total: int, per_category: int):
 def _rows_for(entry):
     rb = entry.release_boundary
     corpus_key = {
-        "ghsa_id": entry.ghsa_id,
-        "fix_commit_sha": entry.fix_commit_sha,
-        "file_path": entry.file_path,
-        "function_name": entry.function_name,
+        "ghsa_id": entry.advisory.ghsa_id,
+        "fix_commit_sha": entry.origin.fix_commit_sha,
+        "file_path": entry.origin.file_path,
+        "function_name": entry.origin.function_name,
     }
     for kind, tarball, sha, version, status in (
         ("vulnerable", rb["vulnerable_tarball"], rb["vulnerable_artifact_sha256"], rb["last_affected"], "flagged"),
@@ -92,19 +92,19 @@ def _rows_for(entry):
     ):
         source_commit = rb.get("last_affected_commit" if kind == "vulnerable" else "first_fixed_commit")
         yield {
-            "ghsa_id": entry.ghsa_id,
-            "package_name": entry.package_name,
-            "category": category_for(entry.package_name),
-            "source_language": entry.source_language,
+            "ghsa_id": entry.advisory.ghsa_id,
+            "package_name": entry.advisory.package_name,
+            "category": category_for(entry.advisory.package_name),
+            "source_language": entry.origin.source_language,
             "kind": kind,
             "version": version,
             "tarball_url": tarball,
             "expected_sha256": sha,
             "expected_status": status,
-            "source_repo": entry.repo,
+            "source_repo": entry.origin.repo,
             "source_commit": source_commit,
-            "tier1_applicable": _tier1_applicable(entry.file_path),
-            "corpus_file_path": entry.file_path,
+            "tier1_applicable": _tier1_applicable(entry.origin.file_path),
+            "corpus_file_path": entry.origin.file_path,
             "corpus_entry": corpus_key,
             "target_source_sha256": hashlib.sha256(
                 (entry.vulnerable_function if kind == "vulnerable" else entry.patched_function).encode("utf-8")
@@ -130,13 +130,13 @@ def main() -> int:
     applicable = [
         e for e in entries
         if _complete(e)
-        and _tier1_applicable(e.file_path)
+        and _tier1_applicable(e.origin.file_path)
         and _boundary_identity(e) not in _AUDITED_ABSENT_BOUNDARIES
     ]
     excluded = sum(
         1 for e in entries
         if _complete(e) and (
-            not _tier1_applicable(e.file_path)
+            not _tier1_applicable(e.origin.file_path)
             or _boundary_identity(e) in _AUDITED_ABSENT_BOUNDARIES
         )
     )
@@ -155,8 +155,8 @@ def main() -> int:
     unique_tarballs = len({row["tarball_url"] for row in rows})
     print(f"Selected {len(selected)} entries -> {len(rows)} label rows "
           f"({unique_tarballs} unique tarballs) -> {args.output}")
-    print("By category:", dict(Counter(category_for(e.package_name) for e in selected)))
-    print("By language:", dict(Counter(e.source_language for e in selected)))
+    print("By category:", dict(Counter(category_for(e.advisory.package_name) for e in selected)))
+    print("By language:", dict(Counter(e.origin.source_language for e in selected)))
     return 0
 
 

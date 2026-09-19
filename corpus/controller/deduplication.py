@@ -25,8 +25,8 @@ def fingerprint_entry(entry: CorpusEntry) -> CorpusEntry:
     entry.ast_hash = _hash(json.dumps(_token_form(entry.vulnerable_function).split(), separators=(",", ":")))
     if not entry.advisory_aliases:
         entry.advisory_aliases = [{
-            "ghsa_id": entry.ghsa_id, "cve_id": entry.cve_id, "osv_id": entry.osv_id,
-            "title": entry.advisory_title, "url": entry.advisory_url,
+            "ghsa_id": entry.advisory.ghsa_id, "cve_id": entry.advisory.cve_id, "osv_id": entry.advisory.osv_id,
+            "title": entry.advisory.advisory_title, "url": entry.advisory.advisory_url,
         }]
     return entry
 
@@ -37,13 +37,13 @@ def deduplicate_entries(entries: list[CorpusEntry]) -> tuple[list[CorpusEntry], 
     seen: dict[tuple, CorpusEntry] = {}
     for entry in sorted(
         (fingerprint_entry(item) for item in entries),
-        key=lambda e: (e.ghsa_id, e.fix_commit_sha, e.file_path, e.function_name or ""),
+        key=lambda e: (e.advisory.ghsa_id, e.origin.fix_commit_sha, e.origin.file_path, e.origin.function_name or ""),
     ):
         boundary = (
             entry.release_boundary.get("last_affected"),
             entry.release_boundary.get("first_fixed"),
         )
-        key = (entry.package_name, boundary, entry.ast_hash)
+        key = (entry.advisory.package_name, boundary, entry.ast_hash)
         if key in seen:
             existing = seen[key]
             known = {(a.get("ghsa_id"), a.get("cve_id"), a.get("osv_id")) for a in existing.advisory_aliases}

@@ -23,7 +23,7 @@ from pipeline.controller.retrieval import (
 
 
 def _identity(value) -> tuple[str, str, str, str | None]:
-    return (value.ghsa_id, value.fix_commit_sha, value.file_path, value.function_name)
+    return (value.advisory.ghsa_id, value.origin.fix_commit_sha, value.origin.file_path, value.origin.function_name)
 
 
 def evaluate_recall(
@@ -96,7 +96,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    entries = [entry for entry in load_entries(args.db_path) if entry.ghsa_id.startswith(KLABAN_ID_PREFIX)]
+    entries = [entry for entry in load_entries(args.db_path) if entry.advisory.ghsa_id.startswith(KLABAN_ID_PREFIX)]
     if args.limit is not None:
         entries = entries[: args.limit]
     index_entries = load_entries(args.db_path)

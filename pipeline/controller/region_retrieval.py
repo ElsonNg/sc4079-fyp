@@ -11,12 +11,12 @@ from typing import Callable
 import numpy as np
 
 from pipeline.controller import embedding
-from pipeline.controller.embedding import DEFAULT_MODEL_ID
-from pipeline.models.regions import CandidateRegion, RegionRetrievalMatch, VulnerableRegionPair
+from pipeline.detection.config import DEFAULT_MODEL_ID, DEFAULT_REGION_THRESHOLD, DEFAULT_REGION_TOP_K
+from pipeline.models.boundary import VulnerableRegionPair
+from pipeline.models.region import CandidateRegion
+from pipeline.models.region_retrieval import RegionRetrievalMatch
 
 DEFAULT_REGION_EMBEDDINGS_DIR = Path(__file__).resolve().parent.parent.parent / "corpus" / "data" / "region_embeddings"
-DEFAULT_REGION_TOP_K = 10
-DEFAULT_REGION_THRESHOLD = 0.0
 
 
 @dataclass
@@ -31,9 +31,9 @@ class RegionRetrievalIndex:
 
 def _region_fingerprint(pairs: list[VulnerableRegionPair], model_id: str) -> str:
     values = [
-        f"symmetric-v3-fp32|{model_id}|{pair.pair_id}|{pair.lineage_id}|{pair.advisory_title}|"
+        f"symmetric-v3-fp32|{model_id}|{pair.pair_id}|{pair.lineage_id}|{pair.advisory.advisory_title}|"
         f"{json.dumps([item.model_dump() for item in pair.advisories], sort_keys=True)}|"
-        f"{pair.vulnerable_source_sha256}|{pair.patched_source_sha256}|"
+        f"{pair.change.vulnerable_source_sha256}|{pair.change.patched_source_sha256}|"
         f"{pair.vulnerable_region.source}|{pair.patched_region.source}"
         for pair in pairs
     ]
@@ -133,23 +133,8 @@ def query_region_batch(
                     candidate_region_id=candidate.region.region_id,
                     candidate_granularity=candidate.region.granularity,
                     corpus_granularity=pair.vulnerable_region.granularity,
-                    ghsa_id=pair.ghsa_id,
-                    cve_id=pair.cve_id,
-                    osv_id=pair.osv_id,
-                    advisory_title=pair.advisory_title,
-                    advisory_description=pair.advisory_description,
-                    advisory_url=pair.advisory_url,
-                    advisory_references=pair.advisory_references,
-                    cwes=pair.cwes,
-                    severity=pair.severity,
-                    package_name=pair.package_name,
-                    ecosystem=pair.ecosystem,
-                    affected_versions=pair.affected_versions,
-                    fixed_versions=pair.fixed_versions,
-                    fix_commit_sha=pair.fix_commit_sha,
-                    file_path=pair.file_path,
-                    function_name=pair.function_name,
-                    source_language=pair.source_language,
+                    advisory=pair.advisory,
+                    origin=pair.origin,
                 )
             )
         results.append(matches)
@@ -195,7 +180,7 @@ def save_region_index(
     metadata = {
         "model_id": retrieval_index.model_id,
         "fingerprint": retrieval_index.fingerprint,
-        "pairs": [pair.model_dump() for pair in retrieval_index.pairs],
+        "pairs": [pair.to_record() for pair in retrieval_index.pairs],
         "indexed_pair_ids": retrieval_index.indexed_pair_ids,
         "indexed_sides": retrieval_index.indexed_sides,
     }

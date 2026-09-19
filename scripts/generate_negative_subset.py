@@ -79,13 +79,13 @@ def _record(
         "control_source_type": control_source_type,
         "matched_positive_candidate_id": matched_positive_id,
         "corpus_entry": entry_key(entry),
-        "package_name": entry.package_name,
-        "ecosystem": entry.ecosystem,
-        "osv_id": entry.osv_id,
-        "affected_versions": entry.affected_versions,
-        "fixed_versions": entry.fixed_versions,
-        "severity": entry.severity,
-        "cwes": [c.model_dump() for c in entry.cwes],
+        "package_name": entry.advisory.package_name,
+        "ecosystem": entry.advisory.ecosystem,
+        "osv_id": entry.advisory.osv_id,
+        "affected_versions": entry.advisory.affected_versions,
+        "fixed_versions": entry.advisory.fixed_versions,
+        "severity": entry.advisory.severity,
+        "cwes": [c.model_dump() for c in entry.advisory.cwes],
         "osv_confirmed": entry.osv_confirmed,
         "vulnerable_source_sha256": digest(entry.vulnerable_function),
         "patched_source_sha256": digest(entry.patched_function),
@@ -129,10 +129,10 @@ def main() -> None:
     records: list[dict] = []
     positive_keys = {
         (
-            entry.ghsa_id,
-            entry.fix_commit_sha,
-            entry.file_path,
-            entry.function_name,
+            entry.advisory.ghsa_id,
+            entry.origin.fix_commit_sha,
+            entry.origin.file_path,
+            entry.origin.function_name,
         )
         for entry in (by_row_id[row_id] for row_id, _ in specs)
     }
@@ -159,10 +159,10 @@ def main() -> None:
         (row_id, entry)
         for row_id, entry in sorted(by_row_id.items())
         if (
-            entry.ghsa_id,
-            entry.fix_commit_sha,
-            entry.file_path,
-            entry.function_name,
+            entry.advisory.ghsa_id,
+            entry.origin.fix_commit_sha,
+            entry.origin.file_path,
+            entry.origin.function_name,
         )
         not in positive_keys
     ]

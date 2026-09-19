@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from corpus.controller.extraction import compute_diagnostic_lines
 from corpus.models.corpus import CorpusEntry
 from pipeline.controller.edit_distance import score_edit_distance
-from pipeline.controller.local_correspondence import decide_local_correspondence
 from pipeline.controller.hashing import HashIndex, build_hash_index, lookup
+from pipeline.controller.local_correspondence import decide_local_correspondence
+from pipeline.controller.parsing import extract_function_units, source_language
+from pipeline.controller.provenance import cluster_corpus_entries
 from pipeline.controller.region_extraction import (
     candidate_region_is_informative,
     enumerate_candidate_regions,
@@ -16,8 +16,6 @@ from pipeline.controller.region_extraction import (
     source_is_supported,
 )
 from pipeline.controller.region_retrieval import (
-    DEFAULT_REGION_THRESHOLD,
-    DEFAULT_REGION_TOP_K,
     RegionRetrievalIndex,
     aggregate_region_hits,
     build_region_index,
@@ -27,22 +25,27 @@ from pipeline.controller.region_retrieval import (
     save_region_index,
 )
 from pipeline.controller.region_verification import (
-    RegionVerifierConfig,
     classify_boundary,
     deduplicate_evidence,
     verify_region_pair,
 )
-from pipeline.controller.provenance import cluster_corpus_entries
-from pipeline.controller.embedding import DEFAULT_MODEL_ID
-from pipeline.controller.parsing import extract_function_units, source_language
-from pipeline.models.regions import (
-    LineageAttribution,
-    LineageConfidence,
-    PackageApplicability,
-    RegionAggregate,
-    RegionDetectionResult,
+from pipeline.detection.config import (
+    DEFAULT_MODEL_ID,
+    DEFAULT_REGION_THRESHOLD,
+    DEFAULT_REGION_TOP_K,
+    RegionDetectorConfig,
+    RegionVerifierConfig,
+)
+from pipeline.models.boundary import (
+    BoundaryIdentity,
+    BoundarySupport,
+    VerificationScores,
     VulnerabilityState,
 )
+from pipeline.models.evidence import PackageApplicability
+from pipeline.models.lineage import LineageAttribution, LineageConfidence
+from pipeline.models.region_retrieval import RegionAggregate
+from pipeline.models.result import RegionDetectionResult
 
 AdvisoryIdentity = tuple[str, ...]
 
@@ -67,22 +70,22 @@ def resolve_candidate_language(candidate_id: str | None, language: str | None) -
 def _hash_identity(match) -> AdvisoryIdentity:
     if match.lineage_id:
         return "lineage", match.lineage_id
-    return match.ghsa_id, match.fix_commit_sha, match.file_path, match.function_name
+    return match.advisory.ghsa_id, match.origin.fix_commit_sha, match.origin.file_path, match.origin.function_name
 
 
 def _pair_identity(pair) -> AdvisoryIdentity:
     if pair.lineage_id:
         return "lineage", pair.lineage_id
-    return pair.ghsa_id, pair.fix_commit_sha, pair.file_path, pair.function_name
+    return pair.advisory.ghsa_id, pair.origin.fix_commit_sha, pair.origin.file_path, pair.origin.function_name
 
 
 def derive_priority(lineages, states, applicabilities):
     credible = {item.lineage_id for item in lineages if item.confidence in {"high", "medium"}}
-    scoped = [item for item in states if item.lineage_id in credible]
+    scoped = [item for item in states if item.boundary.lineage_id in credible]
     # Completing S -> T -> E is stronger evidence than retrieval-derived lineage
     # confidence. Do not let a low lineage score veto an already verified boundary.
     vulnerable = [item for item in states if item.status == "vulnerable"]
-    if any(not item.contradictions for item in vulnerable):
+    if any(not item.support.contradictions for item in vulnerable):
         # Package ownership explains how code entered the project; it does not
         # invalidate strong code-level evidence. Keep applicability as report
         # context and reserve manual review for genuinely ambiguous boundaries.
@@ -93,11 +96,11 @@ def derive_priority(lineages, states, applicabilities):
     unresolved = [
         item for item in scoped
         if item.status == "uncertain"
-        and not item.boundary_rejected
+        and not item.gates.boundary_rejected
     ]
     strong_uncertainty = [
         item for item in unresolved
-        if item.token_gate_passed or bool(item.contradictions)
+        if item.gates.token_gate_passed or bool(item.support.contradictions)
     ]
     # A retrieved boundary that never completed S/T is weak alternative-search
     # noise. It must not override an independently verified patched boundary.
@@ -133,32 +136,6 @@ def _infer_candidate_function_name(source: str, filename: str) -> str | None:
         )
     ]
     return outer[0].name if len(outer) == 1 else None
-
-
-@dataclass(frozen=True)
-class RegionDetectorConfig:
-    model_id: str = DEFAULT_MODEL_ID
-    retrieval_top_k: int = DEFAULT_REGION_TOP_K
-    retrieval_threshold: float = DEFAULT_REGION_THRESHOLD
-    max_candidate_regions: int = 96
-    max_verification_candidates: int = 5
-    max_verification_regions_per_pair: int = 3
-    # Evaluation-only guard: compare candidates only with corpus evidence written
-    # in the same source language. Production keeps this disabled to retain the
-    # Native same-language matching is enforced for every detector mode.
-    same_language_only: bool = True
-    # Kept for a later alignment ablation; inactive under the staged verifier.
-    use_embedding_alignment_fallback: bool = False
-    # Experimental late fallback. It never bypasses S/T, hashes, identity rejection,
-    # or contradictions, and is deliberately disabled in production by default.
-    include_local_correspondence_fallback: bool = False
-    # Optional operational guard for broad field scans. Oversized outer functions
-    # are recorded as skipped before region expansion/embedding; their separately
-    # extracted nested functions remain eligible. Labelled evaluations disable it.
-    max_candidate_chars: int | None = None
-    # Independently bound the regex-based edit tokenizer for field scans.
-    max_edit_candidate_chars: int | None = None
-    verifier: RegionVerifierConfig = RegionVerifierConfig()
 
 
 class RegionDetector:
@@ -226,7 +203,7 @@ class RegionDetector:
                 message="Candidate syntax is unsupported or could not be parsed safely",
             )
         hash_matches = lookup(candidate_source, self.hash_index, filename=language_filename)
-        hash_matches = [match for match in hash_matches if match.source_language == candidate_language]
+        hash_matches = [match for match in hash_matches if match.origin.source_language == candidate_language]
         hash_types = sorted({match.match_type for match in hash_matches})
         if hash_matches:
             lineage_ids = sorted({match.lineage_id for match in hash_matches if match.lineage_id})
@@ -242,9 +219,9 @@ class RegionDetector:
                     lineage_id=lineage_id,
                     confidence="high",
                     score=1.0,
-                    repo=first.repo,
-                    file_path=first.file_path,
-                    reference_function=first.function_name,
+                    repo=first.origin.repo,
+                    file_path=first.origin.file_path,
+                    reference_function=first.origin.function_name,
                     associated_advisories=list(aliases.values()),
                 ))
             states = []
@@ -255,19 +232,23 @@ class RegionDetector:
                 patched = any(match.side == "patched" for match in members)
                 status = "uncertain" if vulnerable and patched else "vulnerable" if vulnerable else "patched"
                 states.append(VulnerabilityState(
-                    lineage_id=first.lineage_id or "",
-                    fix_boundary_id=boundary_id,
-                    fix_commit_sha=first.fix_commit_sha,
                     status=status,
-                    abstention_reason=(
-                        "CONTRADICTORY_EVIDENCE" if status == "uncertain" else None
-                    ),
-                    vulnerable_score=1.0 if vulnerable else 0.0,
-                    patched_score=1.0 if patched else 0.0,
-                    contrast_score=0.0 if vulnerable and patched else 1.0 if vulnerable else -1.0,
-                    fix_evidence=[f"{first.match_type} {first.side}-side hash match"],
-                    contradictions=["vulnerable and patched hashes both match"] if vulnerable and patched else [],
+                    abstention_reason='CONTRADICTORY_EVIDENCE' if status == 'uncertain' else None,
                     advisories=first.advisories,
+                    boundary=BoundaryIdentity(
+                        lineage_id=first.lineage_id or '',
+                        fix_boundary_id=boundary_id,
+                        fix_commit_sha=first.origin.fix_commit_sha,
+                    ),
+                    scores=VerificationScores(
+                        vulnerable_score=1.0 if vulnerable else 0.0,
+                        patched_score=1.0 if patched else 0.0,
+                        contrast_score=0.0 if vulnerable and patched else 1.0 if vulnerable else -1.0,
+                    ),
+                    support=BoundarySupport(
+                        fix_evidence=[f'{first.match_type} {first.side}-side hash match'],
+                        contradictions=['vulnerable and patched hashes both match'] if vulnerable and patched else [],
+                    ),
                 ))
             applications = self._unknown_applicabilities(lineages)
             return RegionDetectionResult(
@@ -299,7 +280,7 @@ class RegionDetector:
             top_k=self.config.retrieval_top_k,
             threshold=self.config.retrieval_threshold,
         )
-        matches = [match for match in matches if match.source_language == candidate_language]
+        matches = [match for match in matches if match.origin.source_language == candidate_language]
         grouped = aggregate_region_hits(matches)
         aggregates: list[RegionAggregate] = []
         for pair_id, pair_matches in grouped:
@@ -311,7 +292,6 @@ class RegionDetector:
                     lineage_id=self.pairs[pair_id].lineage_id,
                     fix_boundary_id=self.pairs[pair_id].fix_boundary_id,
                     best_similarity=max(match.similarity for match in pair_matches),
-                    support_count=len(candidate_region_ids),
                     candidate_region_ids=candidate_region_ids,
                     granularities=granularities,
                     top_matches=sorted(pair_matches, key=lambda item: item.similarity, reverse=True)[:5],
@@ -348,7 +328,7 @@ class RegionDetector:
                         config=self.config.verifier,
                         model_id=self.config.model_id,
                         use_embedding_alignment=self.config.use_embedding_alignment_fallback,
-                        language=pair.source_language,
+                        language=pair.origin.source_language,
                         candidate_function_name=function_names_by_region_id.get(match.candidate_region_id),
                     )
                 )
@@ -370,27 +350,28 @@ class RegionDetector:
                 pair,
                 self.config.verifier,
             )
-            if not preliminary.token_gate_passed:
+            if not preliminary.gates.token_gate_passed:
                 states.append(preliminary)
                 continue
             if (
                 self.config.max_edit_candidate_chars is not None
                 and len(candidate_source) > self.config.max_edit_candidate_chars
             ):
-                states.append(preliminary.model_copy(update={
-                    "fix_evidence": preliminary.fix_evidence + [
+                support = preliminary.support.model_copy(update={
+                    "fix_evidence": preliminary.support.fix_evidence + [
                         "Edit stage complexity-skipped: candidate source has "
                         f"{len(candidate_source)} characters (limit "
                         f"{self.config.max_edit_candidate_chars})"
                     ],
-                }))
+                })
+                states.append(preliminary.model_copy(update={"support": support}))
                 continue
             diagnostics = self.boundary_diagnostics.get(boundary_id)
             if diagnostics is None:
                 diagnostics = compute_diagnostic_lines(
                     pair.vulnerable_region.source,
                     pair.patched_region.source,
-                    language=pair.source_language,
+                    language=pair.origin.source_language,
                 )
                 self.boundary_diagnostics[boundary_id] = diagnostics
             edit = score_edit_distance(candidate_source, diagnostics)
@@ -403,9 +384,9 @@ class RegionDetector:
             if (
                 self.config.include_local_correspondence_fallback
                 and state.status == "uncertain"
-                and state.token_gate_passed
-                and not state.boundary_rejected
-                and not state.contradictions
+                and state.gates.token_gate_passed
+                and not state.gates.boundary_rejected
+                and not state.support.contradictions
             ):
                 local = decide_local_correspondence(
                     pair.vulnerable_region.source,
@@ -414,23 +395,27 @@ class RegionDetector:
                     filename=language_filename,
                 )
                 decisive_methods = sorted(local["decisive"])
-                update = {
+                fallback_update = {
                     "local_correspondence_attempted": True,
                     "local_correspondence_status": local["status"],
                     "local_correspondence_methods": decisive_methods,
                     "local_correspondence_reason": local["reason"],
                     "local_correspondence_prior_abstention_reason": state.abstention_reason,
                 }
+                update = {}
                 if local["status"] in {"vulnerable", "patched"}:
+                    fallback_update["local_correspondence_used"] = True
+                    support = state.support.model_copy(update={
+                        "fix_evidence": state.support.fix_evidence + [
+                            "Experimental local correspondence: " + ", ".join(decisive_methods)
+                        ],
+                    })
                     update.update({
                         "status": local["status"],
                         "abstention_reason": None,
-                        "local_correspondence_used": True,
-                        "fix_evidence": state.fix_evidence + [
-                            "Experimental local correspondence: "
-                            + ", ".join(decisive_methods)
-                        ],
+                        "support": support,
                     })
+                update["fallbacks"] = state.fallbacks.model_copy(update=fallback_update)
                 state = state.model_copy(update=update)
             states.append(state)
 
@@ -444,7 +429,7 @@ class RegionDetector:
             independent = deduplicate_evidence(scoped)
             span_scores = sorted(
                 0.60 * item.retrieval_similarity
-                + 0.25 * max(item.structural_vulnerable, item.structural_patched)
+                + 0.25 * max(item.vulnerable.structural, item.patched.structural)
                 + 0.15 * 0.5
                 for item in independent
             )
@@ -454,9 +439,9 @@ class RegionDetector:
                 lineage_id=lineage_id,
                 confidence=_confidence(score),
                 score=score,
-                repo=meta.representative.repo,
-                file_path=meta.representative.file_path,
-                reference_function=meta.representative.function_name,
+                repo=meta.representative.origin.repo,
+                file_path=meta.representative.origin.file_path,
+                reference_function=meta.representative.origin.function_name,
                 associated_advisories=list(meta.advisories),
                 evidence_pair_ids=sorted({item.pair_id for item in independent}),
             ))

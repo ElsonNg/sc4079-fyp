@@ -23,9 +23,15 @@ from scripts.validate_llm_transformed_subset import _fixture_entries
 
 
 def _identity(value) -> tuple:
-    def get(name):
-        return value.get(name) if isinstance(value, dict) else getattr(value, name)
-    return (get("ghsa_id"), get("fix_commit_sha"), get("file_path"), get("function_name"))
+    def get(item, name, default=None):
+        return item.get(name, default) if isinstance(item, dict) else getattr(item, name, default)
+
+    origin = get(value, "origin", value)
+    advisory = get(value, "advisory", value)
+    return (
+        get(advisory, "ghsa_id"), get(origin, "fix_commit_sha"),
+        get(origin, "file_path"), get(origin, "function_name"),
+    )
 
 
 def run_jscpd_pool(
@@ -109,7 +115,7 @@ def run_provtrail(chosen: list[dict]) -> tuple[list[dict], dict[str, float]]:
             prepared.append((sample, [], [], "unsupported_syntax"))
             continue
         hashes = [match for match in lookup(source, detector.hash_index, filename=filename)
-                  if match.source_language == sample["language"]]
+                  if match.origin.source_language == sample["language"]]
         if hashes:
             prepared.append((sample, hashes, [], None))
             continue
@@ -144,7 +150,7 @@ def run_provtrail(chosen: list[dict]) -> tuple[list[dict], dict[str, float]]:
         else:
             start, end = offsets
             matches = [match for batch in batches[start:end] for match in batch
-                       if match.source_language == sample["language"]]
+                       if match.origin.source_language == sample["language"]]
             grouped = aggregate_region_hits(matches)
             raw_rank = next(
                 (rank for rank, (pair_id, _) in enumerate(grouped, 1)

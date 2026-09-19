@@ -42,7 +42,7 @@ def _safe_url(value: Any) -> str:
 
 def _entry_key(value: dict[str, Any] | CorpusEntry) -> tuple[Any, ...]:
     if isinstance(value, CorpusEntry):
-        return value.ghsa_id, value.fix_commit_sha, value.file_path, value.function_name
+        return value.advisory.ghsa_id, value.origin.fix_commit_sha, value.origin.file_path, value.origin.function_name
     return (
         value.get("ghsa_id"),
         value.get("fix_commit_sha"),
@@ -299,13 +299,13 @@ def _excerpt(
 def _enrich_match(match: dict[str, Any], entry: CorpusEntry | None) -> dict[str, Any]:
     output = dict(match)
     if entry is not None:
-        output["advisory_title"] = output.get("advisory_title") or entry.advisory_title
-        output["advisory_description"] = output.get("advisory_description") or entry.advisory_description
-        output["advisory_url"] = output.get("advisory_url") or entry.advisory_url
-        output["advisory_references"] = output.get("advisory_references") or entry.advisory_references
-        output["affected_versions"] = output.get("affected_versions") or entry.affected_versions
-        output["fixed_versions"] = output.get("fixed_versions") or entry.fixed_versions
-        output["source_language"] = entry.source_language
+        output["advisory_title"] = output.get("advisory_title") or entry.advisory.advisory_title
+        output["advisory_description"] = output.get("advisory_description") or entry.advisory.advisory_description
+        output["advisory_url"] = output.get("advisory_url") or entry.advisory.advisory_url
+        output["advisory_references"] = output.get("advisory_references") or entry.advisory.advisory_references
+        output["affected_versions"] = output.get("affected_versions") or entry.advisory.affected_versions
+        output["fixed_versions"] = output.get("fixed_versions") or entry.advisory.fixed_versions
+        output["source_language"] = entry.origin.source_language
     output["affected_versions"] = _version_values(output.get("affected_versions"))
     output["fixed_versions"] = _version_values(output.get("fixed_versions"))
     output["advisory_summary"] = _advisory_summary(output.get("advisory_description"))

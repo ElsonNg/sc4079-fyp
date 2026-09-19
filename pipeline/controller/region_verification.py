@@ -4,18 +4,30 @@ from __future__ import annotations
 
 import difflib
 import re
-from dataclasses import dataclass
 
-from pipeline.controller.parsing import normalize_source
 from pipeline.controller.edit_distance import EditDistanceEvidence, fuzzy_substring_similarity
-from pipeline.models.regions import (
-    AstRegion,
-    LineageConfidence,
-    RegionAggregate,
-    RegionVerificationEvidence,
+from pipeline.controller.parsing import normalize_source
+from pipeline.detection.config import RegionVerifierConfig
+from pipeline.models.boundary import (
+    BoundaryEditEvidence,
+    BoundaryIdentity,
+    BoundarySupport,
+    FallbackEvidence,
+    VerificationGates,
+    VerificationScores,
     VulnerabilityState,
     VulnerableRegionPair,
 )
+from pipeline.models.evidence import (
+    CandidateEvidenceReference,
+    PairedEvidenceReference,
+    ReferenceSideEvidence,
+    RegionComparison,
+    RegionVerificationEvidence,
+)
+from pipeline.models.lineage import LineageConfidence
+from pipeline.models.region import AstRegion
+from pipeline.models.region_retrieval import RegionAggregate
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
 _API_ANCHOR_SEPARATOR_RE = re.compile(r"\?\.|\.")
@@ -24,30 +36,6 @@ _KEYWORDS = {
     "catch", "finally", "const", "let", "var", "new", "function", "class", "await",
     "async", "true", "false", "null", "undefined", "this", "typeof", "instanceof",
 }
-
-
-@dataclass(frozen=True)
-class RegionVerifierConfig:
-    """Initial provisional gates; calibration replaces these on held-out advisories.
-
-    Local alignment remains available as an explicit later ablation. The active
-    verifier uses staged structure, token, and patch-local edit gates.
-    """
-
-    minimum_structure_score: float = 0.70
-    minimum_token_score: float = 0.70
-    minimum_edit_side_score: float = 0.90
-    minimum_edit_margin: float = 0.10
-    minimum_supporting_regions: int = 2
-    minimum_consensus_ratio: float = 0.60
-    contradiction_margin: float = 0.08
-    signature_threshold: float = 0.65
-    local_alignment_trigger: float = 0.72
-    include_local_alignment: bool = False
-    minimum_containment_coverage: float = 0.50
-    include_containment_fallback: bool = True
-    # Field-scan operational guard. None preserves uncapped evaluation behavior.
-    max_containment_cells: int | None = None
 
 
 def _ratio(left: list[str], right: list[str]) -> float:
@@ -309,41 +297,49 @@ def verify_region_pair(
 
     return RegionVerificationEvidence(
         pair_id=pair.pair_id,
-        candidate_region_id=candidate_region.region_id,
-        vulnerable_region_id=pair.vulnerable_region.region_id,
-        patched_region_id=pair.patched_region.region_id,
         retrieval_similarity=retrieval_similarity,
-        structural_vulnerable=vuln_struct,
-        structural_patched=patch_struct,
-        token_vulnerable=vuln_token,
-        token_patched=patch_token,
-        api_anchor_vulnerable=vuln_api_anchor,
-        api_anchor_patched=patch_api_anchor,
-        local_alignment_vulnerable=vuln_local,
-        local_alignment_patched=patch_local,
-        vulnerable_score=vuln_score,
-        patched_score=patch_score,
-        correspondence_score=max(vuln_score, patch_score),
-        vulnerable_minus_patched=margin,
-        ast_coverage=coverage,
-        candidate_span=candidate_region.span,
-        candidate_granularity=candidate_region.granularity,
-        reference_granularity=pair.vulnerable_region.granularity,
-        containment_structural_vulnerable=containment_vuln_struct,
-        containment_structural_patched=containment_patch_struct,
-        containment_token_vulnerable=containment_vuln_token,
-        containment_token_patched=containment_patch_token,
-        containment_coverage_vulnerable=containment_vuln_coverage,
-        containment_coverage_patched=containment_patch_coverage,
-        containment_fallback_vulnerable=containment_vuln_used,
-        containment_fallback_patched=containment_patch_used,
-        containment_fallback_attempted_vulnerable=containment_vuln_attempted,
-        containment_fallback_attempted_patched=containment_patch_attempted,
-        candidate_function_name=candidate_function_name,
-        fix_signature_coverage=signature_coverage(pair.fix_signature_tokens),
-        vulnerable_signature_coverage=signature_coverage(pair.vulnerable_signature_tokens),
-        fallback_used=(
-            vuln_fallback or patch_fallback or containment_vuln_used or containment_patch_used
+        candidate=CandidateEvidenceReference(
+            region_id=candidate_region.region_id,
+            span=candidate_region.span,
+            granularity=candidate_region.granularity,
+            function_name=candidate_function_name,
+        ),
+        reference=PairedEvidenceReference(
+            vulnerable_region_id=pair.vulnerable_region.region_id,
+            patched_region_id=pair.patched_region.region_id,
+            granularity=pair.vulnerable_region.granularity,
+        ),
+        vulnerable=ReferenceSideEvidence(
+            structural=vuln_struct,
+            token=vuln_token,
+            api_anchor=vuln_api_anchor,
+            local_alignment=vuln_local,
+            score=vuln_score,
+            containment_structural=containment_vuln_struct,
+            containment_token=containment_vuln_token,
+            containment_coverage=containment_vuln_coverage,
+            containment_used=containment_vuln_used,
+            containment_attempted=containment_vuln_attempted,
+        ),
+        patched=ReferenceSideEvidence(
+            structural=patch_struct,
+            token=patch_token,
+            api_anchor=patch_api_anchor,
+            local_alignment=patch_local,
+            score=patch_score,
+            containment_structural=containment_patch_struct,
+            containment_token=containment_patch_token,
+            containment_coverage=containment_patch_coverage,
+            containment_used=containment_patch_used,
+            containment_attempted=containment_patch_attempted,
+        ),
+        comparison=RegionComparison(
+            correspondence_score=max(vuln_score, patch_score),
+            margin=margin,
+            ast_coverage=coverage,
+            fix_signature_coverage=signature_coverage(pair.change.fix_signature_tokens),
+            vulnerable_signature_coverage=signature_coverage(pair.change.vulnerable_signature_tokens),
+            alignment_fallback_used=vuln_fallback or patch_fallback or containment_vuln_used or containment_patch_used,
         ),
     )
 
@@ -352,11 +348,11 @@ _GRANULARITY_WEIGHT = {"changed": 4.0, "block": 3.0, "context": 2.0, "function":
 
 
 def _overlap(left: RegionVerificationEvidence, right: RegionVerificationEvidence) -> bool:
-    if left.candidate_span is None or right.candidate_span is None:
-        return left.candidate_region_id == right.candidate_region_id
+    if left.candidate.span is None or right.candidate.span is None:
+        return left.candidate.region_id == right.candidate.region_id
     return (
-        left.candidate_span.start_byte < right.candidate_span.end_byte
-        and right.candidate_span.start_byte < left.candidate_span.end_byte
+        left.candidate.span.start_byte < right.candidate.span.end_byte
+        and right.candidate.span.start_byte < left.candidate.span.end_byte
     )
 
 
@@ -365,18 +361,18 @@ def _effective_components(
     side: str,
 ) -> tuple[float, float]:
     if side == "vulnerable":
-        if item.containment_fallback_vulnerable:
+        if item.vulnerable.containment_used:
             return (
-                item.containment_structural_vulnerable or 0.0,
-                item.containment_token_vulnerable or 0.0,
+                item.vulnerable.containment_structural or 0.0,
+                item.vulnerable.containment_token or 0.0,
             )
-        return item.structural_vulnerable, item.token_vulnerable
-    if item.containment_fallback_patched:
+        return item.vulnerable.structural, item.vulnerable.token
+    if item.patched.containment_used:
         return (
-            item.containment_structural_patched or 0.0,
-            item.containment_token_patched or 0.0,
+            item.patched.containment_structural or 0.0,
+            item.patched.containment_token or 0.0,
         )
-    return item.structural_patched, item.token_patched
+    return item.patched.structural, item.patched.token
 
 
 def deduplicate_evidence(
@@ -403,11 +399,11 @@ def deduplicate_evidence(
         evidence,
         key=lambda item: (
             -correspondence(item),
-            -(item.reference_granularity == item.candidate_granularity),
-            -_GRANULARITY_WEIGHT[item.candidate_granularity],
-            -item.ast_coverage,
+            -(item.reference.granularity == item.candidate.granularity),
+            -_GRANULARITY_WEIGHT[item.candidate.granularity],
+            -item.comparison.ast_coverage,
             -item.retrieval_similarity,
-            item.candidate_region_id,
+            item.candidate.region_id,
         ),
     )
     selected: list[RegionVerificationEvidence] = []
@@ -442,12 +438,14 @@ def classify_boundary(
     independent = deduplicate_evidence(evidence)
     if not independent:
         return VulnerabilityState(
-            lineage_id=pair.lineage_id or "",
-            fix_boundary_id=pair.fix_boundary_id,
-            fix_commit_sha=pair.fix_commit_sha,
-            status="uncertain",
-            abstention_reason="NO_EVIDENCE",
+            status='uncertain',
+            abstention_reason='NO_EVIDENCE',
             advisories=pair.advisories,
+            boundary=BoundaryIdentity(
+                lineage_id=pair.lineage_id or '',
+                fix_boundary_id=pair.fix_boundary_id,
+                fix_commit_sha=pair.origin.fix_commit_sha,
+            ),
         )
     vulnerable_independent = deduplicate_evidence(evidence, side="vulnerable")
     patched_independent = deduplicate_evidence(evidence, side="patched")
@@ -455,8 +453,8 @@ def classify_boundary(
         vulnerable_independent,
         key=lambda item: (
             min(_effective_components(item, "vulnerable")),
-            item.reference_granularity == item.candidate_granularity,
-            item.ast_coverage,
+            item.reference.granularity == item.candidate.granularity,
+            item.comparison.ast_coverage,
             item.retrieval_similarity,
         ),
     )
@@ -464,8 +462,8 @@ def classify_boundary(
         patched_independent,
         key=lambda item: (
             min(_effective_components(item, "patched")),
-            item.reference_granularity == item.candidate_granularity,
-            item.ast_coverage,
+            item.reference.granularity == item.candidate.granularity,
+            item.comparison.ast_coverage,
             item.retrieval_similarity,
         ),
     )
@@ -519,8 +517,8 @@ def classify_boundary(
         else 0.0
     )
     contrast = vulnerable_score - patched_score
-    fix_coverage = max(item.fix_signature_coverage for item in independent)
-    vulnerable_coverage = max(item.vulnerable_signature_coverage for item in independent)
+    fix_coverage = max(item.comparison.fix_signature_coverage for item in independent)
+    vulnerable_coverage = max(item.comparison.vulnerable_signature_coverage for item in independent)
     fix_present = fix_coverage >= config.signature_threshold
     vulnerable_present = vulnerable_coverage >= config.signature_threshold
     signature_state = (
@@ -561,25 +559,25 @@ def classify_boundary(
         vulnerable_signal = False
         patched_signal = False
     vulnerable_context = any(
-        item.candidate_granularity in {"block", "context", "function"}
+        item.candidate.granularity in {"block", "context", "function"}
         and _effective_components(item, "vulnerable")[0] >= config.minimum_structure_score
         and _effective_components(item, "vulnerable")[1] >= config.minimum_token_score
         for item in evidence
     )
     patched_context = any(
-        item.candidate_granularity in {"block", "context", "function"}
+        item.candidate.granularity in {"block", "context", "function"}
         and _effective_components(item, "patched")[0] >= config.minimum_structure_score
         and _effective_components(item, "patched")[1] >= config.minimum_token_score
         for item in evidence
     )
     candidate_function_names = {
-        item.candidate_function_name
+        item.candidate.function_name
         for item in evidence
-        if item.candidate_function_name
+        if item.candidate.function_name
     }
-    if not pair.function_name or not candidate_function_names:
+    if not pair.origin.function_name or not candidate_function_names:
         function_identity_state = "unknown"
-    elif pair.function_name in candidate_function_names:
+    elif pair.origin.function_name in candidate_function_names:
         function_identity_state = "match"
     else:
         function_identity_state = "conflict"
@@ -662,7 +660,7 @@ def classify_boundary(
         fix_evidence.append("both vulnerable and fix signatures present; treated as non-exclusive")
     elif fix_present:
         fix_evidence.append("added fix signature present")
-    elif pair.fix_signature_tokens:
+    elif pair.change.fix_signature_tokens:
         fix_evidence.append("added fix signature absent")
     if vulnerable_present:
         fix_evidence.append("removed vulnerable construct retained")
@@ -675,77 +673,71 @@ def classify_boundary(
         fix_evidence.append(
             "generic contrastive edit disagrees with stronger S/T correspondence"
         )
-    vulnerable_support_count = sum(item.vulnerable_minus_patched > 0 for item in independent)
-    patched_support_count = sum(item.vulnerable_minus_patched < 0 for item in independent)
+    vulnerable_support_count = sum(item.comparison.margin > 0 for item in independent)
+    patched_support_count = sum(item.comparison.margin < 0 for item in independent)
     side_consensus_ratio = max(vulnerable_support_count, patched_support_count) / len(independent)
     return VulnerabilityState(
-        lineage_id=pair.lineage_id or "",
-        fix_boundary_id=pair.fix_boundary_id,
-        fix_commit_sha=pair.fix_commit_sha,
         status=status,
         abstention_reason=abstention_reason,
-        edit_strategy=edit_strategy,
-        vulnerable_score=vulnerable_score,
-        patched_score=patched_score,
-        correspondence_score=max(
-            min(structural_vulnerable, token_vulnerable),
-            min(structural_patched, token_patched),
-        ),
-        contrast_score=contrast,
-        structural_vulnerable=structural_vulnerable,
-        structural_patched=structural_patched,
-        token_vulnerable=token_vulnerable,
-        token_patched=token_patched,
-        edit_vulnerable=vulnerable_score,
-        edit_patched=patched_score,
-        edit_margin=contrast,
-        edit_vulnerable_anchor_has_identity=(
-            vulnerable_anchor_has_identity
-        ),
-        edit_patched_anchor_has_identity=(
-            patched_anchor_has_identity
-        ),
-        edit_raw_vulnerable=edit.raw_vulnerable if edit is not None else None,
-        edit_raw_patched=edit.raw_patched if edit is not None else None,
-        edit_contrastive_vulnerable=(
-            edit.contrastive_vulnerable if edit is not None else None
-        ),
-        edit_contrastive_patched=(
-            edit.contrastive_patched if edit is not None else None
-        ),
-        edit_contrastive_used=use_contrastive,
-        structure_gate_passed=structure_gate_passed,
-        token_gate_passed=token_gate_passed,
-        context_correspondence_passed=(
-            vulnerable_context if vulnerable_signal
-            else patched_context if patched_signal
-            else vulnerable_context or patched_context
-        ),
-        function_identity_state=function_identity_state,
-        edit_anchor_has_identity=selected_anchor_has_identity,
-        boundary_identity_gate_passed=boundary_identity_gate_passed,
-        boundary_rejected=boundary_rejected,
-        containment_fallback_attempted=(
-            best_vulnerable.containment_fallback_attempted_vulnerable
-            or best_patched.containment_fallback_attempted_patched
-        ),
-        containment_fallback_used=(
-            best_vulnerable.containment_fallback_vulnerable
-            or best_patched.containment_fallback_patched
-        ),
-        fix_signature_coverage=fix_coverage,
-        vulnerable_signature_coverage=vulnerable_coverage,
-        signature_evidence_state=signature_state,
-        independent_region_count=len(independent),
-        vulnerable_support_count=vulnerable_support_count,
-        patched_support_count=patched_support_count,
-        side_consensus_ratio=side_consensus_ratio,
-        fix_evidence=fix_evidence,
-        contradictions=contradictions,
         advisories=pair.advisories,
-        evidence_pair_ids=sorted({
-            item.pair_id for item in [*independent, best_vulnerable, best_patched]
-        }),
+        evidence_pair_ids=sorted({item.pair_id for item in [*independent, best_vulnerable, best_patched]}),
+        boundary=BoundaryIdentity(
+            lineage_id=pair.lineage_id or '',
+            fix_boundary_id=pair.fix_boundary_id,
+            fix_commit_sha=pair.origin.fix_commit_sha,
+        ),
+        edit=BoundaryEditEvidence(
+            strategy=edit_strategy,
+            vulnerable=vulnerable_score,
+            patched=patched_score,
+            margin=contrast,
+            vulnerable_anchor_has_identity=vulnerable_anchor_has_identity,
+            patched_anchor_has_identity=patched_anchor_has_identity,
+            raw_vulnerable=edit.raw_vulnerable if edit is not None else None,
+            raw_patched=edit.raw_patched if edit is not None else None,
+            contrastive_vulnerable=edit.contrastive_vulnerable if edit is not None else None,
+            contrastive_patched=edit.contrastive_patched if edit is not None else None,
+        ),
+        scores=VerificationScores(
+            vulnerable_score=vulnerable_score,
+            patched_score=patched_score,
+            correspondence_score=max(min(structural_vulnerable, token_vulnerable), min(structural_patched, token_patched)),
+            contrast_score=contrast,
+            structural_vulnerable=structural_vulnerable,
+            structural_patched=structural_patched,
+            token_vulnerable=token_vulnerable,
+            token_patched=token_patched,
+        ),
+        gates=VerificationGates(
+            structure_gate_passed=structure_gate_passed,
+            token_gate_passed=token_gate_passed,
+            context_correspondence_passed=(
+                vulnerable_context
+                if vulnerable_signal
+                else patched_context if patched_signal else vulnerable_context or patched_context
+            ),
+            function_identity_state=function_identity_state,
+            edit_anchor_has_identity=selected_anchor_has_identity,
+            boundary_identity_gate_passed=boundary_identity_gate_passed,
+        ),
+        fallbacks=FallbackEvidence(
+            containment_attempted=(
+                best_vulnerable.vulnerable.containment_attempted
+                or best_patched.patched.containment_attempted
+            ),
+            containment_used=best_vulnerable.vulnerable.containment_used or best_patched.patched.containment_used,
+        ),
+        support=BoundarySupport(
+            fix_signature_coverage=fix_coverage,
+            vulnerable_signature_coverage=vulnerable_coverage,
+            signature_evidence_state=signature_state,
+            independent_region_count=len(independent),
+            vulnerable_support_count=vulnerable_support_count,
+            patched_support_count=patched_support_count,
+            side_consensus_ratio=side_consensus_ratio,
+            fix_evidence=fix_evidence,
+            contradictions=contradictions,
+        ),
     )
 
 
@@ -759,33 +751,33 @@ def classify_evidence(
         return "cleared", "none"
     passing = [
         item for item in evidence
-        if item.structural_vulnerable >= config.minimum_structure_score
-        and item.token_vulnerable >= config.minimum_token_score
-        and item.vulnerable_minus_patched >= config.minimum_edit_margin
+        if item.vulnerable.structural >= config.minimum_structure_score
+        and item.vulnerable.token >= config.minimum_token_score
+        and item.comparison.margin >= config.minimum_edit_margin
     ]
     contradicting = [
         item for item in evidence
-        if item.structural_patched >= config.minimum_structure_score
-        and item.token_patched >= config.minimum_token_score
-        and item.vulnerable_minus_patched <= -config.contradiction_margin
+        if item.patched.structural >= config.minimum_structure_score
+        and item.patched.token >= config.minimum_token_score
+        and item.comparison.margin <= -config.contradiction_margin
     ]
 
     # Multiple retrieved pairs and granularities can point at the same candidate
     # region. Count that source region once so repeated corpus windows do not create
     # artificial consensus.
-    supporting_region_ids = {item.candidate_region_id for item in passing}
-    contradicting_region_ids = {item.candidate_region_id for item in contradicting}
+    supporting_region_ids = {item.candidate.region_id for item in passing}
+    contradicting_region_ids = {item.candidate.region_id for item in contradicting}
     decisive_region_ids = supporting_region_ids | contradicting_region_ids
     consensus_ratio = (
         len(supporting_region_ids - contradicting_region_ids) / len(decisive_region_ids)
         if decisive_region_ids else 0.0
     )
     strongest_vulnerable_margin = max(
-        (item.vulnerable_minus_patched for item in passing),
+        (item.comparison.margin for item in passing),
         default=float("-inf"),
     )
     strongest_patched_margin = max(
-        (-item.vulnerable_minus_patched for item in contradicting),
+        (-item.comparison.margin for item in contradicting),
         default=float("-inf"),
     )
     has_strong_contradiction = strongest_patched_margin >= strongest_vulnerable_margin
@@ -795,12 +787,12 @@ def classify_evidence(
         and consensus_ratio >= config.minimum_consensus_ratio
         and not has_strong_contradiction
     ):
-        best = max(passing, key=lambda item: (item.vulnerable_minus_patched, item.vulnerable_score))
+        best = max(passing, key=lambda item: (item.comparison.margin, item.vulnerable.score))
         status = "flagged"
     else:
-        best = max(evidence, key=lambda item: (item.vulnerable_minus_patched, item.vulnerable_score))
+        best = max(evidence, key=lambda item: (item.comparison.margin, item.vulnerable.score))
         status = "manual_review"
-    if not passing and best.vulnerable_minus_patched <= -config.minimum_edit_margin:
+    if not passing and best.comparison.margin <= -config.minimum_edit_margin:
         status = "cleared"
 
     aggregate = next((item for item in aggregates if item.pair_id == best.pair_id), None)
@@ -808,7 +800,7 @@ def classify_evidence(
     granularity_count = len(aggregate.granularities) if aggregate else 1
     if status != "flagged":
         confidence: ProvenanceConfidence = "ambiguous" if evidence else "none"
-    elif support >= 3 and granularity_count >= 2 and best.vulnerable_minus_patched >= 0.15:
+    elif support >= 3 and granularity_count >= 2 and best.comparison.margin >= 0.15:
         confidence = "high"
     elif support >= 2 or granularity_count >= 2:
         confidence = "medium"

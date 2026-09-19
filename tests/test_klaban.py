@@ -58,14 +58,14 @@ def test_parse_klaban_keeps_only_confirmed_functions_and_provenance(tmp_path):
     assert report.functions_unconfirmed == 1
     assert report.functions_without_patch == 1
     first = entries[0]
-    assert first.ghsa_id == "KLABAN-SNYK-JS-WIDGET-1234"
-    assert first.cve_id == "CVE-2026-1234"
-    assert first.cwes[0].cwe_id == "CWE-79"
-    assert first.repo == "acme/widget"
-    assert first.fix_commit_sha == "deadbeef"
-    assert first.file_path == "src/render.js"
-    assert first.function_name == "render"
-    assert first.affected_versions == ["<2.0.0"]
+    assert first.advisory.ghsa_id == "KLABAN-SNYK-JS-WIDGET-1234"
+    assert first.advisory.cve_id == "CVE-2026-1234"
+    assert first.advisory.cwes[0].cwe_id == "CWE-79"
+    assert first.origin.repo == "acme/widget"
+    assert first.origin.fix_commit_sha == "deadbeef"
+    assert first.origin.file_path == "src/render.js"
+    assert first.origin.function_name == "render"
+    assert first.advisory.affected_versions == ["<2.0.0"]
     assert first.diagnostic_lines
     assert entries[1].patched_function == ""
     assert {line.kind for line in entries[1].diagnostic_lines} == {"removed"}
@@ -84,14 +84,14 @@ def test_reimport_replaces_only_klaban_namespace(tmp_path):
         vulnerable_function="function native() {}",
         patched_function="function native() {}",
     )
-    old_klaban = native.model_copy(update={"ghsa_id": "KLABAN-OLD"})
+    old_klaban = native.model_copy(update={'advisory': native.advisory.model_copy(update={'ghsa_id': "KLABAN-OLD"})})
     save_entries([native, old_klaban], database)
 
     imported, _ = parse_klaban_corpus(_write_dataset(tmp_path))
     replace_entries_by_ghsa_prefix(imported, KLABAN_ID_PREFIX, database)
 
     entries = load_entries(database)
-    assert {entry.ghsa_id for entry in entries} == {
+    assert {entry.advisory.ghsa_id for entry in entries} == {
         "GHSA-native",
         "KLABAN-SNYK-JS-WIDGET-1234",
     }

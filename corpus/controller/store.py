@@ -95,14 +95,14 @@ ON CONFLICT (ghsa_id, fix_commit_sha, file_path, function_name, package_name, bo
 
 def _entry_values(e: CorpusEntry) -> tuple:
     return (
-        e.ghsa_id, e.cve_id, e.osv_id, e.advisory_title, e.advisory_description,
-        e.advisory_url, json.dumps(e.advisory_references),
-        json.dumps([c.model_dump() for c in e.cwes]), e.severity, e.package_name,
-        e.ecosystem, e.repo, e.fix_commit_sha, e.file_path, e.function_name,
+        e.advisory.ghsa_id, e.advisory.cve_id, e.advisory.osv_id, e.advisory.advisory_title, e.advisory.advisory_description,
+        e.advisory.advisory_url, json.dumps(e.advisory.advisory_references),
+        json.dumps([c.model_dump() for c in e.advisory.cwes]), e.advisory.severity, e.advisory.package_name,
+        e.advisory.ecosystem, e.origin.repo, e.origin.fix_commit_sha, e.origin.file_path, e.origin.function_name,
         e.vulnerable_function, e.patched_function,
         json.dumps([d.model_dump() for d in e.diagnostic_lines]),
-        json.dumps(e.affected_versions), json.dumps(e.fixed_versions), int(e.osv_confirmed),
-        e.source_language, None, None, e.patch_hunk,
+        json.dumps(e.advisory.affected_versions), json.dumps(e.advisory.fixed_versions), int(e.osv_confirmed),
+        e.origin.source_language, None, None, e.patch_hunk,
         e.native_hash, e.normalized_hash, "", e.ast_hash,
         json.dumps(e.release_boundary, sort_keys=True), int(e.high_impact),
         json.dumps(e.impact_metadata, sort_keys=True), e.evidence_label, int(e.primary_evidence),
