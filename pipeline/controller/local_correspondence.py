@@ -5,7 +5,7 @@ No execution of candidate code. Unsupported syntax or ambiguous binding abstains
 from __future__ import annotations
 
 from pipeline.controller.region_extraction import _parse_region_source, _function_root
-from pipeline.controller.edit_distance import role_tokens
+from pipeline.detection.verification.edit_distance import role_tokens
 
 class Unsupported(Exception):pass
 

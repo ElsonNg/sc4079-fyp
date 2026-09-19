@@ -7,6 +7,7 @@ from dataclasses import dataclass
 DEFAULT_MODEL_ID = "qwen3-embedding-0.6b"
 DEFAULT_REGION_TOP_K = 10
 DEFAULT_REGION_THRESHOLD = 0.0
+HIGH_LINEAGE_CONFIDENCE_MARGIN = 0.15
 
 
 @dataclass(frozen=True)

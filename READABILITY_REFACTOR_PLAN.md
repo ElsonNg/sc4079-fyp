@@ -34,8 +34,18 @@ dispatch remain in `cli/main.py` (552 to 178 lines); execution now lives in
 `cli/commands/{scan,report,corpus}.py`. All 379 tests pass, nine help outputs match,
 and fresh/cached CLI findings match. The fresh full Tier 2 rerun matches all 600
 candidate records and the summary exactly, excluding the generation timestamp.
-Tier 1 remains blocked by a GitHub proxy error. Phase 3 verification decomposition
-has not started.
+Tier 1 remains blocked by a GitHub proxy error.
+
+Migration Phase 3 (verification decomposition) was subsequently authorized.
+`pipeline/detection/verification/` now owns sequence, structural, token, edit,
+fallback, aggregation and classification logic. The verifier coordinates typed
+reference-side evidence; the previous controller modules are import facades.
+`EditDistanceEvidence` lives in `pipeline/models/evidence.py`. All 384 tests pass,
+including performance checks; 384 region-evidence and 768 boundary-state comparisons
+against the pre-extraction implementation match. Fresh/cached CLI findings match.
+The fresh Tier 2 rerun matches all 600 records and the summary exactly, excluding
+the timestamp. Tier 1 is still blocked by the proxy.
+Phase 4 detector decomposition has not started.
 
 User review preference: present recommendations phase by phase for vetting before
 implementing each phase. Prioritize readability, maintainability, clean code and

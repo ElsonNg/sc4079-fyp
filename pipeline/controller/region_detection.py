@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from corpus.controller.extraction import compute_diagnostic_lines
 from corpus.models.corpus import CorpusEntry
-from pipeline.controller.edit_distance import score_edit_distance
+from pipeline.detection.verification.edit_distance import score_edit_distance
 from pipeline.controller.hashing import HashIndex, build_hash_index, lookup
 from pipeline.controller.local_correspondence import decide_local_correspondence
 from pipeline.controller.parsing import extract_function_units, source_language
@@ -24,11 +24,9 @@ from pipeline.controller.region_retrieval import (
     query_regions,
     save_region_index,
 )
-from pipeline.controller.region_verification import (
-    classify_boundary,
-    deduplicate_evidence,
-    verify_region_pair,
-)
+from pipeline.detection.verification.classification import classify_boundary
+from pipeline.detection.verification.aggregation import deduplicate_evidence
+from pipeline.detection.verification.verifier import verify_region_pair
 from pipeline.detection.config import (
     DEFAULT_MODEL_ID,
     DEFAULT_REGION_THRESHOLD,
@@ -86,7 +84,7 @@ def derive_priority(lineages, states, applicabilities):
     # confidence. Do not let a low lineage score veto an already verified boundary.
     vulnerable = [item for item in states if item.status == "vulnerable"]
     if any(not item.support.contradictions for item in vulnerable):
-        # Package ownership explains how code entered the project; it does not
+        # Package ownership explains how code entered the project. It does not
         # invalidate strong code-level evidence. Keep applicability as report
         # context and reserve manual review for genuinely ambiguous boundaries.
         return "automatic_vulnerability"
@@ -173,7 +171,7 @@ class RegionDetector:
         # ``candidate_id`` doubles as a unique identity and, historically, the only
         # language hint -- but a scan passes ids like "src/a.ts::10:20" whose ``::``
         # span suffix hides the extension, so TypeScript was silently analysed as
-        # JavaScript (no type erasure; type-annotated bodies failed to parse). Prefer
+        # JavaScript (no type erasure, so type-annotated bodies failed to parse). Prefer
         # an explicit ``language`` from the caller and fall back to the id only when it
         # is absent, deriving language from the path before any ``::`` span marker.
         candidate_language = resolve_candidate_language(candidate_id, language)
@@ -202,6 +200,8 @@ class RegionDetector:
                 parser_supported=False,
                 message="Candidate syntax is unsupported or could not be parsed safely",
             )
+
+        # Resolve deterministic hash matches first and return before region retrieval if found.
         hash_matches = lookup(candidate_source, self.hash_index, filename=language_filename)
         hash_matches = [match for match in hash_matches if match.origin.source_language == candidate_language]
         hash_types = sorted({match.match_type for match in hash_matches})
@@ -264,6 +264,7 @@ class RegionDetector:
                 message="Resolved deterministic hash evidence by lineage and fix boundary",
             )
 
+        # Retrieve similar corpus regions when hashes cannot resolve the function.
         candidate_regions = _candidate_regions or enumerate_candidate_regions(
             candidate_source,
             candidate_id=candidate_id,
@@ -281,6 +282,8 @@ class RegionDetector:
             threshold=self.config.retrieval_threshold,
         )
         matches = [match for match in matches if match.origin.source_language == candidate_language]
+
+        # Group hits by reference pair and limit how many pairs reach verification.
         grouped = aggregate_region_hits(matches)
         aggregates: list[RegionAggregate] = []
         for pair_id, pair_matches in grouped:
@@ -299,6 +302,7 @@ class RegionDetector:
             )
         aggregates = aggregates[: self.config.max_verification_candidates]
 
+        # verification.verifier compares each selected region with both sides of its fix.
         regions_by_id = {candidate.region.region_id: candidate.region for candidate in candidate_regions}
         function_names_by_region_id = {
             candidate.region.region_id: candidate.function_name
@@ -335,6 +339,8 @@ class RegionDetector:
                 verified_region_count += 1
                 if verified_region_count >= self.config.max_verification_regions_per_pair:
                     break
+
+        # Combine region evidence by fix boundary before deciding vulnerable or patched.
         evidence_by_boundary = {}
         for item in evidence:
             pair = self.pairs[item.pair_id]
@@ -366,6 +372,8 @@ class RegionDetector:
                 })
                 states.append(preliminary.model_copy(update={"support": support}))
                 continue
+
+            # Run edit scoring only after correspondence and size checks pass.
             diagnostics = self.boundary_diagnostics.get(boundary_id)
             if diagnostics is None:
                 diagnostics = compute_diagnostic_lines(
@@ -381,6 +389,8 @@ class RegionDetector:
                 self.config.verifier,
                 edit=edit,
             )
+
+            # The optional local fallback gets a final chance to resolve eligible uncertain cases.
             if (
                 self.config.include_local_correspondence_fallback
                 and state.status == "uncertain"
@@ -419,6 +429,7 @@ class RegionDetector:
                 state = state.model_copy(update=update)
             states.append(state)
 
+        # Attribute source lineage separately from each fix-boundary verdict.
         lineages = []
         evidence_by_lineage = {}
         for item in evidence:
@@ -445,6 +456,8 @@ class RegionDetector:
                 associated_advisories=list(meta.advisories),
                 evidence_pair_ids=sorted({item.pair_id for item in independent}),
             ))
+
+        # scanning.scan_directory later adds project-specific package applicability.
         lineages.sort(key=lambda item: (-item.score, item.lineage_id))
         applications = self._unknown_applicabilities(lineages)
         return RegionDetectionResult(
@@ -485,6 +498,8 @@ class RegionDetector:
         candidates: list[tuple],
     ) -> list[RegionDetectionResult]:
         """Detect a batch while encoding all candidate regions in one model call."""
+
+        # Flatten regions for shared retrieval, retaining each function's slice.
         prepared: list[tuple[str | None, str, str | None, str | None, list]] = []
         flattened = []
         offsets: list[tuple[int, int]] = []
@@ -511,12 +526,16 @@ class RegionDetector:
             flattened.extend(regions)
             offsets.append((start, len(flattened)))
             prepared.append((candidate_id, source, language, inferred_name, regions))
+
+        # Batch retrieval happens here before each function enters detect().
         batches = query_region_batch(
             flattened,
             self.region_index,
             top_k=self.config.retrieval_top_k,
             threshold=self.config.retrieval_threshold,
         )
+
+        # Rejoin the normal detection flow with the prepared regions and retrieval hits.
         results: list[RegionDetectionResult] = []
         for (candidate_id, source, language, function_name, regions), (start, end) in zip(prepared, offsets):
             matches = [match for batch in batches[start:end] for match in batch]

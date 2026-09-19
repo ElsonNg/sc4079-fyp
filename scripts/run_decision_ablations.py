@@ -11,9 +11,10 @@ from pathlib import Path
 
 from corpus.controller.store import load_entries
 from pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
-from pipeline.controller.edit_distance import EditDistanceEvidence
+from pipeline.models.evidence import EditDistanceEvidence
 from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector, derive_priority
-from pipeline.controller.region_verification import RegionVerifierConfig, classify_boundary
+from pipeline.detection.config import RegionVerifierConfig
+from pipeline.detection.verification.classification import classify_boundary
 
 
 ROOT = Path(__file__).resolve().parent.parent

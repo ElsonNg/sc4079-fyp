@@ -215,6 +215,7 @@ def scan_directory(
         if progress_callback is not None:
             progress_callback({"phase": phase, **details})
 
+    # Discover source files and gather the project context used to assess each finding.
     state_path = config.state_path or root / ".provtrail" / DEFAULT_STATE_FILENAME
     progress("snapshot_start", root=str(root))
     previous = load_scan_state(state_path)
@@ -222,6 +223,8 @@ def scan_directory(
     js_files = _js_files(snapshot, config.extensions)
     project_evidence = build_project_evidence(root, js_files)
     progress("snapshot_complete", total_files=len(js_files))
+
+    # Reuse results only when the root, corpus and detector settings still match.
     config_fingerprint = fingerprint_config(
         {
             "detector": asdict(config.detector),
@@ -242,12 +245,14 @@ def scan_directory(
     for record in previous_functions.values():
         previous_by_path.setdefault(str(record["path"]), []).append(record)
 
+    # File records retain locations while the content cache covers moved or unchanged functions.
     result_cache = dict(previous.result_cache) if context_matches and previous else {}
     current_records: dict[str, dict[str, Any]] = {}
     scanned_functions = 0
     reused_functions = 0
     lazy_detector = detector
 
+    # Load the model and index only if a function needs fresh detection.
     def get_detector() -> Detector:
         nonlocal lazy_detector
         if lazy_detector is None:
@@ -259,6 +264,7 @@ def scan_directory(
         return lazy_detector
 
     for file_index, relative_path in enumerate(js_files, start=1):
+        # Unchanged files skip parsing and detection, but refresh their project assessment.
         file_unchanged = context_matches and relative_path not in changed
         if file_unchanged and relative_path in previous_by_path:
             records = [dict(record) for record in previous_by_path[relative_path]]
@@ -280,6 +286,7 @@ def scan_directory(
             )
             continue
 
+        # Parse changed files, then check each function against the content cache.
         records = _extract_file_functions(root, relative_path)
         file_scanned = 0
         file_reused = 0
@@ -290,11 +297,14 @@ def scan_directory(
             path=relative_path,
             function_count=len(records),
         )
+
         uncached = [
             record for record in records
             if result_cache.get(record["function_hash"]) is None
         ]
         active_detector = get_detector() if uncached else lazy_detector
+
+        # The default detector batches uncached functions to share retrieval work.
         if isinstance(active_detector, RegionDetector) and config.batch_size > 1:
             raw_results: dict[str, RegionDetectionResult] = {}
             result_sources: dict[str, str] = {}
@@ -315,6 +325,8 @@ def scan_directory(
                     result_sources[record["function_id"]] = "reused"
                     reused_functions += 1
                     file_reused += 1
+
+            # Keep raw detection results reusable across project locations.
             for offset in range(0, len(uncached), config.batch_size):
                 chunk = uncached[offset: offset + config.batch_size]
                 progress(
@@ -346,6 +358,8 @@ def scan_directory(
                     batch_index=offset // config.batch_size + 1,
                     function_count=len(chunk),
                 )
+
+            # Apply current project evidence to both cached and newly detected results.
             for function_index, record in enumerate(records, start=1):
                 raw_result = raw_results[record["function_id"]]
                 result = project_evidence.assess(raw_result, relative_path)
@@ -370,6 +384,8 @@ def scan_directory(
                 reused_count=file_reused,
             )
             continue
+
+        # Single-function mode follows the same reuse, detect and assess sequence.
         for function_index, record in enumerate(records, start=1):
             progress(
                 "function_start",
@@ -379,6 +395,7 @@ def scan_directory(
                 name=record["name"],
                 source_chars=len(record["source"]),
             )
+
             function_hash = record["function_hash"]
             cached = result_cache.get(function_hash)
             if cached is not None:
@@ -408,6 +425,8 @@ def scan_directory(
                     "function_hash": function_hash,
                     "result": raw_result.model_dump(mode="json"),
                 }
+
+            # Assess after caching so project-specific conclusions are refreshed on reuse.
             result = project_evidence.assess(raw_result, relative_path)
             record["result"] = result.model_dump(mode="json")
             current_records[record["function_id"]] = record
@@ -430,6 +449,7 @@ def scan_directory(
             reused_count=file_reused,
         )
 
+    # Collect findings in source order for the CLI and report renderers.
     findings = []
     for record in sorted(current_records.values(), key=lambda item: (item["path"], item["start_byte"])):
         result = _result_from_record(record, record["function_id"])
@@ -450,6 +470,7 @@ def scan_directory(
         }
         findings.append(finding)
 
+    # Persist this scan for incremental reuse on the next run.
     state = ScanState(
         target_root=str(root),
         corpus_version=config.corpus_version,
@@ -459,6 +480,8 @@ def scan_directory(
         result_cache=result_cache,
     )
     save_scan_state(state, state_path)
+
+    # Return the summary to cli.commands.scan.run for report generation.
     priorities = Counter(finding["result"]["priority"] for finding in findings)
     progress(
         "scan_complete",

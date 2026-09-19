@@ -11,6 +11,10 @@ The scan command calls `pipeline/controller/scanning.py`, which coordinates the
 detector in `pipeline/controller/region_detection.py`. The scan command then writes
 the JSON and HTML reports.
 
+Region verification lives in `pipeline/detection/verification/`: `verifier.py`
+coordinates scoring, `classification.py` decides boundary states, and the other
+modules own structural/token scores, edit distance, evidence selection and fallbacks.
+
 The detector scans `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`
 files with incremental scan state:
 

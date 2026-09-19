@@ -314,3 +314,53 @@ Validation artifacts are under `.provtrail/refactor-baseline/`:
   `cli-split-tier1-prerequisite.json`. The Tier 1 gate remains outstanding.
 
 No verification decomposition or later migration phase was started.
+
+## Migration Phase 3: verification decomposition
+
+Baseline commit: `d170639` (the user committed the CLI extraction).
+The 809-line region verification implementation is now organized under
+`pipeline/detection/verification/`:
+
+- `sequences.py`: common sequence similarity and bounded containment.
+- `structural.py`: AST shape/path similarity.
+- `tokens.py`: role normalization, API anchors, containment components and signatures.
+- `fallback.py`: local alignment and containment selection.
+- `aggregation.py`: overlapping-region deduplication and effective side scores.
+- `classification.py`: fix-boundary decisions and aggregate classification.
+- `edit_distance.py`: existing patch-local edit scorer.
+- `verifier.py`: side scoring and evidence assembly.
+
+The old `region_verification.py` and `edit_distance.py` paths re-export their
+functions. Production and evaluation consumers use the canonical modules; tests
+also check compatibility imports. `EditDistanceEvidence` moved unchanged into
+the evidence model module. No scoring thresholds, fallback defaults or configuration
+fingerprints changed. The existing 0.15 aggregate-confidence cutoff is now a named
+constant in the configuration module. The aggregate classifier's annotation now
+includes its already-existing `ambiguous` result instead of an undefined type name.
+
+Validation artifacts are under `.provtrail/refactor-baseline/`:
+
+- **384 tests passed in 29.53 seconds**, including real-model and performance tests
+  (`verification-split-pytest.log` and `.xml`). The final focused rerun passed 78 tests.
+- Eighteen moved functions match their original AST bodies after normalizing
+  names, annotations and the extracted constant. Edit-scoring functions/constants
+  and the evidence dataclass are unchanged (`verification-split-structure.json`).
+- Direct old/new comparisons across eight corpus entries, four configurations
+  and vulnerable/patched/extended regions produced **384 identical region-evidence
+  records** and **768 identical boundary decisions**. These include disabled/capped
+  containment and local line alignment (`verification-split-differential.json`).
+- New tests cover compatibility identities and optional embedding alignment
+  succeeding, failing, disabled, or not requested. Containment measurements remain
+  serialized when fallback selection is disabled.
+- Fresh and cached CLI findings match the preceding baseline exactly, exit 1,
+  and produce JSON/HTML (`verification-split-cli-comparison.json`).
+- The fresh full Tier 2 rerun completed **600 candidates**. Every result record,
+  the summary and all other fields match `tier2-before.json` exactly, excluding
+  only `generated_at_utc`. Artifacts: `tier2-verification-split.json`, `.log` and
+  `tier2-verification-split-comparison.json`.
+- All six baseline input/corpus/index hashes remain unchanged
+  (`verification-split-artifact-check.json`).
+- GitHub access still fails with `ProxyError`; Tier 1 remains outstanding
+  (`verification-split-tier1-prerequisite.json`).
+
+Detector decomposition and later phases have not started.

@@ -14,8 +14,10 @@ sys.path.insert(0, str(ROOT))
 from pipeline.controller.hashing import abstract_identifiers, compute_fingerprint
 from pipeline.controller.parsing import normalize_source, _collapse_whitespace
 from pipeline.controller.region_extraction import enumerate_candidate_regions
-from pipeline.controller.region_verification import _structural_score, _token_score, _role_tokens, _ratio
-from pipeline.controller.edit_distance import role_tokens, fuzzy_substring_similarity
+from pipeline.detection.verification.structural import structural_score as _structural_score
+from pipeline.detection.verification.tokens import token_score as _token_score, role_tokens as _role_tokens
+from pipeline.detection.verification.sequences import sequence_similarity as _ratio
+from pipeline.detection.verification.edit_distance import role_tokens, fuzzy_substring_similarity
 
 
 def example_data():

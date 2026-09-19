@@ -76,6 +76,7 @@ def _scan_progress(event: dict) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
+    # Build the detector and cache settings from CLI options.
     entries = load_entries(args.db_path) if args.db_path else load_entries()
     verifier = RegionVerifierConfig(
         minimum_structure_score=args.min_structure_score,
@@ -96,6 +97,8 @@ def run(args: argparse.Namespace) -> int:
         corpus_version=corpus_fingerprint(entries),
         state_path=args.state_path,
     )
+
+    # scanning.scan_directory handles discovery, cache reuse, detection and project assessment.
     summary = scan_directory(
         args.path,
         entries=entries,
@@ -103,6 +106,8 @@ def run(args: argparse.Namespace) -> int:
         detector_factory=build_default_detector_factory(entries, detector_config),
         progress_callback=_scan_progress,
     )
+
+    # Optionally explain findings after the scan has produced its decisions.
     if args.explain_review:
         cache_path = Path(summary.state_path).with_name("review-explanations.json")
         enrich_manual_review_findings(
@@ -118,6 +123,8 @@ def run(args: argparse.Namespace) -> int:
             progress_callback=explanation_progress,
             warning_callback=lambda message: print(f"warning: {message}", file=sys.stderr),
         )
+
+    # Write the structured and HTML reports from the same scan summary.
     payload = summary.to_dict()
     output_path = args.output or args.path.resolve() / ".provtrail" / "latest-scan.json"
     html_output_path = args.html_output or output_path.with_suffix(".html")
@@ -125,6 +132,7 @@ def run(args: argparse.Namespace) -> int:
     temporary = output_path.with_name(f".{output_path.name}.tmp")
     temporary.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     temporary.replace(output_path)
+
     html_data = build_html_report_data(
         summary,
         entries=entries,
@@ -132,6 +140,8 @@ def run(args: argparse.Namespace) -> int:
         tool_version=PROVTRAIL_VERSION,
     )
     write_html_report(html_output_path, html_data)
+
+    # Render terminal output and choose the process exit code from the findings.
     if args.json:
         print(json.dumps(payload, indent=2))
     else:

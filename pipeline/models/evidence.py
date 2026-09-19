@@ -1,5 +1,6 @@
 """Localized verification scores and package applicability evidence."""
 
+from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -68,7 +69,7 @@ class RegionComparison(BaseModel):
     vulnerable_signature_coverage: float = 0.0
     # Confidence of shared origin: high, medium, low or none.
     lineage_confidence: LineageConfidence = "none"
-    # Whether optional embedding alignment was attempted, including errors.
+    # Whether embedding alignment was attempted or containment was selected.
     alignment_fallback_used: bool = False
 
 
@@ -105,3 +106,24 @@ class PackageApplicability(BaseModel):
     ecosystem: str = "npm"
     status: ApplicabilityStatus = "unknown"
     evidence: list[ApplicabilityEvidence] = Field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class EditDistanceEvidence:
+    vulnerable: float
+    patched: float
+    vulnerable_anchor_has_identity: bool | None = None
+    patched_anchor_has_identity: bool | None = None
+    raw_vulnerable: float | None = None
+    raw_patched: float | None = None
+    raw_vulnerable_anchor_has_identity: bool | None = None
+    raw_patched_anchor_has_identity: bool | None = None
+    contrastive_vulnerable: float | None = None
+    contrastive_patched: float | None = None
+    contrastive_vulnerable_anchor_has_identity: bool | None = None
+    contrastive_patched_anchor_has_identity: bool | None = None
+    contrastive_used: bool = False
+
+    @property
+    def margin(self) -> float:
+        return self.vulnerable - self.patched

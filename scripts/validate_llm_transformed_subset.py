@@ -27,7 +27,7 @@ from eval.metrics import (
     summarize_evaluation,
 )
 from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
-from pipeline.controller.region_verification import RegionVerifierConfig
+from pipeline.detection.config import RegionVerifierConfig
 from pipeline.controller.parsing import source_language
 
 POSITIVE_INPUT = Path(__file__).resolve().parent.parent / "eval" / "llm_transformed_positive.jsonl"

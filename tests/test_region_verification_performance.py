@@ -1,6 +1,6 @@
 import difflib
 
-from pipeline.controller import region_verification
+from pipeline.detection.verification import sequences
 
 
 def test_ratio_preserves_sequence_matcher_result_for_small_sequences():
@@ -9,7 +9,7 @@ def test_ratio_preserves_sequence_matcher_result_for_small_sequences():
 
     expected = difflib.SequenceMatcher(a=left, b=right, autojunk=False).ratio()
 
-    assert region_verification._ratio(left, right) == expected
+    assert sequences.sequence_similarity(left, right) == expected
 
 
 def test_ratio_only_sends_changed_core_to_sequence_matcher(monkeypatch):
@@ -22,9 +22,9 @@ def test_ratio_only_sends_changed_core_to_sequence_matcher(monkeypatch):
         observed.update(left_core=len(a), right_core=len(b), autojunk=autojunk)
         return real_matcher(a=a, b=b, autojunk=autojunk)
 
-    monkeypatch.setattr(region_verification.difflib, "SequenceMatcher", recording_matcher)
+    monkeypatch.setattr(sequences.difflib, "SequenceMatcher", recording_matcher)
 
-    ratio = region_verification._ratio(left, right)
+    ratio = sequences.sequence_similarity(left, right)
 
     assert observed == {"left_core": 1, "right_core": 1, "autojunk": False}
     assert ratio == 100_000 / 100_001
