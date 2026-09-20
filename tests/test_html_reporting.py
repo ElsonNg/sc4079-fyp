@@ -4,16 +4,16 @@ import shutil
 import subprocess
 from datetime import datetime, timezone
 
-from cli.main import main
-from corpus.models.corpus import CorpusEntry, DiagnosticLine
-from pipeline.controller.html_reporting import (
+from provtrail.cli.main import main
+from provtrail.corpus.models.corpus import CorpusEntry, DiagnosticLine
+from provtrail.pipeline.controller.html_reporting import (
     _advisory_summary,
     _candidate_lines,
     build_html_report_data,
     render_html_report,
 )
-from pipeline.controller.region_extraction import enumerate_candidate_regions
-from pipeline.controller.scanning import ScanConfig, ScanSummary
+from provtrail.pipeline.controller.region_extraction import enumerate_candidate_regions
+from provtrail.pipeline.scanning.scanner import ScanConfig, ScanSummary
 
 
 VULNERABLE = "function request(url) {\n  return fetch(url);\n}"
@@ -165,8 +165,7 @@ def test_inferred_and_review_outcomes_have_distinct_copy_and_scores():
         "retrieval_similarity": 0.88, "structural_vulnerable": 0.90,
         "structural_patched": 0.60, "token_vulnerable": 0.84,
         "token_patched": 0.51, "api_anchor_vulnerable": 0.75,
-        "api_anchor_patched": 0.30, "local_alignment_vulnerable": None,
-        "local_alignment_patched": None, "vulnerable_score": 0.83,
+        "api_anchor_patched": 0.30, "vulnerable_score": 0.83,
         "patched_score": 0.47, "vulnerable_minus_patched": 0.36,
         "ast_coverage": 0.72,
     }]
@@ -291,10 +290,10 @@ def test_embedded_javascript_has_valid_syntax(tmp_path):
 
 
 def test_cli_scan_writes_redesigned_artifacts(monkeypatch, tmp_path):
-    monkeypatch.setattr("cli.commands.scan.load_entries", lambda *_args, **_kwargs: [_entry()])
-    monkeypatch.setattr("cli.commands.scan.scan_directory", lambda *_args, **_kwargs: _summary())
+    monkeypatch.setattr("provtrail.cli.commands.scan.load_entries", lambda *_args, **_kwargs: [_entry()])
+    monkeypatch.setattr("provtrail.cli.commands.scan.scan_directory", lambda *_args, **_kwargs: _summary())
     monkeypatch.setattr(
-        "cli.commands.scan.build_default_detector_factory", lambda *_args, **_kwargs: lambda: None
+        "provtrail.cli.commands.scan.build_default_detector_factory", lambda *_args, **_kwargs: lambda: None
     )
     assert main(["scan", str(tmp_path)]) == 1
     json_path = tmp_path / ".provtrail" / "latest-scan.json"

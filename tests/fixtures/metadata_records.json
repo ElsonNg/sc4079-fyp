@@ -49,23 +49,6 @@
     "similarity": 0.95,
     "source_language": "typescript"
   },
-  "VerificationResult": {
-    "ghsa_id": "GHSA-test",
-    "cve_id": "CVE-2026-0001",
-    "cwes": [],
-    "severity": "unknown",
-    "repo": "owner/project",
-    "fix_commit_sha": "abc123",
-    "file_path": "src/check.ts",
-    "function_name": "check",
-    "verification_score": 0.3,
-    "status": "flagged",
-    "sim_vulnerable": 0.9,
-    "sim_patched": 0.6,
-    "vulnerable_fallback_used": false,
-    "patched_fallback_used": false,
-    "diagnostic_scores": []
-  },
   "RegionRetrievalMatch": {
     "pair_id": "pair-1",
     "lineage_id": null,

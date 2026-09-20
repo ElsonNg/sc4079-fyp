@@ -6,16 +6,15 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from corpus.models.corpus import CorpusEntry
-from pipeline.models.boundary import BoundaryEditEvidence, VerificationGates
-from pipeline.models.region_retrieval import RegionAggregate, RegionRetrievalMatch
-from pipeline.models.retrieval import RetrievalMatch
-from pipeline.models.verification import VerificationResult
-from shared.metadata import CWE
+from provtrail.corpus.models.corpus import CorpusEntry
+from provtrail.pipeline.models.boundary import BoundaryEditEvidence, VerificationGates
+from provtrail.pipeline.models.region_retrieval import RegionAggregate, RegionRetrievalMatch
+from provtrail.pipeline.models.retrieval import RetrievalMatch
+from provtrail.shared.metadata import CWE
 
 
 RECORDS = json.loads((Path(__file__).parent / "fixtures/metadata_records.json").read_text())
-MODELS = [CorpusEntry, RetrievalMatch, RegionRetrievalMatch, VerificationResult]
+MODELS = [CorpusEntry, RetrievalMatch, RegionRetrievalMatch]
 
 
 @pytest.mark.parametrize("model", MODELS)

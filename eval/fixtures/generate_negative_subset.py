@@ -21,9 +21,9 @@ import hashlib
 import json
 from pathlib import Path
 
-from corpus.controller.store import load_entries
-from corpus.models.corpus import CorpusEntry
-from pipeline.controller.parsing import parse_source
+from provtrail.corpus.integrations.sqlite_store import load_entries
+from provtrail.corpus.models.corpus import CorpusEntry
+from provtrail.pipeline.controller.parsing import parse_source
 from eval.fixtures.generate_candidate_subset import (
     BASE_FAMILIES,
     BASE_ROW_IDS,

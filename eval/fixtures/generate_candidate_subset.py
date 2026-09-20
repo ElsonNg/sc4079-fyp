@@ -19,8 +19,8 @@ from typing import Callable
 import tree_sitter
 import tree_sitter_javascript
 
-from corpus.controller.store import load_entries
-from corpus.models.corpus import CorpusEntry
+from provtrail.corpus.integrations.sqlite_store import load_entries
+from provtrail.corpus.models.corpus import CorpusEntry
 
 OUTPUT_PATH = Path(__file__).resolve().parents[2] / "eval" / "candidate_subset_30.jsonl"
 
@@ -341,7 +341,7 @@ def validate_candidate(source: str, original: str) -> None:
     tree = _parser.parse(source.encode("utf-8"))
     if tree.root_node.has_error:
         # Class methods are stored by the corpus without their surrounding class.
-        # Validate those snippets in the same synthetic wrapper used by hierarchy.py.
+        # Validate class-method snippets in a synthetic class wrapper.
         wrapped = "class __CandidateWrapper {\n" + source + "\n}\n"
         wrapped_tree = _parser.parse(wrapped.encode("utf-8"))
         if wrapped_tree.root_node.has_error:

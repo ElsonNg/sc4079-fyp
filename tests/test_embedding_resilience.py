@@ -1,6 +1,6 @@
 import numpy as np
 
-from pipeline.controller import embedding
+from provtrail.pipeline.integrations import embedding
 
 
 class _BufferLimitedModel:

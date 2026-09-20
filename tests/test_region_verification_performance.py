@@ -1,6 +1,6 @@
 import difflib
 
-from pipeline.detection.verification import sequences
+from provtrail.pipeline.detection.verification import sequences
 
 
 def test_ratio_preserves_sequence_matcher_result_for_small_sequences():

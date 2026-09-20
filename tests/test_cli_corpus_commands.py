@@ -7,10 +7,10 @@ import numpy as np
 import pytest
 import requests
 
-from cli.commands import corpus
-from cli.main import main
-from corpus.controller.store import load_entries
-from corpus.models.corpus import BuildResult, CorpusEntry
+from provtrail.cli.commands import corpus
+from provtrail.cli.main import main
+from provtrail.corpus.integrations.sqlite_store import load_entries
+from provtrail.corpus.models.corpus import BuildResult, CorpusEntry
 
 
 def _entry():
@@ -116,7 +116,7 @@ def test_index_writes_metadata_and_cleans_temporary_vectors(monkeypatch, tmp_pat
 
     def build_index(args, *, check):
         assert check is True
-        assert args[1:3] == ["-m", "cli.faiss_builder"]
+        assert args[1:3] == ["-m", "provtrail.cli.faiss_builder"]
         assert np.load(args[3]).shape[1] == 4
         Path(args[4]).write_bytes(b"test index")
         builds.append(args[4])

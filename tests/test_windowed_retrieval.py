@@ -1,6 +1,6 @@
-from corpus.controller.extraction import compute_diagnostic_lines
-from corpus.models.corpus import CorpusEntry
-from pipeline.controller.retrieval import WINDOW_CHARS, _corpus_windows, _query_windows
+from provtrail.corpus.controller.extraction import compute_diagnostic_lines
+from provtrail.corpus.models.corpus import CorpusEntry
+from provtrail.pipeline.controller.retrieval import WINDOW_CHARS, _corpus_windows, _query_windows
 
 
 def _entry(vulnerable: str, patched: str) -> CorpusEntry:

@@ -1,11 +1,12 @@
 import json
 
-from pipeline.controller.project_evidence import build_project_evidence
-from pipeline.models.boundary import BoundaryIdentity, BoundarySupport
-from pipeline.models.provenance import AdvisoryAlias
-from pipeline.models.regions import (
-    LineageAttribution, PackageApplicability, RegionDetectionResult, VulnerabilityState,
-)
+from provtrail.pipeline.scanning.project_context import build_project_evidence
+from provtrail.pipeline.models.boundary import BoundaryIdentity, BoundarySupport
+from provtrail.shared.metadata import AdvisoryAlias
+from provtrail.pipeline.models.boundary import VulnerabilityState
+from provtrail.pipeline.models.evidence import PackageApplicability
+from provtrail.pipeline.models.lineage import LineageAttribution
+from provtrail.pipeline.models.result import RegionDetectionResult
 
 
 def _result(package="axios"):

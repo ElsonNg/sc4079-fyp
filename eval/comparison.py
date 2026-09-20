@@ -11,7 +11,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Iterable, Mapping
 
-from pipeline.controller.parsing import parse_source
+from provtrail.pipeline.controller.parsing import parse_source
 
 
 SCHEMA_VERSION = "provtrail_tool_comparison_v1"

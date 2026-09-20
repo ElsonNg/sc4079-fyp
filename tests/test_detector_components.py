@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from pipeline.detection.hashing import build_hash_result
-from pipeline.detection.lineage import lineage_confidence
-from pipeline.detection.retrieval import aggregate_retrieval_matches
-from pipeline.models.boundary import VulnerableRegionPair
-from pipeline.models.hashing import HashMatch
-from pipeline.models.region_retrieval import RegionRetrievalMatch
+from provtrail.pipeline.detection.hashing import build_hash_result
+from provtrail.pipeline.detection.lineage import lineage_confidence
+from provtrail.pipeline.detection.retrieval import aggregate_retrieval_matches
+from provtrail.pipeline.models.boundary import VulnerableRegionPair
+from provtrail.pipeline.models.hashing import HashMatch
+from provtrail.pipeline.models.region_retrieval import RegionRetrievalMatch
 
 
 PAYLOADS = json.loads(

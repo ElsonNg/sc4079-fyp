@@ -2,33 +2,34 @@ import faiss
 import numpy as np
 import pytest
 
-from corpus.models.corpus import CorpusEntry, DiagnosticLine
-from pipeline.controller.edit_distance import EditDistanceEvidence, score_edit_distance
-from pipeline.controller.hashing import HashIndex, build_hash_index
-from pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig, derive_priority
-from pipeline.controller.region_extraction import (
+from provtrail.corpus.models.corpus import CorpusEntry, DiagnosticLine
+from provtrail.pipeline.detection.verification.edit_distance import score_edit_distance
+from provtrail.pipeline.controller.hashing import HashIndex, build_hash_index
+from provtrail.pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig, derive_priority
+from provtrail.pipeline.controller.region_extraction import (
     candidate_region_is_informative,
     enumerate_candidate_regions,
     extract_corpus_region_pairs,
     extract_vulnerability_regions,
     source_is_supported,
 )
-from pipeline.controller.region_retrieval import aggregate_region_hits
-from pipeline.controller.region_retrieval import RegionRetrievalIndex
-from pipeline.controller.region_verification import (
-    classify_boundary, classify_evidence, deduplicate_evidence, verify_region_pair,
-)
-from pipeline.models.boundary import BoundaryIdentity, VerificationGates
-from pipeline.models.evidence import (
+from provtrail.pipeline.controller.region_retrieval import aggregate_region_hits
+from provtrail.pipeline.controller.region_retrieval import RegionRetrievalIndex
+from provtrail.pipeline.detection.verification.aggregation import deduplicate_evidence
+from provtrail.pipeline.detection.verification.classification import classify_boundary, classify_evidence
+from provtrail.pipeline.detection.verification.verifier import verify_region_pair
+from provtrail.pipeline.models.boundary import BoundaryIdentity, VerificationGates
+from provtrail.pipeline.models.evidence import (
     CandidateEvidenceReference,
+    EditDistanceEvidence,
     PairedEvidenceReference,
     ReferenceSideEvidence,
     RegionComparison,
+    RegionVerificationEvidence,
 )
-from pipeline.models.regions import (
-    LineageAttribution, RegionAggregate, RegionRetrievalMatch,
-    RegionVerificationEvidence, VulnerabilityState,
-)
+from provtrail.pipeline.models.boundary import VulnerabilityState
+from provtrail.pipeline.models.lineage import LineageAttribution
+from provtrail.pipeline.models.region_retrieval import RegionAggregate, RegionRetrievalMatch
 
 
 def _entry(vulnerable: str, patched: str, diagnostics: list[DiagnosticLine]) -> CorpusEntry:
@@ -228,8 +229,6 @@ def test_region_verification_prefers_vulnerable_shape_over_patched_shape():
     assert evidence.vulnerable.score > evidence.patched.score
     assert evidence.comparison.margin > 0
     assert evidence.comparison.ast_coverage > 0
-    assert evidence.vulnerable.local_alignment is None
-    assert evidence.patched.local_alignment is None
     assert evidence.comparison.alignment_fallback_used is False
     assert evidence.vulnerable.score == pytest.approx(
         min(evidence.vulnerable.structural, evidence.vulnerable.token)
@@ -915,7 +914,7 @@ def test_region_detector_uses_region_path_when_hash_path_is_empty(monkeypatch):
         vectors = np.ones((len(texts), 8), dtype=np.float32)
         return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 
-    monkeypatch.setattr("pipeline.integrations.embedding.encode", fake_encode)
+    monkeypatch.setattr("provtrail.pipeline.integrations.embedding.encode", fake_encode)
     index = faiss.IndexFlatIP(8)
     index.add(np.ones((len(pairs), 8), dtype=np.float32) / np.sqrt(8))
     detector = RegionDetector(
@@ -937,7 +936,7 @@ def test_region_detector_uses_region_path_when_hash_path_is_empty(monkeypatch):
 
 @pytest.mark.parametrize("enabled,local_status", [(False, "patched"), (True, "patched"), (True, "uncertain")])
 def test_grouped_fallback_evidence_preserves_opt_in_and_saved_verdict(monkeypatch, enabled, local_status):
-    from pipeline.models.region import CandidateRegion
+    from provtrail.pipeline.models.region import CandidateRegion
 
     vulnerable = "function checkValue(value) { if (value) { return value; } return null; }"
     patched = "function checkValue(value) { if (value && typeof value === 'string') { return value; } return null; }"
@@ -957,8 +956,8 @@ def test_grouped_fallback_evidence_preserves_opt_in_and_saved_verdict(monkeypatc
         calls.append(True)
         return {"status": local_status, "decisive": {"fixture_method": True}, "reason": "fixture reason"}
 
-    monkeypatch.setattr("pipeline.controller.region_detection.decide_local_correspondence", local_check)
-    monkeypatch.setattr("pipeline.controller.region_detection.score_edit_distance",
+    monkeypatch.setattr("provtrail.pipeline.controller.region_detection.decide_local_correspondence", local_check)
+    monkeypatch.setattr("provtrail.pipeline.controller.region_detection.score_edit_distance",
                         lambda *args: EditDistanceEvidence(vulnerable=0.95, patched=0.93))
     detector = RegionDetector(
         [entry], RegionRetrievalIndex(model_id="fake", index=None, pairs=[pair]), HashIndex(),
@@ -1002,7 +1001,7 @@ def test_same_language_scope_excludes_cross_language_region_matches(monkeypatch)
         vectors = np.ones((len(texts), 8), dtype=np.float32)
         return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 
-    monkeypatch.setattr("pipeline.integrations.embedding.encode", fake_encode)
+    monkeypatch.setattr("provtrail.pipeline.integrations.embedding.encode", fake_encode)
     index = faiss.IndexFlatIP(8)
     index.add(np.ones((len(pairs), 8), dtype=np.float32) / np.sqrt(8))
     detector = RegionDetector(

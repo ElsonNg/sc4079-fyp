@@ -19,7 +19,7 @@ from eval.comparison import (
     SCHEMA_VERSION, aliases, codeql_wrap_source, cwe_set, origin_id, origin_key, read_jsonl,
     select_diverse_origins, write_jsonl,
 )
-from pipeline.controller.parsing import extract_function_units
+from provtrail.pipeline.controller.parsing import extract_function_units
 
 TIER1 = ROOT / "eval" / "tier1_curated_labels.jsonl"
 TIER2_POSITIVE = ROOT / "eval" / "llm_transformed_expanded_positive.jsonl"

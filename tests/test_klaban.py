@@ -1,8 +1,8 @@
 import json
 
-from corpus.controller.klaban import KLABAN_ID_PREFIX, parse_klaban_corpus
-from corpus.controller.store import load_entries, replace_entries_by_ghsa_prefix, save_entries
-from corpus.models.corpus import CorpusEntry
+from provtrail.corpus.controller.klaban import KLABAN_ID_PREFIX, parse_klaban_corpus
+from provtrail.corpus.integrations.sqlite_store import load_entries, replace_entries_by_ghsa_prefix, save_entries
+from provtrail.corpus.models.corpus import CorpusEntry
 
 
 def _write_dataset(tmp_path):

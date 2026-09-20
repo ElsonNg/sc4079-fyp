@@ -14,9 +14,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from corpus.controller.github import fetch_source_tree
+from provtrail.corpus.integrations.github import fetch_source_tree
 from eval.comparison import read_jsonl, write_jsonl
-from pipeline.controller.parsing import extract_function_units
+from provtrail.pipeline.controller.parsing import extract_function_units
 
 WORK_ROOT = ROOT / "eval" / "comparison_workspaces"
 

@@ -1,6 +1,6 @@
 import pytest
 
-from cli.main import build_parser, main
+from provtrail.cli.main import build_parser, main
 
 
 def test_cli_corpus_stats_reports_empty_custom_database(tmp_path, capsys):

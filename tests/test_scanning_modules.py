@@ -4,17 +4,8 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from pipeline.controller import incremental, project_evidence, scanning
-from pipeline.detection.config import RegionDetectorConfig
-from pipeline.scanning import cache, project_context, scanner
-
-
-def test_old_scanning_imports_resolve_to_the_moved_implementations():
-    assert scanning.scan_directory is scanner.scan_directory
-    assert scanning.ScanConfig is scanner.ScanConfig
-    assert scanning.ScanSummary is scanner.ScanSummary
-    assert incremental.ScanState is cache.ScanState
-    assert project_evidence.build_project_evidence is project_context.build_project_evidence
+from provtrail.pipeline.detection.config import RegionDetectorConfig
+from provtrail.pipeline.scanning import cache
 
 
 def test_saved_cache_rebinds_nested_region_ids_after_function_moves(tmp_path):
@@ -37,7 +28,7 @@ def test_saved_cache_rebinds_nested_region_ids_after_function_moves(tmp_path):
         "result_cache_schema": cache.RESULT_CACHE_SCHEMA_VERSION,
     })
     state_path = tmp_path / ".provtrail" / "scan-state.json"
-    incremental.save_scan_state(cache.ScanState(
+    cache.save_scan_state(cache.ScanState(
         target_root=str(tmp_path), corpus_version="corpus-v1",
         detector_config_fingerprint=fingerprint, snapshot=snapshot,
         result_cache={"same-content": {"function_hash": "same-content", "result": fixture}},

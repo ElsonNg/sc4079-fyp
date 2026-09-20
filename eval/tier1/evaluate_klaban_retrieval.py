@@ -9,11 +9,11 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from corpus.controller.klaban import KLABAN_ID_PREFIX
-from corpus.controller.store import DEFAULT_DB_PATH, load_entries
-from corpus.models.corpus import CorpusEntry
-from pipeline.controller.embedding import DEFAULT_MODEL_ID
-from pipeline.controller.retrieval import (
+from provtrail.corpus.controller.klaban import KLABAN_ID_PREFIX
+from provtrail.corpus.integrations.sqlite_store import DEFAULT_DB_PATH, load_entries
+from provtrail.corpus.models.corpus import CorpusEntry
+from provtrail.pipeline.integrations.embedding import DEFAULT_MODEL_ID
+from provtrail.pipeline.controller.retrieval import (
     DEFAULT_EMBEDDINGS_DIR,
     RetrievalIndex,
     is_stale,

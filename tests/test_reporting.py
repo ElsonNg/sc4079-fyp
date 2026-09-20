@@ -1,7 +1,7 @@
 import json
 
-from cli.main import _scan_progress, main
-from pipeline.controller.reporting import (
+from provtrail.cli.main import _scan_progress, main
+from provtrail.pipeline.controller.reporting import (
     audit_summary,
     final_metrics,
     format_attention,

@@ -16,8 +16,8 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from corpus.controller.store import load_entries
-from corpus.models.corpus import CorpusEntry
+from provtrail.corpus.integrations.sqlite_store import load_entries
+from provtrail.corpus.models.corpus import CorpusEntry
 from eval.common import DEFAULT_SNAPSHOT_DB, extension_for
 from eval.metrics import (
     METRICS_SCHEMA,
@@ -26,9 +26,9 @@ from eval.metrics import (
     expected_retrieval_fields,
     summarize_evaluation,
 )
-from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
-from pipeline.detection.config import RegionVerifierConfig
-from pipeline.controller.parsing import source_language
+from provtrail.pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
+from provtrail.pipeline.detection.config import RegionVerifierConfig
+from provtrail.pipeline.controller.parsing import source_language
 
 POSITIVE_INPUT = Path(__file__).resolve().parents[2] / "eval" / "llm_transformed_positive.jsonl"
 NEGATIVE_INPUT = Path(__file__).resolve().parents[2] / "eval" / "llm_transformed_negative.jsonl"

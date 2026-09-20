@@ -27,8 +27,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from corpus.controller.github import GitHubRateLimitError, fetch_source_tree
-from corpus.controller.store import load_entries
+from provtrail.corpus.integrations.github import GitHubRateLimitError, fetch_source_tree
+from provtrail.corpus.integrations.sqlite_store import load_entries
 from eval.common import DEFAULT_SNAPSHOT_DB, extract_ghsa_ids
 from eval.metrics import (
     METRICS_SCHEMA,
@@ -38,9 +38,9 @@ from eval.metrics import (
     expected_retrieval_fields,
     summarize_evaluation,
 )
-from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
-from pipeline.controller.parsing import SUPPORTED_SOURCE_EXTENSIONS, extract_function_units
-from pipeline.scanning.scanner import (
+from provtrail.pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
+from provtrail.pipeline.controller.parsing import SUPPORTED_SOURCE_EXTENSIONS, extract_function_units
+from provtrail.pipeline.scanning.scanner import (
     RESULT_CACHE_SCHEMA_VERSION,
     ScanConfig,
     corpus_fingerprint,

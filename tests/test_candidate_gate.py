@@ -1,5 +1,5 @@
-from corpus.models.corpus import DiagnosticLine
-from pipeline.controller.candidate_gate import diagnostic_preservation_gate
+from provtrail.corpus.models.corpus import DiagnosticLine
+from provtrail.pipeline.controller.candidate_gate import diagnostic_preservation_gate
 
 
 def _removed(text: str) -> DiagnosticLine:

@@ -1,4 +1,4 @@
-from pipeline.controller.parsing import normalize_source, normalize_source_with_lines
+from provtrail.pipeline.controller.parsing import normalize_source, normalize_source_with_lines
 
 # Raw 0-indexed lines: 0 function header, 1 `let a = 1;`, 2-6 a multi-line block comment,
 # 7 `let b = 2;`, 8 `return a + b;`, 9 closing brace. Lines 2-6 are dropped entirely once

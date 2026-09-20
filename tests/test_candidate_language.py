@@ -5,7 +5,7 @@ the file extension. Before the fix these were read as JavaScript, so TypeScript
 functions with type syntax failed to parse and abstained instead of flagging.
 """
 
-from pipeline.controller.region_detection import resolve_candidate_language
+from provtrail.pipeline.controller.region_detection import resolve_candidate_language
 
 
 def test_scan_style_id_keeps_typescript():

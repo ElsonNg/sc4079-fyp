@@ -13,9 +13,9 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from corpus.controller.store import DEFAULT_DB_PATH, load_entries
-from pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
-from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
+from provtrail.corpus.integrations.sqlite_store import DEFAULT_DB_PATH, load_entries
+from provtrail.pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
+from provtrail.pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
 
 DEFAULT_POSITIVE_INPUT = Path(__file__).resolve().parents[2] / "eval" / "candidate_subset_30.jsonl"
 DEFAULT_NEGATIVE_INPUT = Path(__file__).resolve().parents[2] / "eval" / "negative_subset_60.jsonl"

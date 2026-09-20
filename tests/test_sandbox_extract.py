@@ -4,7 +4,7 @@ import tarfile
 
 import pytest
 
-from corpus.controller.sandbox_fetch import (
+from provtrail.corpus.integrations.sandbox_fetch import (
     SandboxFetchError,
     download_release,
     prune_built_artifacts,

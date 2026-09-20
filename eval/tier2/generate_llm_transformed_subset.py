@@ -17,9 +17,9 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from corpus.controller.store import load_entries
+from provtrail.corpus.integrations.sqlite_store import load_entries
 from eval.common import DEFAULT_SNAPSHOT_DB, category_for
-from pipeline.controller.candidate_gate import diagnostic_preservation_gate, has_high_signal_anchor
+from provtrail.pipeline.controller.candidate_gate import diagnostic_preservation_gate, has_high_signal_anchor
 from eval.tier2.transform import LlmTransformError, OllamaCodeTransformer, TransformConfig
 from eval.fixtures.generate_candidate_subset import digest, entry_key
 

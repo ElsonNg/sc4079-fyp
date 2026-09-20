@@ -1,7 +1,7 @@
 """Fail-closed controls for the optional whole-function correspondence fallback."""
 import pytest
 
-from pipeline.controller.local_correspondence import compare_regex, compare_structural, decide_local_correspondence
+from provtrail.pipeline.controller.local_correspondence import compare_regex, compare_structural, decide_local_correspondence
 
 GV='function get(obj,key){return obj[key];}'
 GP='function get(obj,key){if(key === "blocked") return undefined; return obj[key];}'

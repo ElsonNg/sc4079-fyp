@@ -17,8 +17,8 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from corpus.controller.sandbox_fetch import _NON_LIBRARY_DIR_NAMES
-from corpus.controller.store import load_entries
+from provtrail.corpus.integrations.sandbox_fetch import _NON_LIBRARY_DIR_NAMES
+from provtrail.corpus.integrations.sqlite_store import load_entries
 from eval.common import DEFAULT_SNAPSHOT_DB, category_for
 
 

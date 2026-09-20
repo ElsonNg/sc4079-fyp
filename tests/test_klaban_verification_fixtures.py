@@ -1,4 +1,4 @@
-from corpus.models.corpus import CorpusEntry
+from provtrail.corpus.models.corpus import CorpusEntry
 from scripts.generate_klaban_verification_subset import generate_fixtures
 
 

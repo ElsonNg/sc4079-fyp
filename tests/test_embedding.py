@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from pipeline.controller.embedding import DEFAULT_MODEL_ID, encode
+from provtrail.pipeline.integrations.embedding import DEFAULT_MODEL_ID, encode
 
 TRANSFER_A = """
 function transfer(sender, receiver, amount) {

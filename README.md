@@ -5,14 +5,24 @@ evidence-attributed vulnerable origins from the npm JavaScript/TypeScript ecosys
 
 ## CLI
 
-GitHub requests use `GITHUB_TOKEN` from the project-root `.env` file. A token
+Install in a virtual environment with `pip install -e .` for development or
+`pip install dist/provtrail-*.whl` for a built wheel. The `provtrail` command
+works outside the repository.
+
+Runtime corpus data, indexes and snapshots default to the user's application data
+directory (`%LOCALAPPDATA%/ProvTrail` on Windows or
+`$XDG_DATA_HOME/provtrail` on Unix, falling back to `~/.local/share/provtrail`).
+Set `PROVTRAIL_DATA_DIR` to use a different directory. Existing repository data
+can be reused with `PROVTRAIL_DATA_DIR=corpus/data` from the repository root.
+
+GitHub requests use `GITHUB_TOKEN` from the working directory's `.env` file. A token
 already set in the process environment takes precedence. The `.env` file is ignored
 by Git.
 
-For engineers extending the tool, `cli/main.py` defines arguments and dispatches
-commands. Execution lives in `cli/commands/scan.py`, `report.py`, and `corpus.py`.
-The scan command calls `pipeline/scanning/scanner.py`, which coordinates the
-detector in `pipeline/controller/region_detection.py`. The scan command then writes
+For engineers extending the tool, `src/provtrail/cli/main.py` defines arguments and dispatches
+commands. Execution lives in `src/provtrail/cli/commands/scan.py`, `report.py`, and `corpus.py`.
+The scan command calls `src/provtrail/pipeline/scanning/scanner.py`, which coordinates the
+detector in `src/provtrail/pipeline/controller/region_detection.py`. The scan command then writes
 the JSON and HTML reports. To follow a scan, read `scan_directory()` first:
 
 1. `discovery.py` extracts JavaScript and TypeScript functions.
@@ -21,12 +31,9 @@ the JSON and HTML reports. To follow a scan, read `scan_directory()` first:
 4. `project_context.py` checks package manifests and imports.
 5. `scanner.py` saves scan state and returns findings to the CLI for reporting.
 
-The old `pipeline/controller/scanning.py`, `incremental.py` and
-`project_evidence.py` imports remain available during the migration.
-
 Inside `RegionDetector.detect()`, follow hash lookup, region retrieval, verification,
 boundary classification and lineage attribution in that order. The extracted
-components live in `pipeline/detection/`:
+components live in `src/provtrail/pipeline/detection/`:
 
 - `hashing.py` builds results for deterministic matches.
 - `retrieval.py` groups and limits reference pairs for verification.
@@ -38,26 +45,26 @@ the detailed checks. The optional local correspondence fallback runs only after
 boundary classification remains uncertain and its eligibility gates pass.
 Batch detection shares retrieval first, then rejoins `detect()` for each function.
 
-Region verification lives in `pipeline/detection/verification/`: `verifier.py`
+Region verification lives in `src/provtrail/pipeline/detection/verification/`: `verifier.py`
 coordinates scoring, `classification.py` decides boundary states, and the other
 modules own structural/token scores, edit distance, evidence selection and fallbacks.
 
-Provider calls live in two integration packages. `corpus/integrations/` owns
+Provider calls live in two integration packages. `src/provtrail/corpus/integrations/` owns
 GitHub, OSV and npm requests, verified release downloads, and SQLite storage.
-`pipeline/integrations/` owns embedding model loading, FAISS operations and Ollama
+`src/provtrail/pipeline/integrations/` owns embedding model loading, FAISS operations and Ollama
 review requests. Controllers pass sessions and paths into these modules where needed.
-The previous controller imports remain available during the migration.
 
 Evaluation programs are grouped under `eval/tier1/`, `eval/tier2/`,
-`eval/ablation/`, `eval/comparison_benchmark/` and `eval/fixtures/`. The old
-`scripts/` commands still forward to them. See `eval/README.md` for build,
+`eval/ablation/`, `eval/comparison_benchmark/` and `eval/fixtures/`. Retained
+`scripts/` commands forward to them. Historical whole-function verification
+results remain in `eval/` for reference. See `eval/README.md` for current build,
 run and scoring commands.
 
 The detector scans `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`
 files with incremental scan state:
 
 ```bash
-PYTHONPATH=. .venv/bin/python -m cli scan /path/to/project --output scan.json
+provtrail scan /path/to/project --output scan.json
 ```
 
 The default scan summary uses an npm-audit-style layout. Every scan saves both the
@@ -82,7 +89,7 @@ running, and opt in when scanning:
 
 ```bash
 ollama pull qwen3:8b
-PYTHONPATH=. .venv/bin/python -m cli scan /path/to/project --explain-review
+provtrail scan /path/to/project --explain-review
 ```
 
 The model compares the advisory's security mechanism with the project, vulnerable, and
@@ -110,7 +117,7 @@ Inspect CVE, affected-version, fixed-version, score, and provenance details with
 rerunning the detector:
 
 ```bash
-PYTHONPATH=. .venv/bin/python -m cli report /path/to/project --verbose
+provtrail report /path/to/project --verbose
 ```
 
 The report command also accepts a saved JSON file directly. Use `--include-cleared` to
@@ -119,10 +126,10 @@ backfill advisory titles, descriptions, and canonical links used by the HTML rep
 Corpus maintenance commands are:
 
 ```bash
-PYTHONPATH=. .venv/bin/python -m cli corpus stats
-PYTHONPATH=. .venv/bin/python -m cli corpus build
-PYTHONPATH=. .venv/bin/python -m cli corpus ingest-klaban
-PYTHONPATH=. .venv/bin/python -m cli corpus index
+provtrail corpus stats
+provtrail corpus build
+provtrail corpus ingest-klaban
+provtrail corpus index
 ```
 
 `corpus build` discovers every reviewed, non-withdrawn npm advisory automatically. It
@@ -132,7 +139,7 @@ diagnostic restriction and does not bypass any check. Severity, popularity, main
 and the post-admission high-impact cohort are metadata rather than admission gates.
 
 Successful builds are first written to a versioned directory under
-`corpus/data/snapshots/`. The database, native/type-erased retrieval map, source and
+`PROVTRAIL_DATA_DIR/snapshots/`. The database, native/type-erased retrieval map, source and
 artifact hashes, policy manifest, attrition report, quarantine ledger, and complete and
 high-impact cohort counts are checked before `current.json` and the active database are
 replaced atomically. Failed builds do not promote a partial snapshot.
@@ -151,8 +158,9 @@ validated corpus-wide guarantee. The immutable provenance and quarantine artifac
 retained for that later evaluation.
 
 The separate `corpus ingest-klaban` evaluation utility is not used by `corpus build`.
-It reads the bundled manually confirmed Klaban dataset, replaces
-previously imported Klaban rows in `corpus/data/corpus.db`, and builds both the
+It reads a local manually confirmed Klaban dataset (pass its path or place it under
+`PROVTRAIL_DATA_DIR/raw/kluban/extracted/`), replaces
+previously imported Klaban rows in `PROVTRAIL_DATA_DIR/corpus.db`, and builds both the
 whole-function and AST-region FAISS embedding indexes. Pass `--skip-index` to perform
 only the SQLite import, or `--db-path` and the index-directory options to write isolated
 artifacts.
@@ -165,7 +173,7 @@ Kluban overlap analysis and benchmarking are deferred to the later evaluation ph
 existing evaluation utility can be run independently with:
 
 ```bash
-PYTHONPATH=. .venv/bin/python scripts/evaluate_klaban_retrieval.py --k 10
+python -m eval.tier1.evaluate_klaban_retrieval --k 10
 ```
 
 The evaluator prints running hit rates, elapsed time, and ETA every 10 queries. Use

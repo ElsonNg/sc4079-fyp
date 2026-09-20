@@ -2,7 +2,7 @@ import json
 
 import requests
 
-from pipeline.controller.review_explanation import (
+from provtrail.pipeline.controller.review_explanation import (
     MAX_SNIPPET_CHARACTERS,
     OllamaExplanationConfig,
     OllamaExplanationError,
@@ -12,7 +12,7 @@ from pipeline.controller.review_explanation import (
     _snippet_payload,
     enrich_manual_review_findings,
 )
-from pipeline.controller.scanning import ScanConfig, ScanSummary
+from provtrail.pipeline.scanning.scanner import ScanConfig, ScanSummary
 
 
 BRIEF = {
@@ -173,7 +173,7 @@ def test_timeout_after_retry_has_stable_error_code():
 
 def test_explanations_are_attached_and_reused_from_content_cache(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "pipeline.controller.review_explanation.build_html_report_data",
+        "provtrail.pipeline.controller.review_explanation.build_html_report_data",
         lambda *_args, **_kwargs: {"findings": [_normalized_finding()]},
     )
     cache_path = tmp_path / "review-explanations.json"
@@ -215,7 +215,7 @@ def test_explanations_are_attached_and_reused_from_content_cache(monkeypatch, tm
 
 def test_unavailable_ollama_does_not_fail_scan_or_poison_cache(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "pipeline.controller.review_explanation.build_html_report_data",
+        "provtrail.pipeline.controller.review_explanation.build_html_report_data",
         lambda *_args, **_kwargs: {"findings": [_normalized_finding()]},
     )
     summary = _summary()
@@ -336,7 +336,7 @@ def test_flagged_findings_do_not_invoke_second_opinion(monkeypatch, tmp_path):
     normalized = _normalized_finding()
     normalized["priority"] = "automatic_vulnerability"
     monkeypatch.setattr(
-        "pipeline.controller.review_explanation.build_html_report_data",
+        "provtrail.pipeline.controller.review_explanation.build_html_report_data",
         lambda *_args, **_kwargs: {"findings": [normalized]},
     )
     summary = _summary()

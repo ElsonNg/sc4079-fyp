@@ -1,15 +1,15 @@
 import json
 
-from pipeline.controller.incremental import (
+from provtrail.pipeline.scanning.cache import (
     MerkleSnapshot,
     build_merkle_snapshot,
     changed_paths,
     load_scan_state,
     save_scan_state,
 )
-from pipeline.controller.scanning import ScanConfig, scan_directory
-from pipeline.controller.region_detection import RegionDetector
-from pipeline.models.regions import RegionDetectionResult
+from provtrail.pipeline.scanning.scanner import ScanConfig, scan_directory
+from provtrail.pipeline.controller.region_detection import RegionDetector
+from provtrail.pipeline.models.result import RegionDetectionResult
 
 
 class _FakeDetector:

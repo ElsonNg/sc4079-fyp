@@ -474,3 +474,49 @@ transformer move). Direct script help and module help also ran. Full evaluation
 workloads and full scanning suites remain deferred as requested. Historical
 checkpoint outputs have incomplete invocation provenance, recorded in
 `eval/README.md`.
+
+## Migration Phase 8: installed package
+
+Production modules moved under `src/provtrail`; root `corpus/data` remains runtime
+data. `pyproject.toml` declares the install and console command. `paths.py` places
+corpus, snapshot and embedding data in a user-writable directory, overridable with
+`PROVTRAIL_DATA_DIR`. The HTML template is wheel package data. Repository imports
+now use `provtrail.*`, and the temporary import facades have been removed.
+
+The first full suite passed 400 tests before facade removal. After removal, the
+final full suite passed 393 tests, including model-backed checks. The difference
+is the removed facade identity tests.
+A wheel imported from outside the repository, rendered HTML and completed a fresh
+fixture scan with its expected finding exit code (1 finding, JSON schema
+`provtrail_scan_v5`, self-contained HTML). A clean wheel rebuild excludes the
+removed facades. The Tier 2 evaluator completed all 600 fixtures, and its
+rows and summary match `eval/llm_transformed_expanded_fp32_results.json` exactly
+(`phase8-tier2-comparison.json`). Tier 1 completed all 600 curated labels, with
+every result row and outcome metric matching `eval/tier1_production_fp32_results.json`
+(`phase8-tier1-curated-comparison.json`). Its summary records a different
+`max_functions_per_package` setting (1000 versus 1), which does not change
+target-only results. The exact baseline command is in `eval/README.md`.
+
+## Post-migration cleanup: historical verification
+
+The old whole-function hierarchical verifier and its two evaluation harnesses
+were retired after confirming that CLI scans and the current Tier 1 and Tier 2
+validators use the AST-region detector. The saved
+`eval/candidate_subset_30_current_results.json` remains a historical result,
+not a current detector metric. The optional local and embedding alignment
+branches were removed from region verification. The active containment and
+experimental local correspondence paths remain. Empty dashboard backend files
+and the unused verifier language argument were also removed.
+
+Earlier sections record the state and validation at the time of each phase.
+References there to `VerificationResult`, alignment options, or the dashboard
+describe code that has since been retired.
+
+The post-cleanup full suite passed 326 tests. A fresh one-function CLI scan
+produced the same JSON as the Phase 8 wheel smoke result after excluding the
+state-file path. HTML reporting still completed. A clean wheel contains the
+report template and no retired alignment, verification, or dashboard modules.
+The v5 evidence record still accepts and emits its historical null local-alignment
+fields and fallback indicator for saved-report compatibility. The HTML report no
+longer offers a local-alignment signal, and parser helpers used only by the retired
+hierarchy were removed.

@@ -3,6 +3,10 @@
 Run commands from the repository root. The Python modules under `eval/` own the
 implementations. Matching files under `scripts/` remain entry points for older
 commands. All defaults write to the top-level `eval/` directory.
+Set `PROVTRAIL_DATA_DIR=corpus/data` when running from the repository root to
+reuse the existing embedding indexes. Tier 1 release checks fetch GitHub source
+trees and use `GITHUB_TOKEN` from the environment or the working directory's
+`.env` file.
 
 | Evaluation | Build input | Run and score | Default result |
 | --- | --- | --- | --- |
@@ -11,6 +15,12 @@ commands. All defaults write to the top-level `eval/` directory.
 | Retrieval ablation | `python -m eval.fixtures.generate_candidate_subset` and `python -m eval.fixtures.generate_negative_subset` | `python -m eval.ablation.run_retrieval_ablations` | `retrieval_ablation_results.json` |
 | Decision ablation | Same 30 positive and 60 negative fixtures | `python -m eval.ablation.run_decision_ablations` | `decision_ablation_k5_evidence20_results.json` |
 | Tool comparison | `python -m eval.comparison_benchmark.build_tool_comparison` | `python -m eval.comparison_benchmark.run_tool_comparison`, then `python -m eval.comparison_benchmark.score_tool_comparison --findings <normalized.jsonl>` | `comparison_summary.json` |
+
+The saved `tier1_production_fp32_results.json` uses the curated label manifest:
+
+```text
+python -m eval.tier1.validate_tier1_releases --labels eval/tier1_curated_labels.jsonl --target-functions-only --max-functions 1 --output eval/tier1_production_fp32_results.json
+```
 
 Comparison tool installation is separate: run
 `python -m eval.comparison_benchmark.bootstrap_comparison_tools` before running
@@ -50,7 +60,7 @@ The generator applies deterministic, source-aware transformations covering:
 Regenerate it from the repository root with:
 
 ```text
-PYTHONPATH=. .venv/bin/python scripts/generate_candidate_subset.py
+python -m eval.fixtures.generate_candidate_subset
 ```
 
 The generator verifies that every candidate differs from its vulnerable source and
@@ -59,23 +69,20 @@ synthetic wrapper. This is a positive structural-clone fixture, not a runtime
 semantic-equivalence proof and not a complete accuracy benchmark. A separate
 patched/benign hard-negative set should be evaluated alongside it.
 
-The current-methodology baseline is produced with:
-
-```text
-PYTHONPATH=. .venv/bin/python -u scripts/validate_candidate_subset.py
-```
-
-Its raw output is `candidate_subset_30_current_results.json`. The baseline verifies
-the expected retrieved corpus entry, matching the correctness scope of the existing
-worst-case validator; it does not verify every wrong entry in the shortlist for
-false-positive attribution analysis.
+`candidate_subset_30_current_results.json` is a historical August 2026 result
+from the retired whole-function retrieval and hierarchical verification pipeline.
+It flagged 15 of 30 positive candidates and sent the other 15 to manual review.
+The current scanner does not use this verification path, and Tier 1 and Tier 2
+metrics do not consume this file. Run
+`python -m eval.fixtures.validate_region_candidate_subset` to evaluate these
+fixtures with the current AST-region detector.
 
 ## Tier 1 release self-check
 
 Run the real-release evaluation with:
 
 ```text
-PYTHONPATH=. .venv/bin/python -u scripts/validate_tier1_releases.py
+python -m eval.tier1.validate_tier1_releases
 ```
 
 Tier 1 fetches the eligible same-language source tree from the package repository at
@@ -108,7 +115,7 @@ Build the balanced 600-sample Tier 2 cohort (300 vulnerability-preserving and
 300 patched transformations) with:
 
 ```text
-PYTHONPATH=. .venv/bin/python -u scripts/generate_llm_transformed_subset.py --expanded
+python -m eval.tier2.generate_llm_transformed_subset --expanded
 ```
 
 The expanded generator draws from every transformation-eligible corpus pair,
@@ -120,7 +127,7 @@ the historical 145-sample Tier 2 fixture.
 After generation completes, evaluate it with:
 
 ```text
-PYTHONPATH=. .venv/bin/python -u scripts/validate_llm_transformed_subset.py \
+python -m eval.tier2.validate_llm_transformed_subset \
   --positive eval/llm_transformed_expanded_positive.jsonl \
   --negative eval/llm_transformed_expanded_negative.jsonl \
   --output eval/llm_transformed_expanded_results.json

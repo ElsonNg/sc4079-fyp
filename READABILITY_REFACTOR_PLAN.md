@@ -70,6 +70,12 @@ Migration Phase 7 groups evaluation implementations under `eval/{tier1,tier2,abl
 Old `scripts/` commands remain small compatibility entry points. The Tier 2 code
 transformer also lives with its evaluation. Focused imports, CLI help and contract
 tests pass. Full evaluation runs remain deferred.
+Migration Phase 8 moves production modules under `src/provtrail`, declares an
+installable wheel and `provtrail` command, relocates writable corpus/index data,
+packages the HTML template, and removes migration import facades. The final full
+suite passes 393 tests. A built wheel runs CLI help, a fixture scan and HTML
+reporting outside the repository. All 600 Tier 2 rows and summary match the FP32
+baseline. All 600 curated Tier 1 rows and outcome metrics match the FP32 baseline.
 
 User review preference: present recommendations phase by phase for vetting before
 implementing each phase. Prioritize readability, maintainability, clean code and
@@ -682,7 +688,7 @@ extracting scoring logic. Do not add arbitrary timing targets to mechanical move
 Before their owning phases begin, complete the source-to-target inventory for
 corpus admission/snapshot/release/sandbox logic, parser and hashing contracts,
 whole-function retrieval, local correspondence, review explanations and their
-cache, and the dashboard backend. These components exist today but are not all
+cache. These components exist today but are not all
 represented in the illustrative target tree. Classify each as retained production,
 evaluation-only, or removable with evidence; omission from the tree is not a
 deletion instruction.

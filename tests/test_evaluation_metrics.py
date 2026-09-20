@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
-from pipeline.models.boundary import VulnerableRegionPair
-from pipeline.models.hashing import HashMatch
+from provtrail.pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
+from provtrail.pipeline.models.boundary import VulnerableRegionPair
+from provtrail.pipeline.models.hashing import HashMatch
 from scripts.compare_clone_30 import _identity
 from eval.metrics import (
     classification_outcome,

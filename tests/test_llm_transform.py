@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from pipeline.controller.llm_transform import (
+from eval.tier2.transform import (
     LlmTransformError,
     OllamaCodeTransformer,
     TransformConfig,

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "provtrail"
+version = "0.1.0"
+description = "Detect vulnerable JavaScript and TypeScript code clones"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "sentence-transformers",
+    "torch",
+    "tree-sitter",
+    "tree-sitter-javascript",
+    "tree-sitter-typescript",
+    "faiss-cpu",
+    "fastapi",
+    "uvicorn",
+    "requests",
+    "python-dotenv",
+    "pydantic>=2",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+provtrail = "provtrail.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"provtrail.pipeline.controller" = ["report_template.html"]

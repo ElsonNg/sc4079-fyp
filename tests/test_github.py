@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from corpus.integrations import github
-from corpus.integrations.github import fetch_file_content, fetch_source_tree
+from provtrail.corpus.integrations import github
+from provtrail.corpus.integrations.github import fetch_file_content, fetch_source_tree
 
 
 @pytest.mark.parametrize("environment_token", [None, "environment-token"])
@@ -19,7 +19,7 @@ def test_github_loads_project_dotenv_without_overriding_environment(tmp_path, mo
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     if environment_token:
         monkeypatch.setenv("GITHUB_TOKEN", environment_token)
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.chdir(project)
 
     module = runpy.run_path(str(client))
 

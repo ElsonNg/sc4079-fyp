@@ -1,8 +1,8 @@
 import pytest
 
-from corpus.models.corpus import CorpusEntry
-from pipeline.controller.embedding import DEFAULT_MODEL_ID
-from pipeline.controller.retrieval import (
+from provtrail.corpus.models.corpus import CorpusEntry
+from provtrail.pipeline.integrations.embedding import DEFAULT_MODEL_ID
+from provtrail.pipeline.controller.retrieval import (
     build_faiss_index,
     build_or_load_index,
     is_stale,

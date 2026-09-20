@@ -14,10 +14,10 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pipeline.controller.hashing import lookup
-from pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
-from pipeline.controller.region_extraction import enumerate_candidate_regions, source_is_supported
-from pipeline.controller.region_retrieval import aggregate_region_hits, query_region_batch
+from provtrail.pipeline.controller.hashing import lookup
+from provtrail.pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
+from provtrail.pipeline.controller.region_extraction import enumerate_candidate_regions, source_is_supported
+from provtrail.pipeline.controller.region_retrieval import aggregate_region_hits, query_region_batch
 from eval.comparison_benchmark.run_jscpd_clone_30 import OUTPUT, SETTINGS, samples
 from eval.tier2.validate_llm_transformed_subset import _fixture_entries
 

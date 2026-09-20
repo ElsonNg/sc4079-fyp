@@ -16,11 +16,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
 
-from corpus.controller.store import load_entries
-from pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
-from pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig, build_region_detector
-from pipeline.controller.region_extraction import enumerate_candidate_regions
-from pipeline.controller.region_retrieval import query_region_batch
+from provtrail.corpus.integrations.sqlite_store import load_entries
+from provtrail.pipeline.controller.evaluation import vulnerable_origin_stages, vulnerable_origin_summary
+from provtrail.pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig, build_region_detector
+from provtrail.pipeline.controller.region_extraction import enumerate_candidate_regions
+from provtrail.pipeline.controller.region_retrieval import query_region_batch
 
 
 ROOT = Path(__file__).resolve().parents[2]

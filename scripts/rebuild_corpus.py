@@ -29,8 +29,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from dotenv import load_dotenv
 
-from corpus.controller.build import build_corpus, print_attrition_report
-from corpus.controller.store import DEFAULT_DB_PATH, get_connection, load_entries, save_entries
+from provtrail.corpus.controller.build import build_corpus, print_attrition_report
+from provtrail.corpus.integrations.sqlite_store import DEFAULT_DB_PATH, get_connection, load_entries, save_entries
 
 
 def _parse_package_file(path: Path) -> tuple[str, ...]:

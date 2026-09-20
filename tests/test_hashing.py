@@ -1,5 +1,5 @@
-from corpus.models.corpus import CorpusEntry
-from pipeline.controller.hashing import (
+from provtrail.corpus.models.corpus import CorpusEntry
+from provtrail.pipeline.controller.hashing import (
     MIN_HASHABLE_LENGTH,
     abstract_identifiers,
     build_hash_index,

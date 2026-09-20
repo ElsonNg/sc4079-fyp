@@ -16,9 +16,9 @@ import hashlib
 import json
 from pathlib import Path
 
-from corpus.controller.klaban import KLABAN_ID_PREFIX
-from corpus.controller.store import DEFAULT_DB_PATH, load_entries
-from corpus.models.corpus import CorpusEntry
+from provtrail.corpus.controller.klaban import KLABAN_ID_PREFIX
+from provtrail.corpus.integrations.sqlite_store import DEFAULT_DB_PATH, load_entries
+from provtrail.corpus.models.corpus import CorpusEntry
 from eval.fixtures.generate_candidate_subset import (
     digest,
     entry_key,

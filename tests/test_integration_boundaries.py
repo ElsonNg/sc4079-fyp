@@ -1,4 +1,4 @@
-"""Compatibility and injected transport contracts for external integrations."""
+"""Injected transport contracts for external integrations."""
 
 import subprocess
 import sys
@@ -6,22 +6,13 @@ import sys
 import numpy as np
 import pytest
 
-from corpus.controller import github as legacy_github
-from corpus.controller import osv as legacy_osv
-from corpus.controller import store as legacy_store
-from corpus.controller.release import ReleaseEvidenceError, fetch_npm_metadata
-from corpus.integrations import github, osv, sqlite_store
-from pipeline.controller import embedding as legacy_embedding
-from pipeline.controller.review_explanation import OllamaExplanationConfig
-from pipeline.integrations import embedding, ollama
-from pipeline.integrations.vector_index import load_faiss_index
+from provtrail.corpus.controller.release import ReleaseEvidenceError, fetch_npm_metadata
+from provtrail.pipeline.controller.review_explanation import OllamaExplanationConfig
+from provtrail.pipeline.integrations import ollama
+from provtrail.pipeline.integrations.vector_index import load_faiss_index
 
 
-def test_legacy_imports_reference_canonical_integrations():
-    assert legacy_github.fetch_source_tree is github.fetch_source_tree
-    assert legacy_osv.fetch_osv_vuln is osv.fetch_osv_vuln
-    assert legacy_store.load_entries is sqlite_store.load_entries
-    assert legacy_embedding.encode is embedding.encode
+def test_review_config_uses_provider_contract():
     assert OllamaExplanationConfig is ollama.OllamaExplanationConfig
 
 
@@ -61,7 +52,7 @@ def test_clean_process_faiss_builder_writes_compatible_index(tmp_path):
     np.save(source, vectors)
 
     subprocess.run(
-        [sys.executable, "-m", "cli.faiss_builder", str(source), str(output)],
+        [sys.executable, "-m", "provtrail.cli.faiss_builder", str(source), str(output)],
         check=True, capture_output=True,
     )
 

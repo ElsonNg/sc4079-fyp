@@ -1,6 +1,6 @@
-from corpus.controller import extraction
-from corpus.controller.extraction import compute_diagnostic_lines, extract_function_pairs_from_commit
-from corpus.models.commit import GitHubCommitDetail, GitHubCommitFile
+from provtrail.corpus.controller import extraction
+from provtrail.corpus.controller.extraction import compute_diagnostic_lines, extract_function_pairs_from_commit
+from provtrail.corpus.models.commit import GitHubCommitDetail, GitHubCommitFile
 
 # --- compute_diagnostic_lines: comment/blank-line filtering -----------------------------
 

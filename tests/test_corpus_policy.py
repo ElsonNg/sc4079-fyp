@@ -2,17 +2,17 @@ import json
 
 import pytest
 
-from corpus.controller.deduplication import deduplicate_entries, fingerprint_entry
-from corpus.controller.extraction import is_production_js_file
-from corpus.controller.release import ReleaseEvidenceError, validate_osv_agreement, version_satisfies_range
-from corpus.controller.snapshot import promote_snapshot
-from corpus.controller.store import load_entries
-from corpus.models.corpus import BuildResult, CorpusEntry
-from corpus.models.github import GitHubVulnerability
-from corpus.models.osv import OSVAffected, OSVEvent, OSVPackage, OSVRange, OSVVulnerability
-from pipeline.controller.scanning import JS_EXTENSIONS
-from pipeline.controller.parsing import extract_function_units
-from pipeline.controller.hashing import build_hash_index, lookup
+from provtrail.corpus.controller.deduplication import deduplicate_entries, fingerprint_entry
+from provtrail.corpus.controller.extraction import is_production_js_file
+from provtrail.corpus.controller.release import ReleaseEvidenceError, validate_osv_agreement, version_satisfies_range
+from provtrail.corpus.controller.snapshot import promote_snapshot
+from provtrail.corpus.integrations.sqlite_store import load_entries
+from provtrail.corpus.models.corpus import BuildResult, CorpusEntry
+from provtrail.corpus.models.github import GitHubVulnerability
+from provtrail.corpus.models.osv import OSVAffected, OSVEvent, OSVPackage, OSVRange, OSVVulnerability
+from provtrail.pipeline.scanning.scanner import JS_EXTENSIONS
+from provtrail.pipeline.controller.parsing import extract_function_units
+from provtrail.pipeline.controller.hashing import build_hash_index, lookup
 
 
 def _osv(package="widget", aliases=None):
