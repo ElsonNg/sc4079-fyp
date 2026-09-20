@@ -28,6 +28,7 @@ from provtrail.pipeline.controller.reporting import (
 )
 from provtrail.pipeline.controller.html_reporting import build_html_report_data, write_html_report
 from provtrail.cli import PROVTRAIL_VERSION
+from provtrail.cli.commands.exports import validate_paths, write_exports, write_text_atomic
 
 
 def _scan_progress(event: dict) -> None:
@@ -76,6 +77,16 @@ def _scan_progress(event: dict) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
+    output_path = args.output or args.path.resolve() / ".provtrail" / "latest-scan.json"
+    html_output_path = args.html_output or output_path.with_suffix(".html")
+    sarif_path = getattr(args, "sarif_output", None)
+    ai_path = getattr(args, "ai_output", None)
+    try:
+        validate_paths(sarif_path=sarif_path, ai_path=ai_path, reserved=(output_path, html_output_path), json_stdout=args.json)
+    except ValueError as exc:
+        print(f"Invalid output options: {exc}", file=sys.stderr)
+        return 2
+
     # Build the detector and cache settings from CLI options.
     entries = load_entries(args.db_path) if args.db_path else load_entries()
     verifier = RegionVerifierConfig(
@@ -126,12 +137,7 @@ def run(args: argparse.Namespace) -> int:
 
     # Write the structured and HTML reports from the same scan summary.
     payload = summary.to_dict()
-    output_path = args.output or args.path.resolve() / ".provtrail" / "latest-scan.json"
-    html_output_path = args.html_output or output_path.with_suffix(".html")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = output_path.with_name(f".{output_path.name}.tmp")
-    temporary.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    temporary.replace(output_path)
+    write_text_atomic(output_path, json.dumps(payload, indent=2))
 
     html_data = build_html_report_data(
         summary,
@@ -140,15 +146,22 @@ def run(args: argparse.Namespace) -> int:
         tool_version=PROVTRAIL_VERSION,
     )
     write_html_report(html_output_path, html_data)
+    ai_stdout = write_exports(payload, sarif_path=sarif_path, ai_path=ai_path)
 
     # Render terminal output and choose the process exit code from the findings.
-    if args.json:
+    if ai_stdout is not None:
+        print(ai_stdout, end="")
+    elif args.json:
         print(json.dumps(payload, indent=2))
     else:
         print(format_audit_summary(payload))
         print("ARTIFACTS")
         print(f"  structured report:     {output_path}")
         print(f"  HTML report:           {html_output_path}")
+        if sarif_path is not None:
+            print(f"  SARIF report:          {sarif_path}")
+        if ai_path is not None:
+            print(f"  AI report:             {ai_path}")
         print(DIVIDER)
         print(format_attention(payload))
     return report_exit_code(payload)

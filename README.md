@@ -81,6 +81,25 @@ or `--html-output report.html` to override only the HTML path. Repeat the comman
 unchanged function verdicts. A scan exits non-zero when it finds a flagged or manual-review
 result. Use `--json` to print the structured scan report to stdout.
 
+### SARIF and AI exports
+
+Both `scan` and `report` can export the actionable findings from the same scan JSON:
+
+```bash
+provtrail scan /path/to/project --sarif-output findings.sarif --ai-output findings.txt
+provtrail report /path/to/project/.provtrail/latest-scan.json --sarif-output findings.sarif --ai-output findings.txt
+provtrail report /path/to/project --ai-output - > findings.txt
+```
+
+SARIF 2.1.0 uses one result per vulnerable or manual-review function. Vulnerabilities
+have `error` level and manual reviews have `note` level. The compact AI text groups
+paths by directory and includes line ranges, advisory IDs, package applicability,
+confidence, and a short evidence reason. Both formats include manual-review findings
+even when an optional Ollama second opinion dismisses them. Informational and no-match
+functions are omitted. `--ai-output -` prints only the AI report to stdout, with scan
+progress on stderr, and cannot be combined with `--json`. Existing scan JSON, HTML,
+summary output, and exit codes remain the same unless an export is requested.
+
 ### Local second opinions for manual review
 
 Manual-review findings can optionally include an independent relevance review from a local
@@ -120,8 +139,8 @@ rerunning the detector:
 provtrail report /path/to/project --verbose
 ```
 
-The report command also accepts a saved JSON file directly. Use `--include-cleared` to
-include cleared functions in the detailed output. Rebuild an older corpus once to
+The report command also accepts a saved JSON file directly. Use `--include-informational` to
+include informational functions in the detailed output. Rebuild an older corpus once to
 backfill advisory titles, descriptions, and canonical links used by the HTML report.
 Corpus maintenance commands are:
 

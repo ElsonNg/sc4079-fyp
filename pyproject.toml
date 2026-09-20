@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest", "jsonschema>=4.20"]
 
 [project.scripts]
 provtrail = "provtrail.cli.main:main"

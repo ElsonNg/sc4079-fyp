@@ -62,6 +62,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Write the self-contained HTML report to this path",
     )
+    scan.add_argument("--sarif-output", type=Path, default=None, help="Write SARIF 2.1.0 findings")
+    scan.add_argument("--ai-output", type=Path, default=None, help="Write compact AI findings, or - for stdout")
     scan.add_argument("--embed-model", dest="model", default=None)
     scan.add_argument("--top-k", type=int, default=10)
     scan.add_argument("--retrieval-threshold", type=float, default=0.0)
@@ -105,6 +107,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include informational lineage and no-match results in detailed output",
     )
     report.add_argument("--json", action="store_true", help="Print the structured report view")
+    report.add_argument("--sarif-output", type=Path, default=None, help="Write SARIF 2.1.0 findings")
+    report.add_argument("--ai-output", type=Path, default=None, help="Write compact AI findings, or - for stdout")
 
     corpus = commands.add_parser("corpus", help="Manage the vulnerability corpus")
     corpus_commands = corpus.add_subparsers(dest="corpus_command", required=True)
