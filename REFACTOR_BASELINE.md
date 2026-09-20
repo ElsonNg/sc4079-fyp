@@ -433,3 +433,44 @@ functions have unchanged ASTs, as do the public scanner models and detector fact
 (`scanning-split-structure.json`). Cache schema version 25 and scan JSON schema v5
 remain unchanged. The full test and evaluation gates are deferred at the user's
 request.
+
+## Migration Phase 6: integration boundaries
+
+Baseline commit: `89b7708` (the user committed scanning decomposition).
+`corpus/integrations/` now owns GitHub, OSV, npm, checked release downloads and
+SQLite storage. `pipeline/integrations/` owns embedding model loading, FAISS index
+construction/search/persistence and Ollama HTTP requests. The old controller paths
+remain compatibility imports. Domain orchestration still builds prompts, validates
+release evidence and interprets retrieval matches. Sessions and filesystem paths
+remain injectable as before.
+
+Original function/class bodies moved unchanged for GitHub (17), OSV (6), SQLite (6),
+embedding (6) and checked downloads (8), recorded in
+`integrations-split-structure.json`. GitHub authentication and rate-limit handling,
+OSV batch requests and existing database schema remain in their original functions.
+The FAISS adapter imports its native dependency at module scope and preserves
+the per-region search order used for tied neighbors. The clean-process CLI
+index builder also uses this adapter. The embedding adapter imports PyTorch at
+module scope after setting the OpenMP compatibility variable. Ollama's transport retains
+the same two-attempt retry and stable error codes.
+
+Focused checks passed: 18 Ollama/GitHub tests, 8 retrieval/region/SQLite tests, 21
+snapshot/sandbox/GitHub tests, 4 integration contract tests and 6 final adapter
+checks. These are targeted overlapping runs, not a full-suite result. A real fresh CLI scan
+also matches Phase 5 findings exactly, exits 1 and produces JSON/HTML reports
+(`integrations-split-scan-comparison.json`). The user requested postponing full
+suites and evaluation runs until the refactor is done.
+
+## Migration Phase 7: evaluation layout
+
+Tier 1, Tier 2, ablations, comparison tools and fixture generators now live in
+dedicated `eval/` packages. The existing `scripts/` paths forward imports and
+command execution for compatibility. Repository-root defaults still point to the
+same input and output files. The Tier 2 Ollama code transformer moved out of the
+production controller, with its former path retained as an import facade.
+
+Focused evaluation and transformer tests passed (46 tests, then 31 after the
+transformer move). Direct script help and module help also ran. Full evaluation
+workloads and full scanning suites remain deferred as requested. Historical
+checkpoint outputs have incomplete invocation provenance, recorded in
+`eval/README.md`.

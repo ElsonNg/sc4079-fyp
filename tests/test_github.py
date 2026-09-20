@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from corpus.controller import github
-from corpus.controller.github import fetch_file_content, fetch_source_tree
+from corpus.integrations import github
+from corpus.integrations.github import fetch_file_content, fetch_source_tree
 
 
 @pytest.mark.parametrize("environment_token", [None, "environment-token"])

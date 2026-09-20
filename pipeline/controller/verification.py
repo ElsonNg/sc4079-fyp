@@ -14,7 +14,7 @@ lets find_op_at_line(alignment, "b", line) read them off directly.
 from typing import Literal
 
 from corpus.models.corpus import CorpusEntry, DiagnosticLine
-from pipeline.controller.embedding import DEFAULT_MODEL_ID
+from pipeline.integrations.embedding import DEFAULT_MODEL_ID
 from pipeline.controller.hierarchy import EmbeddingCache, align_functions, find_op_at_line
 from pipeline.models.hierarchy import HierarchicalAlignment
 from pipeline.models.retrieval import RetrievalMatch
@@ -51,7 +51,7 @@ def _match_key(match: RetrievalMatch) -> IdentityKey:
 
 
 def index_corpus_entries(entries: list[CorpusEntry]) -> dict[IdentityKey, CorpusEntry]:
-    """Keyed identically to corpus.controller.store's own UNIQUE constraint.
+    """Keyed identically to corpus.integrations.sqlite_store's own UNIQUE constraint.
     RetrievalMatch (Stage 2's output) carries only that identity tuple, not the
     function text -- this is how Stage 7 gets back to
     CorpusEntry.vulnerable_function/.patched_function for a shortlisted candidate."""

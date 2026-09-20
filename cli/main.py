@@ -9,7 +9,7 @@ from pathlib import Path
 
 from corpus.controller.snapshot import DEFAULT_SNAPSHOTS_DIR
 from corpus.controller.klaban import DEFAULT_KLABAN_PATH
-from pipeline.controller.embedding import EMBEDDING_DEVICE_ENV
+from pipeline.integrations.embedding import EMBEDDING_DEVICE_ENV
 from pipeline.detection.config import DEFAULT_MODEL_ID
 from pipeline.controller.region_retrieval import DEFAULT_REGION_EMBEDDINGS_DIR
 from pipeline.controller.retrieval import DEFAULT_EMBEDDINGS_DIR

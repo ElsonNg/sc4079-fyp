@@ -61,7 +61,15 @@ Migration Phase 5 (scanning decomposition) is implemented in
 imports remain compatibility facades. The user requested postponing the full scanning
 test suites and evaluation runs until the refactor is done. Ten focused tests pass.
 Fresh and reused CLI findings and JSON/HTML artifacts match Phase 4.
-Phase 6 has not started.
+Migration Phase 6 separates GitHub, OSV, npm, checked downloads and SQLite under
+`corpus/integrations/`, and embedding, FAISS and Ollama review transport under
+`pipeline/integrations/`. Controllers retain compatibility imports. Focused provider,
+retrieval and review tests pass, and a fresh CLI scan matches Phase 5.
+The user requested deferring full suites and evaluations until the refactor is done.
+Migration Phase 7 groups evaluation implementations under `eval/{tier1,tier2,ablation,comparison_benchmark,fixtures}`.
+Old `scripts/` commands remain small compatibility entry points. The Tier 2 code
+transformer also lives with its evaluation. Focused imports, CLI help and contract
+tests pass. Full evaluation runs remain deferred.
 
 User review preference: present recommendations phase by phase for vetting before
 implementing each phase. Prioritize readability, maintainability, clean code and

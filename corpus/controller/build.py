@@ -10,8 +10,8 @@ import requests
 
 from corpus.controller.deduplication import deduplicate_entries, fingerprint_entry
 from corpus.controller.extraction import CleanlinessRejection, compute_diagnostic_lines, extract_commit_refs, extract_function_pairs_from_commit
-from corpus.controller.github import fetch_advisories
-from corpus.controller.osv import fetch_osv_vuln
+from corpus.integrations.github import fetch_advisories
+from corpus.integrations.osv import fetch_osv_vuln
 from corpus.controller.release import ReleaseEvidenceError, assess_high_impact, resolve_release_boundary, validate_osv_agreement
 from corpus.models.commit import ExtractedFunctionPair
 from corpus.models.corpus import AttritionReport, BuildResult, CorpusEntry, QuarantineRecord

@@ -5,11 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
-import sqlite3
 import tempfile
 from pathlib import Path
 
-from corpus.controller.store import save_entries
+from corpus.integrations.sqlite_store import save_entries, snapshot_integrity
 from corpus.models.corpus import BuildResult
 
 DEFAULT_SNAPSHOTS_DIR = Path(__file__).resolve().parent.parent / "data" / "snapshots"
@@ -65,12 +64,7 @@ def _verify_snapshot(directory: Path, expected_entries: int) -> dict[str, str]:
     for name in required:
         if not (directory / name).is_file():
             raise SnapshotIntegrityError(f"missing artifact: {name}")
-    conn = sqlite3.connect(directory / "corpus.db")
-    try:
-        count = conn.execute("SELECT COUNT(*) FROM corpus_entries").fetchone()[0]
-        integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
-    finally:
-        conn.close()
+    count, integrity = snapshot_integrity(directory / "corpus.db")
     if count != expected_entries or integrity != "ok":
         raise SnapshotIntegrityError("corpus database integrity check failed")
     index = json.loads((directory / "retrieval-index.json").read_text(encoding="utf-8"))

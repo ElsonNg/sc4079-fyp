@@ -9,10 +9,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import urljoin
 
 import requests
-from pydantic import ValidationError
+
+from pipeline.integrations.ollama import (
+    DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_MODEL, DEFAULT_OLLAMA_TIMEOUT,
+    OllamaClient, OllamaExplanationConfig, OllamaExplanationError,
+)
 
 from corpus.models.corpus import CorpusEntry
 from pipeline.controller.html_reporting import _candidate_lines, build_html_report_data
@@ -21,23 +24,7 @@ from pipeline.models.explanations import ReviewBrief, ReviewExplanation
 
 EXPLANATION_CACHE_SCHEMA_VERSION = 1
 EXPLANATION_PROMPT_VERSION = "advisory-relevance-v5-full-function-region"
-DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434"
-DEFAULT_OLLAMA_MODEL = "qwen3:8b"
-DEFAULT_OLLAMA_TIMEOUT = 180.0
 MAX_SNIPPET_CHARACTERS = 12_000
-
-
-class OllamaExplanationError(RuntimeError):
-    def __init__(self, code: str, message: str):
-        self.code = code
-        super().__init__(message)
-
-
-@dataclass(frozen=True)
-class OllamaExplanationConfig:
-    model: str = DEFAULT_OLLAMA_MODEL
-    host: str = DEFAULT_OLLAMA_HOST
-    timeout: float = DEFAULT_OLLAMA_TIMEOUT
 
 
 @dataclass(frozen=True)
@@ -58,12 +45,6 @@ class ExplanationRunStats:
             "reused": self.reused,
             "unavailable": self.unavailable,
         }
-
-
-def _endpoint(host: str, path: str) -> str:
-    if "://" not in host:
-        host = f"http://{host}"
-    return urljoin(host.rstrip("/") + "/", path.lstrip("/"))
 
 
 def _canonical_json(value: Any) -> str:
@@ -201,23 +182,10 @@ class OllamaReviewExplainer:
         session: requests.Session | None = None,
     ) -> None:
         self.config = config
-        self.session = session or requests.Session()
+        self.client = OllamaClient(config, session=session)
 
     def ensure_model_available(self) -> None:
-        try:
-            response = self.session.get(
-                _endpoint(self.config.host, "/api/tags"),
-                timeout=self.config.timeout,
-            )
-            response.raise_for_status()
-            models = response.json().get("models", [])
-        except (requests.RequestException, ValueError, AttributeError) as exc:
-            raise OllamaExplanationError("ollama_unavailable", str(exc)) from exc
-        names = {
-            str(model.get("name") or model.get("model") or "")
-            for model in models
-            if isinstance(model, dict)
-        }
+        names = self.client.available_models()
         if self.config.model not in names:
             raise OllamaExplanationError(
                 "model_missing",
@@ -279,29 +247,7 @@ class OllamaReviewExplainer:
             "keep_alive": "10m",
             "options": {"temperature": 0, "num_predict": 350},
         }
-        last_error: OllamaExplanationError | None = None
-        for _attempt in range(2):
-            try:
-                response = self.session.post(
-                    _endpoint(self.config.host, "/api/chat"),
-                    json=request_body,
-                    timeout=self.config.timeout,
-                )
-                if response.status_code == 404:
-                    raise OllamaExplanationError("model_missing", response.text)
-                response.raise_for_status()
-                content = response.json()["message"]["content"]
-                return ReviewBrief.model_validate_json(content)
-            except OllamaExplanationError as exc:
-                last_error = exc
-            except requests.Timeout as exc:
-                last_error = OllamaExplanationError("timeout", str(exc))
-            except requests.RequestException as exc:
-                last_error = OllamaExplanationError("ollama_unavailable", str(exc))
-            except (KeyError, TypeError, ValueError, ValidationError) as exc:
-                last_error = OllamaExplanationError("invalid_response", str(exc))
-        assert last_error is not None
-        raise last_error
+        return self.client.review(request_body)
 
 
 def _generated_explanation(model: str, brief: ReviewBrief) -> ReviewExplanation:

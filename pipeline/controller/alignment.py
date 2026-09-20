@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from pipeline.controller import embedding
-from pipeline.controller.embedding import DEFAULT_MODEL_ID
+from pipeline.integrations import embedding
+from pipeline.integrations.embedding import DEFAULT_MODEL_ID
 from pipeline.models.alignment import Alignment, AlignmentOp
 
 # Bounded span window (k=2-3) for 1:2/2:1/1:3/3:1 merge candidates -- a build plan

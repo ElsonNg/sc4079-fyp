@@ -7,8 +7,8 @@ from typing import Callable
 import numpy as np
 
 from corpus.models.corpus import CorpusEntry
-from pipeline.controller import embedding
-from pipeline.controller.embedding import DEFAULT_MODEL_ID
+from pipeline.integrations import embedding, vector_index
+from pipeline.integrations.embedding import DEFAULT_MODEL_ID
 from pipeline.controller.parsing import normalize_source
 from pipeline.models.retrieval import RetrievalMatch
 
@@ -128,17 +128,8 @@ def build_faiss_index(
     del normalized_texts
     embedding.release_models()
 
-    # On macOS, importing FAISS before PyTorch has initialized can load conflicting
-    # OpenMP runtimes and segfault during the first model forward pass. Keep FAISS lazy
-    # so embedding always initializes the numerical runtime first.
-    import faiss
-
     dim = vectors.shape[1] if vectors.size else embedding.get_model(model_id).get_embedding_dimension()
-    index = faiss.IndexHNSWFlat(dim, m, faiss.METRIC_INNER_PRODUCT)
-    index.hnsw.efConstruction = ef_construction
-    index.hnsw.efSearch = ef_search
-    if vectors.size:
-        index.add(vectors)
+    index = vector_index.build_hnsw_index(vectors, dim, m, ef_construction, ef_search)
 
     return RetrievalIndex(
         model_id=model_id,
@@ -156,33 +147,29 @@ def save_index(
     corpus_entries: list[CorpusEntry],
     dir_path: Path = DEFAULT_EMBEDDINGS_DIR,
 ) -> None:
-    import faiss
-
     dir_path.mkdir(parents=True, exist_ok=True)
     index_path, meta_path = _index_paths(retrieval_index.model_id, dir_path)
 
-    faiss.write_index(retrieval_index.index, str(index_path))
+    vector_index.save_faiss_index(retrieval_index.index, index_path)
     meta = {
         "index_format_version": INDEX_FORMAT_VERSION,
         "model_id": retrieval_index.model_id,
         "corpus_fingerprint": _corpus_fingerprint(corpus_entries),
         "entries": [e.model_dump() for e in retrieval_index.entries],
     }
-    meta_path.write_text(json.dumps(meta))
+    vector_index.write_index_metadata(meta_path, meta)
 
 
 def load_index(
     model_id: str = DEFAULT_MODEL_ID,
     dir_path: Path = DEFAULT_EMBEDDINGS_DIR,
 ) -> RetrievalIndex | None:
-    import faiss
-
     index_path, meta_path = _index_paths(model_id, dir_path)
     if not index_path.exists() or not meta_path.exists():
         return None
 
-    index = faiss.read_index(str(index_path))
-    meta = json.loads(meta_path.read_text())
+    index = vector_index.load_faiss_index(index_path)
+    meta = vector_index.read_index_metadata(meta_path)
     return RetrievalIndex(
         model_id=meta["model_id"],
         index=index,
@@ -198,7 +185,7 @@ def is_stale(
     _, meta_path = _index_paths(model_id, dir_path)
     if not meta_path.exists():
         return True
-    meta = json.loads(meta_path.read_text())
+    meta = vector_index.read_index_metadata(meta_path)
     return (
         meta.get("index_format_version") != INDEX_FORMAT_VERSION
         or meta.get("corpus_fingerprint") != _corpus_fingerprint(corpus_entries)
@@ -254,7 +241,7 @@ def query_batch(
     vectors = embedding.encode(retrieval_index.model_id, normalized_texts)
 
     search_k = min(max(k, k * MAX_CORPUS_WINDOWS), len(retrieval_index.entries))
-    similarities, ids = retrieval_index.index.search(vectors, search_k)
+    similarities, ids = vector_index.search_index(retrieval_index.index, vectors, search_k)
 
     aggregated: list[dict[tuple[str, str, str, str | None], RetrievalMatch]] = [
         {} for _ in target_sources

@@ -17,13 +17,13 @@ from corpus.controller.build import build_corpus_result, print_attrition_report,
 from corpus.controller.deduplication import deduplicate_entries
 from corpus.controller.snapshot import SnapshotIntegrityError, promote_snapshot
 from corpus.controller.klaban import KLABAN_ID_PREFIX, parse_klaban_corpus, print_klaban_report
-from corpus.controller.store import (
+from corpus.integrations.sqlite_store import (
     DEFAULT_DB_PATH,
     load_entries,
     replace_entries_by_ghsa_prefix,
 )
-from pipeline.controller import embedding
-from pipeline.controller.embedding import EMBEDDING_DEVICE_ENV
+from pipeline.integrations import embedding
+from pipeline.integrations.embedding import EMBEDDING_DEVICE_ENV
 from pipeline.controller.region_extraction import extract_corpus_region_pairs
 from pipeline.controller.region_retrieval import _region_fingerprint
 from pipeline.controller.retrieval import (

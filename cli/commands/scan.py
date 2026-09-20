@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from corpus.controller.store import load_entries
+from corpus.integrations.sqlite_store import load_entries
 from pipeline.detection.config import RegionDetectorConfig, RegionVerifierConfig
 from pipeline.controller.review_explanation import (
     OllamaExplanationConfig,

@@ -14,7 +14,7 @@ from typing import Literal
 import numpy as np
 import tree_sitter
 
-from pipeline.controller import embedding
+from pipeline.integrations import embedding
 from pipeline.controller.alignment import (
     DEFAULT_GAP_PENALTY,
     DEFAULT_MAX_SPAN_LINES,
@@ -24,7 +24,7 @@ from pipeline.controller.alignment import (
     align_with_scores,
     get_match_midpoint,
 )
-from pipeline.controller.embedding import DEFAULT_MODEL_ID
+from pipeline.integrations.embedding import DEFAULT_MODEL_ID
 from pipeline.controller.parsing import (
     FUNCTION_NODE_TYPES,
     get_normalized_node_text,

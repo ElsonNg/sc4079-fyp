@@ -1,7 +1,7 @@
 import difflib
 import re
 
-from corpus.controller.github import fetch_commit, fetch_file_content
+from corpus.integrations.github import fetch_commit, fetch_file_content
 from corpus.models.commit import ExtractedFunctionPair, GitHubCommitDetail, GitHubCommitFile
 from corpus.models.corpus import DiagnosticLine
 from pipeline.controller.parsing import (

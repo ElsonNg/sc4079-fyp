@@ -1,9 +1,11 @@
 """Clean-process FAISS builder used to isolate FAISS from PyTorch runtimes."""
 
 import argparse
+from pathlib import Path
 
-import faiss
 import numpy as np
+
+from pipeline.integrations.vector_index import build_hnsw_index, save_faiss_index
 
 
 def main() -> None:
@@ -15,11 +17,10 @@ def main() -> None:
     parser.add_argument("--ef-search", type=int, default=256)
     args = parser.parse_args()
     vectors = np.load(args.vectors)
-    index = faiss.IndexHNSWFlat(vectors.shape[1], args.m, faiss.METRIC_INNER_PRODUCT)
-    index.hnsw.efConstruction = args.ef_construction
-    index.hnsw.efSearch = args.ef_search
-    index.add(vectors)
-    faiss.write_index(index, args.output)
+    index = build_hnsw_index(
+        vectors, vectors.shape[1], args.m, args.ef_construction, args.ef_search,
+    )
+    save_faiss_index(index, Path(args.output))
 
 
 if __name__ == "__main__":

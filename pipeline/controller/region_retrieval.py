@@ -10,7 +10,7 @@ from typing import Callable
 
 import numpy as np
 
-from pipeline.controller import embedding
+from pipeline.integrations import embedding, vector_index
 from pipeline.detection.config import DEFAULT_MODEL_ID, DEFAULT_REGION_THRESHOLD, DEFAULT_REGION_TOP_K
 from pipeline.models.boundary import VulnerableRegionPair
 from pipeline.models.region import CandidateRegion
@@ -70,15 +70,7 @@ def build_region_index(
     else:
         dimension = embedding.get_model(model_id).get_embedding_dimension()
     embedding.release_models()
-    # See pipeline.controller.retrieval: embedding/PyTorch must initialize before
-    # FAISS on macOS to avoid an OpenMP-runtime native crash.
-    import faiss
-
-    index = faiss.IndexHNSWFlat(dimension, m, faiss.METRIC_INNER_PRODUCT)
-    index.hnsw.efConstruction = ef_construction
-    index.hnsw.efSearch = ef_search
-    if vectors.size:
-        index.add(vectors)
+    index = vector_index.build_hnsw_index(vectors, dimension, m, ef_construction, ef_search)
     return RegionRetrievalIndex(
         model_id=model_id,
         index=index,
@@ -105,7 +97,7 @@ def query_region_batch(
     # asked to search a matrix in parallel. Keep model encoding batched (the
     # expensive part), but search each region vector independently so batching
     # does not change the established sequential shortlist semantics.
-    searched = [retrieval_index.index.search(vector[None, :], k) for vector in vectors]
+    searched = vector_index.search_each(retrieval_index.index, vectors, k)
     results: list[list[RegionRetrievalMatch]] = []
     for candidate, (row_sims, row_ids) in zip(candidate_regions, searched):
         row_sims = row_sims[0]
@@ -172,11 +164,9 @@ def save_region_index(
     retrieval_index: RegionRetrievalIndex,
     directory: Path = DEFAULT_REGION_EMBEDDINGS_DIR,
 ) -> None:
-    import faiss
-
     directory.mkdir(parents=True, exist_ok=True)
     stem = retrieval_index.model_id
-    faiss.write_index(retrieval_index.index, str(directory / f"{stem}.faiss"))
+    vector_index.save_faiss_index(retrieval_index.index, directory / f"{stem}.faiss")
     metadata = {
         "model_id": retrieval_index.model_id,
         "fingerprint": retrieval_index.fingerprint,
@@ -184,7 +174,7 @@ def save_region_index(
         "indexed_pair_ids": retrieval_index.indexed_pair_ids,
         "indexed_sides": retrieval_index.indexed_sides,
     }
-    (directory / f"{stem}.meta.json").write_text(json.dumps(metadata), encoding="utf-8")
+    vector_index.write_index_metadata(directory / f"{stem}.meta.json", metadata)
 
 
 def load_region_index(
@@ -192,19 +182,17 @@ def load_region_index(
     model_id: str = DEFAULT_MODEL_ID,
     directory: Path = DEFAULT_REGION_EMBEDDINGS_DIR,
 ) -> RegionRetrievalIndex | None:
-    import faiss
-
     index_path = directory / f"{model_id}.faiss"
     metadata_path = directory / f"{model_id}.meta.json"
     if not index_path.exists() or not metadata_path.exists():
         return None
-    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata = vector_index.read_index_metadata(metadata_path)
     expected = _region_fingerprint(pairs, model_id)
     if metadata.get("fingerprint") != expected:
         return None
     return RegionRetrievalIndex(
         model_id=model_id,
-        index=faiss.read_index(str(index_path)),
+        index=vector_index.load_faiss_index(index_path),
         pairs=pairs,
         indexed_pair_ids=list(metadata.get("indexed_pair_ids", [])),
         indexed_sides=list(metadata.get("indexed_sides", [])),

@@ -1,3 +1,31 @@
+# Evaluation commands
+
+Run commands from the repository root. The Python modules under `eval/` own the
+implementations. Matching files under `scripts/` remain entry points for older
+commands. All defaults write to the top-level `eval/` directory.
+
+| Evaluation | Build input | Run and score | Default result |
+| --- | --- | --- | --- |
+| Tier 1 release check | `python -m eval.tier1.build_tier1_targets` | `python -m eval.tier1.validate_tier1_releases` | `tier1_release_results.json` |
+| Tier 2 transformed code | `python -m eval.tier2.generate_llm_transformed_subset --expanded` | `python -m eval.tier2.validate_llm_transformed_subset --positive eval/llm_transformed_expanded_positive.jsonl --negative eval/llm_transformed_expanded_negative.jsonl --output eval/llm_transformed_expanded_results.json` | `llm_transformed_expanded_results.json` |
+| Retrieval ablation | `python -m eval.fixtures.generate_candidate_subset` and `python -m eval.fixtures.generate_negative_subset` | `python -m eval.ablation.run_retrieval_ablations` | `retrieval_ablation_results.json` |
+| Decision ablation | Same 30 positive and 60 negative fixtures | `python -m eval.ablation.run_decision_ablations` | `decision_ablation_k5_evidence20_results.json` |
+| Tool comparison | `python -m eval.comparison_benchmark.build_tool_comparison` | `python -m eval.comparison_benchmark.run_tool_comparison`, then `python -m eval.comparison_benchmark.score_tool_comparison --findings <normalized.jsonl>` | `comparison_summary.json` |
+
+Comparison tool installation is separate: run
+`python -m eval.comparison_benchmark.bootstrap_comparison_tools` before running
+the comparison if pinned tools are unavailable. `materialize_tool_comparison`
+prepares source workspaces. `import_tier1_comparison` converts existing Tier 1
+results into comparator findings without running another scan. The 50-case
+comparison uses `build_tool_comparison --origins 50` and explicit `--cases`,
+`--ground-truth`, `--tool-lock`, `--findings`, and `--output` paths ending in
+`comparison_50_*`.
+
+Saved `*_smoke`, `*_limit2`, `*_fallback`, `*_retry`, and `*_corrected` files are
+historical checkpoints from individual experiments. Their exact old command
+arguments and tool state are not fully recorded. They are retained for audit,
+not presented as fresh results from the commands above.
+
 # Candidate subset fixtures
 
 `candidate_subset_30.jsonl` is a reproducible positive-only benchmark fixture for

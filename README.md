@@ -42,6 +42,17 @@ Region verification lives in `pipeline/detection/verification/`: `verifier.py`
 coordinates scoring, `classification.py` decides boundary states, and the other
 modules own structural/token scores, edit distance, evidence selection and fallbacks.
 
+Provider calls live in two integration packages. `corpus/integrations/` owns
+GitHub, OSV and npm requests, verified release downloads, and SQLite storage.
+`pipeline/integrations/` owns embedding model loading, FAISS operations and Ollama
+review requests. Controllers pass sessions and paths into these modules where needed.
+The previous controller imports remain available during the migration.
+
+Evaluation programs are grouped under `eval/tier1/`, `eval/tier2/`,
+`eval/ablation/`, `eval/comparison_benchmark/` and `eval/fixtures/`. The old
+`scripts/` commands still forward to them. See `eval/README.md` for build,
+run and scoring commands.
+
 The detector scans `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`
 files with incremental scan state:
 

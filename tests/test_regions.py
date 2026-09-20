@@ -915,7 +915,7 @@ def test_region_detector_uses_region_path_when_hash_path_is_empty(monkeypatch):
         vectors = np.ones((len(texts), 8), dtype=np.float32)
         return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 
-    monkeypatch.setattr("pipeline.controller.embedding.encode", fake_encode)
+    monkeypatch.setattr("pipeline.integrations.embedding.encode", fake_encode)
     index = faiss.IndexFlatIP(8)
     index.add(np.ones((len(pairs), 8), dtype=np.float32) / np.sqrt(8))
     detector = RegionDetector(
@@ -1002,7 +1002,7 @@ def test_same_language_scope_excludes_cross_language_region_matches(monkeypatch)
         vectors = np.ones((len(texts), 8), dtype=np.float32)
         return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 
-    monkeypatch.setattr("pipeline.controller.embedding.encode", fake_encode)
+    monkeypatch.setattr("pipeline.integrations.embedding.encode", fake_encode)
     index = faiss.IndexFlatIP(8)
     index.add(np.ones((len(pairs), 8), dtype=np.float32) / np.sqrt(8))
     detector = RegionDetector(

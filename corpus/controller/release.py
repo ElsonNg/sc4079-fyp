@@ -10,16 +10,14 @@ import re
 import tarfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from urllib.parse import quote, urlparse
+from urllib.parse import urlparse
 
 import requests
 
-from corpus.controller.github import GITHUB_API_BASE, _github_get
+from corpus.integrations.github import compare_commits, fetch_repository_details, find_tag_commit, fetch_recent_commits, fetch_recent_issues
+from corpus.integrations.npm import NpmPackageMissing, NpmReleaseClient
 from corpus.models.github import GitHubVulnerability
 from corpus.models.osv import OSVVulnerability
-
-NPM_REGISTRY = "https://registry.npmjs.org"
-NPMS_API = "https://api.npms.io/v2/package"
 
 
 class ReleaseEvidenceError(RuntimeError):
@@ -151,27 +149,14 @@ def validate_osv_agreement(
 
 
 def fetch_npm_metadata(package_name: str, session: requests.Session) -> dict:
-    response = session.get(f"{NPM_REGISTRY}/{quote(package_name, safe='')}", timeout=30)
-    if response.status_code == 404:
-        raise ReleaseEvidenceError("npm_package_missing", package_name)
-    response.raise_for_status()
-    return response.json()
+    try:
+        return NpmReleaseClient(session).metadata(package_name)
+    except NpmPackageMissing as exc:
+        raise ReleaseEvidenceError("npm_package_missing", package_name) from exc
 
 
 def _tag_commit(owner: str, repo: str, version: str, session: requests.Session) -> str | None:
-    for tag in (f"v{version}", version):
-        try:
-            response = _github_get(
-                f"{GITHUB_API_BASE}/repos/{owner}/{repo}/commits/{quote(tag, safe='')}",
-                None,
-                session,
-            )
-        except requests.HTTPError as exc:
-            if exc.response is not None and exc.response.status_code in {404, 422}:
-                continue
-            raise
-        return response.json().get("sha")
-    return None
+    return find_tag_commit(owner, repo, version, session)
 
 
 def _release_commit(
@@ -182,11 +167,10 @@ def _release_commit(
     tarball = (release.get("dist") or {}).get("tarball")
     if not tarball:
         raise ReleaseEvidenceError("tarball_missing", version)
-    response = session.get(tarball, timeout=60)
-    response.raise_for_status()
-    artifact_hash = hashlib.sha256(response.content).hexdigest()
+    content = NpmReleaseClient(session).tarball(tarball)
+    artifact_hash = hashlib.sha256(content).hexdigest()
     try:
-        with tarfile.open(fileobj=io.BytesIO(response.content), mode="r:gz") as archive:
+        with tarfile.open(fileobj=io.BytesIO(content), mode="r:gz") as archive:
             member = archive.getmember("package/package.json")
             stream = archive.extractfile(member)
             manifest = json.load(stream) if stream is not None else {}
@@ -204,9 +188,7 @@ def _is_ancestor(owner: str, repo: str, older: str, newer: str, session: request
     if older == newer:
         return True
     try:
-        response = _github_get(
-            f"{GITHUB_API_BASE}/repos/{owner}/{repo}/compare/{older}...{newer}", None, session
-        )
+        status = compare_commits(owner, repo, older, newer, session)
     except requests.HTTPError as exc:
         if exc.response is not None and exc.response.status_code == 404:
             raise ReleaseEvidenceError(
@@ -214,7 +196,7 @@ def _is_ancestor(owner: str, repo: str, older: str, newer: str, session: request
                 f"GitHub cannot compare {older}...{newer} in {owner}/{repo}",
             ) from exc
         raise
-    return response.json().get("status") in {"ahead", "identical"}
+    return status in {"ahead", "identical"}
 
 
 def resolve_release_boundary(
@@ -227,7 +209,7 @@ def resolve_release_boundary(
     *,
     session: requests.Session | None = None,
 ) -> dict:
-    session = session or requests.Session()
+    session = NpmReleaseClient(session).session
     metadata = fetch_npm_metadata(package_name, session)
     canonical_repo = canonical_github_repo(metadata.get("repository"))
     if not canonical_repo or canonical_repo.lower() != expected_repo.lower():
@@ -276,15 +258,15 @@ def resolve_release_boundary(
 
 def assess_high_impact(repo: str, package_name: str, *, session: requests.Session | None = None) -> tuple[bool, dict]:
     """Collect post-admission impact metadata; failures never affect admission."""
-    session = session or requests.Session()
+    session = NpmReleaseClient(session).session
     metadata: dict = {"direct_dependents": 0, "stars": 0}
     try:
-        npm = session.get(f"{NPMS_API}/{quote(package_name, safe='')}", timeout=30).json()
+        npm = NpmReleaseClient(session).dependents(package_name)
         metadata["direct_dependents"] = int(
             (((npm.get("collected") or {}).get("npm") or {}).get("dependentsCount")) or 0
         )
         owner, name = repo.split("/", 1)
-        github = session.get(f"{GITHUB_API_BASE}/repos/{owner}/{name}", timeout=30).json()
+        github = fetch_repository_details(owner, name, session)
         metadata.update(
             stars=int(github.get("stargazers_count") or 0),
             archived=bool(github.get("archived")),
@@ -299,20 +281,13 @@ def assess_high_impact(repo: str, package_name: str, *, session: requests.Sessio
         if package_time:
             release_recent = (now - datetime.fromisoformat(package_time.replace("Z", "+00:00"))).days <= 548
         since = (now - timedelta(days=180)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-        commits = session.get(
-            f"{GITHUB_API_BASE}/repos/{owner}/{name}/commits",
-            params={"since": since}, timeout=30,
-        ).json()
+        commits = fetch_recent_commits(owner, name, since, session)
         human_recent = any(
             isinstance(commit, dict)
             and ((commit.get("author") or {}).get("type") == "User")
             for commit in commits if isinstance(commits, list)
         )
-        issues = session.get(
-            f"{GITHUB_API_BASE}/repos/{owner}/{name}/issues",
-            params={"state": "all", "per_page": 100, "sort": "created", "direction": "desc"},
-            timeout=30,
-        ).json()
+        issues = fetch_recent_issues(owner, name, session)
         response_samples = []
         for issue in issues if isinstance(issues, list) else []:
             if "pull_request" in issue or not issue.get("created_at"):
