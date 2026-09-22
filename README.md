@@ -10,10 +10,10 @@ advisories, code comparisons, and evidence for each finding.
 ### 1. Install
 
 Requires **Python 3.11+** and **Git**. CPU execution is supported.
-Get the CLI implementation from the `pivot/corpus` branch:
+Clone the repository:
 
 ```sh
-git clone --branch pivot/corpus https://github.com/ElsonNg/sc4079-fyp.git
+git clone https://github.com/ElsonNg/sc4079-fyp.git
 cd sc4079-fyp
 ```
 
