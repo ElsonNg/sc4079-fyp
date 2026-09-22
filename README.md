@@ -10,18 +10,27 @@ advisories, code comparisons, and evidence for each finding.
 ### 1. Install
 
 Requires **Python 3.11+** and **Git**. CPU execution is supported.
-Clone the repository:
+Choose **one** of the following installation methods, then continue to step 2.
+
+#### Option A: pipx — standalone command
+
+With [pipx installed](https://pipx.pypa.io/latest/how-to/install-pipx.html), install
+directly from GitHub. pipx manages its own environment; no activation is needed.
+
+```sh
+pipx install "git+https://github.com/ElsonNg/sc4079-fyp.git"
+pipx ensurepath
+```
+
+Reopen your terminal, then run `provtrail --help` from any directory.
+
+#### Option B: virtual environment — local checkout
+
+Clone the repository and create an environment:
 
 ```sh
 git clone https://github.com/ElsonNg/sc4079-fyp.git
 cd sc4079-fyp
-```
-
-Choose one installation method:
-
-**Virtual environment**
-
-```sh
 python -m venv .venv
 ```
 
@@ -34,18 +43,7 @@ python -m pip install .
 
 Use `python -m pip install -e .` instead if you plan to edit the tool.
 
-**pipx: an isolated CLI available from any directory**
-
-With [pipx installed](https://pipx.pypa.io/latest/how-to/install-pipx.html):
-
-```sh
-pipx install .
-pipx ensurepath
-```
-
-Reopen your terminal if the command is not yet on `PATH`.
-
-**Wheel: if you already have a built package**
+#### Option C: wheel — existing package file
 
 In an activated virtual environment, install your wheel file:
 
@@ -62,23 +60,52 @@ python -m pip install ./provtrail-0.1.0-py3-none-any.whl
 GITHUB_TOKEN=your_github_token
 ```
 
-Build the corpus and its search indexes once:
+Build the corpus once:
 
 ```sh
 provtrail corpus build
 provtrail corpus stats
-provtrail corpus index --device cpu
 ```
 
-Corpus building and the first embedding-model download require network access and
-can take time. Confirm that `corpus stats` reports entries before scanning.
+Corpus building requires network access and can take time. Confirm that
+`corpus stats` reports entries before continuing.
 
 Already have a populated corpus? Skip the build and use
-`--db-path /path/to/corpus.db` with `scan` and `corpus stats`. Missing indexes are
+`--db-path /path/to/corpus.db` with `corpus index`, `scan`, and `corpus stats`. Missing indexes are
 built on the first scan. See [data locations](#data-and-configuration) to reuse
 existing indexes too.
 
-### 3. Scan a project
+### 3. Set up the local embedding model
+
+ProvTrail uses **Qwen/Qwen3-Embedding-0.6B** by default. The install includes
+PyTorch and Sentence Transformers; the following command downloads the model
+weights on first use, runs the model locally, and builds both search indexes:
+
+```sh
+provtrail corpus index --embed-model qwen3-embedding-0.6b --device cpu
+```
+
+Wait for indexing to finish before scanning. This setup works with every install
+method above and requires no separate model server or Ollama installation.
+Weights are cached for later runs. To choose their location, set `HF_HOME` before
+running the command; see the [Hugging Face cache settings](https://huggingface.co/docs/huggingface_hub/en/package_reference/environment_variables#hf_home).
+The model cache is separate from `PROVTRAIL_DATA_DIR`, which stores the corpus and indexes.
+
+To use CPU for subsequent scans too, set this in each terminal session:
+
+```sh
+export PROVTRAIL_EMBEDDING_DEVICE=cpu  # macOS / Linux
+```
+
+```powershell
+$env:PROVTRAIL_EMBEDDING_DEVICE = "cpu"  # PowerShell
+```
+
+Without this setting, PyTorch/Sentence Transformers selects an available device.
+Use the same embedding model for indexing and scanning; `scan` also accepts
+`--embed-model qwen3-embedding-0.6b`, which is already the default.
+
+### 4. Scan a project
 
 ```sh
 provtrail scan /path/to/project
@@ -112,6 +139,39 @@ provtrail report scan.json --verbose
 `report` accepts either a saved JSON file or the scanned project directory, and
 does not rerun detection. `--ai-output -` cannot be combined with `--json`.
 SARIF and compact text include automatic vulnerability findings and manual reviews.
+
+**Example SARIF result** (`findings.sarif`, one illustrative entry from
+`runs[0].results`; the full file includes tool metadata and fingerprints):
+
+```json
+{
+  "ruleId": "provtrail/manual-review",
+  "level": "note",
+  "message": {
+    "text": "parseQuery: The vulnerable and patched edits are too similar to distinguish confidently."
+  },
+  "locations": [{
+    "physicalLocation": {
+      "artifactLocation": {"uri": "src/query.js", "uriBaseId": "%SRCROOT%"},
+      "region": {"startLine": 12, "endLine": 28}
+    }
+  }]
+}
+```
+
+**Example AI output** (`findings.txt`, the same illustrative finding):
+
+```text
+ProvTrail AI v1
+root: /path/to/project
+src/
+  query.js:12-28 REVIEW confidence=high reason=The vulnerable and patched edits are too similar to distinguish confidently.
+total=1 vuln=0 review=1
+```
+
+`REVIEW` requests manual inspection; `VULN` marks an automatic vulnerability finding.
+Advisory IDs and package applicability appear when available. This is a text export
+for an AI assistant to read; generating it does not call an LLM.
 
 Scan/report exit code **1** means automatic vulnerability or manual-review findings
 need attention; **0** means neither was reported. A clean result is limited by the
