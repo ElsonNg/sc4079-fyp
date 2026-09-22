@@ -1,0 +1,90 @@
+{
+  "manifest": "9a8d85335965c36f21080ddcd419fe6424967f6a4229bcd158e84cf0018c0f5c",
+  "configs": [
+    {
+      "configuration": {
+        "model_id": "qwen3-embedding-0.6b",
+        "retrieval_top_k": 10,
+        "retrieval_threshold": 0.0,
+        "max_candidate_regions": 96,
+        "max_verification_candidates": 10,
+        "max_verification_regions_per_pair": 3,
+        "include_local_correspondence_fallback": false,
+        "max_candidate_chars": null,
+        "max_edit_candidate_chars": null,
+        "verifier": {
+          "minimum_structure_score": 0.7,
+          "minimum_token_score": 0.7,
+          "minimum_edit_side_score": 0.9,
+          "minimum_edit_margin": 0.1,
+          "minimum_supporting_regions": 2,
+          "minimum_consensus_ratio": 0.6,
+          "contradiction_margin": 0.08,
+          "signature_threshold": 0.65,
+          "minimum_containment_coverage": 0.5,
+          "include_containment_fallback": true,
+          "max_containment_cells": null
+        }
+      },
+      "experiments": [
+        "baseline"
+      ],
+      "configuration_id": "7c4923733a1b5a7ed7406619cbcbc019e20d917f9a9c34f9303abcd2b7c739b1"
+    },
+    {
+      "configuration": {
+        "model_id": "qwen3-embedding-0.6b",
+        "retrieval_top_k": 1,
+        "retrieval_threshold": 0.0,
+        "max_candidate_regions": 96,
+        "max_verification_candidates": 10,
+        "max_verification_regions_per_pair": 3,
+        "include_local_correspondence_fallback": false,
+        "max_candidate_chars": null,
+        "max_edit_candidate_chars": null,
+        "verifier": {
+          "minimum_structure_score": 0.7,
+          "minimum_token_score": 0.7,
+          "minimum_edit_side_score": 0.9,
+          "minimum_edit_margin": 0.1,
+          "minimum_supporting_regions": 2,
+          "minimum_consensus_ratio": 0.6,
+          "contradiction_margin": 0.08,
+          "signature_threshold": 0.65,
+          "minimum_containment_coverage": 0.5,
+          "include_containment_fallback": true,
+          "max_containment_cells": null
+        }
+      },
+      "experiments": [
+        "smoke_top_k_control"
+      ],
+      "configuration_id": "8ec8d769169ca8ab8851106980c2538c24e5b5196309afcacd493835b56a4b5e"
+    }
+  ],
+  "split": "tuning",
+  "tier": "both",
+  "candidate_ids": [
+    "L013",
+    "T1-07e2b1753b1d2b72c508",
+    "T2-0ad8e84352303d8c8832",
+    "L015",
+    "L021",
+    "L123",
+    "L231",
+    "LN017"
+  ],
+  "smoke_coverage": [
+    "label:cleared",
+    "label:flagged",
+    "language:javascript",
+    "language:typescript",
+    "path:hash",
+    "path:non_hash",
+    "requested:type_3",
+    "requested:type_4",
+    "tier:tier1",
+    "tier:tier2"
+  ],
+  "verify_direct_baseline": true
+}

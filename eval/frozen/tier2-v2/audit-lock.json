@@ -1,0 +1,55 @@
+{
+  "upstream": {
+    "accepted.jsonl": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v1\\accepted.jsonl",
+      "sha256": "d44388f77a79e5eb04386410f4edb8f56508024ac7de9df183251653576b1530"
+    },
+    "attempts.jsonl": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v1\\attempts.jsonl",
+      "sha256": "3e5a29f375fe0e6a52f8f590c6c5ebe1d388dc0efc11d95783347c8fca2fd952"
+    },
+    "attrition.json": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v1\\attrition.json",
+      "sha256": "542fdf3df3736eeaa5ae21886d33fc9434f95c3eb78f098fdfd79242e545ab17"
+    },
+    "attrition.md": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v1\\attrition.md",
+      "sha256": "cc01eb66e231a49881204ff85e3f3ad0a856a0eecebd431263a56dfbd117b1c6"
+    },
+    "generated.jsonl": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v1\\generated.jsonl",
+      "sha256": "5f10e85fcf04b7c758d2e59bcedbf8a111aad88ece8a4a0a010a02b6859c4574"
+    },
+    "generation-lock.json": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v1\\generation-lock.json",
+      "sha256": "170665cf5c0a0b70c66a6bd341a7ff4e48463d1c4737f29e2c0b05e2cbfb7eb3"
+    },
+    "generation-settings.json": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v1\\generation-settings.json",
+      "sha256": "ebc81811701e9f1b4cb523cc86bec0cb2999804f90edb86f3921690fa7b742b2"
+    },
+    "quarantine.jsonl": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v1\\quarantine.jsonl",
+      "sha256": "cb03ce33095bc939b7eecbaead3b3c8837ee7c00d2264bdfb37b2159392fe3be"
+    },
+    "reviews.jsonl": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v1\\reviews.jsonl",
+      "sha256": "9fbfb88b528d07d24f629d3f2837c6e8df2be25cfd5622fe919fa9c63c4e2238"
+    },
+    "validation.jsonl": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v1\\validation.jsonl",
+      "sha256": "edd964e392529d2a8d4e928e5268425d4fe5025852c7a5916d8d79b032d1b7b3"
+    }
+  },
+  "decisions_sha256": "eeebe21a0ae6f725b695155ebe189e81289e79e1094bd2cca28ea1ffd177ecd8",
+  "adjudication_code_sha256": "7d38aae276006bebb4c8efb7c98ba9699758a29dd81c7076fb3ddc54de9cec61",
+  "outputs": {
+    "accepted.jsonl": "c0bbe976dce03187c49d06f427c526ac0277c2967f0c5014dc05274700385fde",
+    "quarantine.jsonl": "509ce5ae1d9ff2a6fdecdd9a6cda478c51746badee2cbc532a20588eff5d482f",
+    "validation.jsonl": "160a99daf0068bdc9576595321ed6330f3aa26c1e6191d045e062aa75cc8b86b",
+    "adjudication.jsonl": "8cefc1b90362e8801fa94edb510a8110aa2a31905b77de175fd9a221889f941f",
+    "source-adjudications.jsonl": "eeebe21a0ae6f725b695155ebe189e81289e79e1094bd2cca28ea1ffd177ecd8",
+    "attrition.json": "32fa209e747fd067ccdef5d1fa2ed77c27b9f43f9da4c2ab7e3598cf3d9db778"
+  },
+  "content_sha256": "90dc1be9f86ffae60041f4c12c5863f7bcc96ac52868200a0d6d3afef78ec956"
+}

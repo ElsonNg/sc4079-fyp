@@ -23,7 +23,7 @@ from provtrail.pipeline.scanning.scanner import ScanConfig, ScanSummary
 from provtrail.pipeline.models.explanations import ReviewBrief, ReviewExplanation
 
 EXPLANATION_CACHE_SCHEMA_VERSION = 1
-EXPLANATION_PROMPT_VERSION = "advisory-relevance-v5-full-function-region"
+EXPLANATION_PROMPT_VERSION = "advisory-relevance-v6-scoped-boundary"
 MAX_SNIPPET_CHARACTERS = 12_000
 
 
@@ -123,6 +123,8 @@ def _explanation_input(
         },
         "advisory": {
             "identifier": primary.get("identifier"),
+            "fix_boundary_id": primary.get("fix_boundary_id"),
+            "fix_commit_sha": primary.get("fix_commit_sha"),
             "title": primary.get("title"),
             "description": primary.get("advisory_description"),
             "cwes": primary.get("cwes") or [],
@@ -250,11 +252,12 @@ class OllamaReviewExplainer:
         return self.client.review(request_body)
 
 
-def _generated_explanation(model: str, brief: ReviewBrief) -> ReviewExplanation:
+def _generated_explanation(model: str, brief: ReviewBrief, fix_boundary_id: str | None = None) -> ReviewExplanation:
     verdict = {1: "dismissed", 2: "needs_review", 3: "flagged"}[brief.relevance_tier]
     return ReviewExplanation(
         status="generated",
         model=model,
+        fix_boundary_id=fix_boundary_id,
         generated_at=datetime.now().astimezone().isoformat(timespec="seconds"),
         llm_verdict=verdict,
         **brief.model_dump(mode="json"),
@@ -344,6 +347,7 @@ def enrich_manual_review_findings(
             explanation = _generated_explanation(
                 ollama_config.model,
                 explainer.explain(explanation_input),
+                explanation_input["advisory"].get("fix_boundary_id"),
             )
         except OllamaExplanationError as exc:
             explanation = _unavailable_explanation(ollama_config.model, exc.code)

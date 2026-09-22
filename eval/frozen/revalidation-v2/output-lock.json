@@ -1,0 +1,14 @@
+{
+  "run_lock_sha256": "0eda59b9971682a188d9d7dbee232ae7e0bd231c5d6173fc286c99c2a7d1117c",
+  "active_manifest_verified": true,
+  "outputs": {
+    "validation.jsonl": "5736b1a46fdd66348faf99030107c607192006fe455475c73889f6d72227be7b",
+    "tier2-paired.jsonl": "8f261622d574d703ec210e8774f14cb42d15a4ca62ec88879cecdcc1e97a5ab2",
+    "tier1-validated.jsonl": "1cfc789ebc3379f1564073c99cf216b74ff9ff958d0f3ee3843ab59f0e7d035b",
+    "summary.json": "6845572c94cef25d5c23ff7350dc765c3aac4c1793b5a8f90591136b40da0b7b",
+    "report.md": "9ba9dc57ae692e41845c067a83b5a21a0aade8dac3bf623f066fea669307942d",
+    "checks.jsonl": "3c1fd7b0cf3ff0b245839f764c997d6de348250f3c8f46dab1f375643ef7a64f",
+    "followup.jsonl": "5f3006b5f8fba05020774398ca4b33857a077668030ef8a2f34522902c162431"
+  },
+  "content_sha256": "39a54bb5b5714536cb5e734b31bbdb391a10f6a9fbef260481d65ebb59aaa68d"
+}

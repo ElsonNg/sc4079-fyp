@@ -1,0 +1,68 @@
+{
+  "schema": "provtrail_paired_demo_v1",
+  "source_fixtures": [
+    "eval/llm_transformed_expanded_positive.jsonl",
+    "eval/llm_transformed_expanded_negative.jsonl"
+  ],
+  "cases": [
+    {
+      "id": "fastify_content_type",
+      "file": "src/transport.js",
+      "package": "fastify",
+      "ghsa_id": "GHSA-3fjj-p79j-c9hh",
+      "cve_id": "CVE-2022-41919",
+      "fix_commit_sha": "62dde76f1f7aca76e38625fe8d983761f26e6fc9",
+      "corpus_file_path": "lib/contentTypeParser.js",
+      "corpus_function_name": "ContentTypeParser",
+      "vulnerable_function_name": "ContentTypeParser",
+      "patched_function_name": "ContentTypeParser",
+      "vulnerable_fixture": "L008",
+      "patched_fixture": "LN008"
+    },
+    {
+      "id": "next_remove_length",
+      "file": "src/transport.js",
+      "package": "next",
+      "ghsa_id": "GHSA-ggv3-7p47-pfv8",
+      "cve_id": "CVE-2026-29057",
+      "fix_commit_sha": "dc98c04f376c6a1df76ec3e0a2d07edf4abdabd6",
+      "corpus_file_path": "packages/next/src/compiled/http-proxy/index.js",
+      "corpus_function_name": "deleteLength",
+      "vulnerable_function_name": "removeLength",
+      "patched_function_name": "deleteLength",
+      "vulnerable_fixture": "L080",
+      "patched_fixture": "LN092"
+    },
+    {
+      "id": "dompurify_clone",
+      "file": "src/utils.js",
+      "package": "dompurify",
+      "ghsa_id": "GHSA-p3vf-v8qc-cwcr",
+      "cve_id": "CVE-2024-48910",
+      "fix_commit_sha": "d1dd0374caef2b4c56c3bd09fe1988c3479166dc",
+      "corpus_file_path": "src/utils.js",
+      "corpus_function_name": "clone",
+      "vulnerable_function_name": "clone",
+      "patched_function_name": "clone",
+      "vulnerable_fixture": "L188",
+      "patched_fixture": "LN191"
+    }
+  ],
+  "helpers": [
+    {
+      "file": "src/utils.js",
+      "function_name": "formatLabel",
+      "expected_status": "neutral"
+    },
+    {
+      "file": "src/transport.js",
+      "function_name": "clampNumber",
+      "expected_status": "neutral"
+    },
+    {
+      "file": "src/utils.js",
+      "function_name": "sumPositive",
+      "expected_status": "neutral"
+    }
+  ]
+}

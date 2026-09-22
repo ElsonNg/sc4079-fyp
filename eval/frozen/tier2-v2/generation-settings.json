@@ -1,0 +1,40 @@
+{
+  "model": {
+    "name": "gemma4:e4b",
+    "digest": "c6eb396dbd5992bbe3f5cdb947e8bbc0ee413d7c17e2beaae69f5d569cf982eb",
+    "details": {
+      "parent_model": "",
+      "format": "gguf",
+      "family": "gemma4",
+      "families": [
+        "gemma4"
+      ],
+      "parameter_size": "8.0B",
+      "quantization_level": "Q4_K_M",
+      "context_length": 131072,
+      "embedding_length": 2560
+    }
+  },
+  "system_prompt": "You are a code-transformation tool that builds a software-clone-detection benchmark. You rewrite a single JavaScript or TypeScript function. You MUST preserve the function's exact runtime behaviour. You MUST NOT fix bugs, add input validation, add sanitisation, change security-relevant logic, remove or rename calls to library APIs, or change what the function computes. Return only the rewritten function body/source via the structured schema, with no commentary.",
+  "endpoint": "/api/chat",
+  "stream": false,
+  "think": false,
+  "format": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "code"
+    ]
+  },
+  "keep_alive": "10m",
+  "options": {
+    "num_ctx": 32768,
+    "temperature": "recorded separately for every attempt"
+  },
+  "user_prompts_and_outcomes": "attempts.jsonl",
+  "sampling_seed": "not set; stochastic outputs are frozen, not assumed reproducible by regeneration"
+}

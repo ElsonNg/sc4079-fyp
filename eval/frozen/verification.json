@@ -1,0 +1,48 @@
+{
+  "manifest_content_sha256": "9a8d85335965c36f21080ddcd419fe6424967f6a4229bcd158e84cf0018c0f5c",
+  "manifest_verified": true,
+  "tests": {
+    "passed": 69,
+    "command": ".venv/Scripts/python.exe -m pytest tests/test_frozen_ablation.py tests/test_candidate_gate.py tests/test_candidate_language.py tests/test_llm_transform.py tests/test_evaluation_metrics.py tests/test_tier1_targets.py -q"
+  },
+  "cohort": {
+    "accepted": 60,
+    "matched_pairs": 30,
+    "new_cases": 38,
+    "historical_cases": 22,
+    "packages": 10,
+    "quarantined": 728,
+    "evidence_methods": {
+      "model_source_and_patch_review": 26,
+      "executable_security_litmus": 34
+    },
+    "candidate_uniqueness_and_pair_split_isolation_verified": true
+  },
+  "smoke": {
+    "cases": 8,
+    "configurations": 2,
+    "checkpoints": 16,
+    "direct_baseline_confirmations": 8,
+    "resume_checkpoint_hashes_and_mtimes_unchanged": true,
+    "coverage": [
+      "label:cleared",
+      "label:flagged",
+      "language:javascript",
+      "language:typescript",
+      "path:hash",
+      "path:non_hash",
+      "requested:type_3",
+      "requested:type_4",
+      "tier:tier1",
+      "tier:tier2"
+    ]
+  },
+  "full_ablation_executed": false,
+  "outputs": {
+    "cases.jsonl": "6036137c6de1a4c7ae8cc345989f603572717de9c24bad7bc708a56344884571",
+    "summary.json": "78413a5f22ec90ce6d4f5a463598a95ef23c0371b6d99d857c00e589b877f6d0",
+    "summary.csv": "ca30557e2632d27e7c426ca69fe5ebd19e26fbd64fb64968d0c397522fc5c81a",
+    "tables.md": "960b444ba5aa625a9ab35db7543d34bd8c42ed2f1eb84d077473bdaf5336b511",
+    "run-lock.json": "780d7af5bc64ae12e444bb24f2336247aad3bd803e00827951e0f9b39ce27c1f"
+  }
+}

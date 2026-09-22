@@ -7,6 +7,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from provtrail.pipeline.controller.report_evidence import (
+    boundary_advisories, boundary_reason, decision_boundaries, primary_observation,
+)
 ACTIVE_PRIORITIES = {"automatic_vulnerability", "manual_review"}
 ACTIVE_STATUSES = ACTIVE_PRIORITIES
 DIVIDER = "─" * 72
@@ -30,36 +33,15 @@ def _result(finding: dict[str, Any]) -> dict[str, Any]:
     return finding.get("result", {})
 
 
-def _credible_lineages(result: dict[str, Any]) -> list[dict[str, Any]]:
-    values = [item for item in result.get("lineages", []) if item.get("confidence") in {"high", "medium"}]
-    return sorted(values, key=lambda item: (-float(item.get("score", 0.0)), item.get("lineage_id", "")))
-
-
-def _primary_lineage(result: dict[str, Any]) -> dict[str, Any] | None:
-    values = _credible_lineages(result) or list(result.get("lineages", []))
-    return max(values, key=lambda item: float(item.get("score", 0.0))) if values else None
-
-
-def _advisories(result: dict[str, Any]) -> list[dict[str, Any]]:
-    unique = {}
-    for lineage in result.get("lineages", []):
-        for alias in lineage.get("associated_advisories", []):
-            key = (alias.get("ghsa_id"), alias.get("cve_id"), alias.get("osv_id"), alias.get("package_name"))
-            unique.setdefault(key, alias)
-    return list(unique.values())
-
-
-def _best_evidence(result: dict[str, Any]) -> dict[str, Any] | None:
-    values = result.get("evidence", []) or []
-    return max(values, key=lambda item: (abs(float(item.get("vulnerable_minus_patched", 0.0))), float(item.get("ast_coverage", 0.0)))) if values else None
-
-
 def finding_detail(finding: dict[str, Any]) -> dict[str, Any]:
     result = _result(finding)
-    advisories = _advisories(result)
+    boundaries = decision_boundaries(result)
+    primary = boundaries[0] if boundaries else None
+    advisories = boundary_advisories(boundaries)
+    primary_advisories = primary.advisories if primary else []
     severity_order = {name: index for index, name in enumerate(SEVERITY_ORDER)}
     severity = min(
-        (str(item.get("severity") or "unknown").lower() for item in advisories),
+        (str(item.get("severity") or "unknown").lower() for item in primary_advisories),
         key=lambda value: severity_order.get(value, len(severity_order)),
         default="unknown",
     )
@@ -68,10 +50,13 @@ def finding_detail(finding: dict[str, Any]) -> dict[str, Any]:
         "name": finding.get("name"), "node_type": finding.get("node_type"),
         "start_line": finding.get("start_line"), "end_line": finding.get("end_line"),
         "priority": result.get("priority", "none"), "severity": severity,
-        "primary_lineage": _primary_lineage(result), "lineages": result.get("lineages", []),
+        "primary_lineage": primary.lineage if primary else None,
+        "primary_boundary": primary.state if primary else None,
+        "lineages": result.get("lineages", []),
         "vulnerability_states": result.get("vulnerability_states", []),
         "package_applicabilities": result.get("package_applicabilities", []),
-        "advisories": advisories, "evidence": _best_evidence(result),
+        "advisories": advisories, "evidence": primary_observation(primary) if primary else None,
+        "reason": boundary_reason(primary)[0],
         "hash_match_types": result.get("hash_match_types", []), "message": result.get("message"),
         "review_explanation": finding.get("review_explanation"),
     }

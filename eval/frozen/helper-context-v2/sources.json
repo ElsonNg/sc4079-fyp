@@ -1,0 +1,74 @@
+[
+  {
+    "package": "electron",
+    "repo": "electron/electron",
+    "commit": "30cf3882de75ee651bd4e5f27002f13fd3d3163a",
+    "file": "lib/browser/parse-features-string.ts",
+    "url": "https://raw.githubusercontent.com/electron/electron/30cf3882de75ee651bd4e5f27002f13fd3d3163a/lib/browser/parse-features-string.ts",
+    "path": "eval/frozen/helper-context-v2/electron-30cf3882.ts",
+    "sha256": "f07e56c3b9cedeaacaaf49cbebf1d5c0a4119c42911a4a0ed524a9fe2945939e"
+  },
+  {
+    "package": "electron",
+    "repo": "electron/electron",
+    "commit": "30cf3882de75ee651bd4e5f27002f13fd3d3163a",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/electron/electron/30cf3882de75ee651bd4e5f27002f13fd3d3163a/LICENSE",
+    "path": "eval/frozen/helper-context-v2/electron-30cf3882-LICENSE",
+    "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+  },
+  {
+    "package": "electron",
+    "repo": "electron/electron",
+    "commit": "4eff3dc09e4d1e62d649c5ce9902f532bb7469c7",
+    "file": "lib/browser/parse-features-string.ts",
+    "url": "https://raw.githubusercontent.com/electron/electron/4eff3dc09e4d1e62d649c5ce9902f532bb7469c7/lib/browser/parse-features-string.ts",
+    "path": "eval/frozen/helper-context-v2/electron-4eff3dc0.ts",
+    "sha256": "f07e56c3b9cedeaacaaf49cbebf1d5c0a4119c42911a4a0ed524a9fe2945939e"
+  },
+  {
+    "package": "electron",
+    "repo": "electron/electron",
+    "commit": "4eff3dc09e4d1e62d649c5ce9902f532bb7469c7",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/electron/electron/4eff3dc09e4d1e62d649c5ce9902f532bb7469c7/LICENSE",
+    "path": "eval/frozen/helper-context-v2/electron-4eff3dc0-LICENSE",
+    "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+  },
+  {
+    "package": "electron",
+    "repo": "electron/electron",
+    "commit": "fe2e7d0073949b4593b624b93abf1788f5377e55",
+    "file": "lib/browser/parse-features-string.ts",
+    "url": "https://raw.githubusercontent.com/electron/electron/fe2e7d0073949b4593b624b93abf1788f5377e55/lib/browser/parse-features-string.ts",
+    "path": "eval/frozen/helper-context-v2/electron-fe2e7d00.ts",
+    "sha256": "f07e56c3b9cedeaacaaf49cbebf1d5c0a4119c42911a4a0ed524a9fe2945939e"
+  },
+  {
+    "package": "electron",
+    "repo": "electron/electron",
+    "commit": "fe2e7d0073949b4593b624b93abf1788f5377e55",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/electron/electron/fe2e7d0073949b4593b624b93abf1788f5377e55/LICENSE",
+    "path": "eval/frozen/helper-context-v2/electron-fe2e7d00-LICENSE",
+    "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+  },
+  {
+    "package": "minimist",
+    "repo": "minimistjs/minimist",
+    "commit": "c2b981977fa834b223b408cfb860f933c9811e4d",
+    "file": "index.js",
+    "url": "https://raw.githubusercontent.com/minimistjs/minimist/c2b981977fa834b223b408cfb860f933c9811e4d/index.js",
+    "path": "eval/frozen/helper-context-v2/minimist-c2b98197.js",
+    "sha256": "48ab32c4ba79cde9a1b1236437942567f97b8eac7ce17013b83b548c620db652"
+  },
+  {
+    "package": "minimist",
+    "repo": "minimistjs/minimist",
+    "commit": "c2b981977fa834b223b408cfb860f933c9811e4d",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/minimistjs/minimist/c2b981977fa834b223b408cfb860f933c9811e4d/LICENSE",
+    "path": "eval/frozen/helper-context-v2/minimist-c2b98197-LICENSE",
+    "sha256": "435a6722c786b0a56fbe7387028f1d9d3f3a2d0fb615bb8fee118727c3f59b7b"
+  }
+]

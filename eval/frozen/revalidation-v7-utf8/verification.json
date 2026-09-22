@@ -1,0 +1,21 @@
+{
+  "total_cases": 1388,
+  "cases_rechecked": 20,
+  "origins_rechecked": 8,
+  "new_supported_cases": 20,
+  "new_behaviour_mismatches": 0,
+  "new_runtime_syntax_failures": 0,
+  "all_previous_supported_cases_retained": true,
+  "all_previous_paired_cases_retained": true,
+  "previous_pair_eligible_cases": 226,
+  "additional_pair_eligible_cases": 4,
+  "resume_all_output_hashes_identical": true,
+  "resume_checkpoint_mtime_unchanged": true,
+  "prior_report_all_hashes_unchanged": true,
+  "denominators_verified": true,
+  "active_frozen_manifest_verified_by_both_runs": true,
+  "unicode_reader_fix_preserves_all_validation_records": true,
+  "output_lock_sha256": "a3ff206e8e549db4861cb2eac4a529eb8532d30ddb9e020f984ccd01323c0f00",
+  "tests_passed": 210,
+  "new_tests": 16
+}

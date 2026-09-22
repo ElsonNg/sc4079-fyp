@@ -1,0 +1,289 @@
+{
+  "tier1": {
+    "total": 600,
+    "statuses": {
+      "validated_executable": 182,
+      "needs_review": 348,
+      "validated_source_review": 52,
+      "reference_source_mismatch": 18
+    },
+    "validated": 234,
+    "packages": {
+      "axios": {
+        "validated_executable": 6,
+        "needs_review": 22,
+        "validated_source_review": 4
+      },
+      "better-auth": {
+        "validated_source_review": 2,
+        "reference_source_mismatch": 2,
+        "needs_review": 10
+      },
+      "dompurify": {
+        "needs_review": 26,
+        "validated_source_review": 2
+      },
+      "electron": {
+        "needs_review": 4,
+        "validated_executable": 16,
+        "reference_source_mismatch": 2
+      },
+      "fastify": {
+        "validated_executable": 12,
+        "needs_review": 2
+      },
+      "handlebars": {
+        "needs_review": 8,
+        "validated_executable": 2
+      },
+      "liquidjs": {
+        "needs_review": 14,
+        "validated_executable": 10,
+        "validated_source_review": 2
+      },
+      "lodash": {
+        "needs_review": 6,
+        "validated_executable": 2
+      },
+      "mermaid": {
+        "needs_review": 22,
+        "validated_source_review": 2
+      },
+      "minimist": {
+        "needs_review": 2,
+        "validated_executable": 6
+      },
+      "moment": {
+        "validated_executable": 4,
+        "needs_review": 4
+      },
+      "multer": {
+        "needs_review": 8,
+        "reference_source_mismatch": 2,
+        "validated_executable": 2,
+        "validated_source_review": 2
+      },
+      "next": {
+        "needs_review": 20,
+        "validated_executable": 2
+      },
+      "nodemailer": {
+        "validated_executable": 4,
+        "validated_source_review": 4,
+        "needs_review": 10
+      },
+      "nuxt": {
+        "needs_review": 44,
+        "validated_executable": 12,
+        "validated_source_review": 8
+      },
+      "parse-server": {
+        "validated_executable": 40,
+        "validated_source_review": 12,
+        "needs_review": 42,
+        "reference_source_mismatch": 8
+      },
+      "qs": {
+        "validated_executable": 18
+      },
+      "semver": {
+        "validated_executable": 2
+      },
+      "undici": {
+        "needs_review": 40,
+        "validated_executable": 16,
+        "validated_source_review": 2
+      },
+      "validator": {
+        "validated_source_review": 2,
+        "validated_executable": 2,
+        "needs_review": 2
+      },
+      "vite": {
+        "needs_review": 50,
+        "validated_source_review": 10,
+        "validated_executable": 18
+      },
+      "ws": {
+        "reference_source_mismatch": 4,
+        "needs_review": 12,
+        "validated_executable": 8
+      }
+    }
+  },
+  "tier2": {
+    "total": 788,
+    "statuses": {
+      "validated_executable": 259,
+      "needs_review": 431,
+      "failed_behaviour": 53,
+      "source_or_parse_mismatch": 27,
+      "validated_source_review": 16,
+      "failed_runtime_parse": 2
+    },
+    "validated": 275,
+    "packages": {
+      "axios": {
+        "needs_review": 31,
+        "failed_behaviour": 3,
+        "validated_executable": 5
+      },
+      "better-auth": {
+        "needs_review": 18,
+        "source_or_parse_mismatch": 4
+      },
+      "dompurify": {
+        "needs_review": 41
+      },
+      "electron": {
+        "needs_review": 8,
+        "source_or_parse_mismatch": 4,
+        "validated_executable": 26,
+        "failed_behaviour": 6
+      },
+      "fastify": {
+        "validated_executable": 18,
+        "failed_behaviour": 3
+      },
+      "handlebars": {
+        "needs_review": 6,
+        "validated_executable": 3
+      },
+      "liquidjs": {
+        "needs_review": 32,
+        "validated_executable": 18,
+        "failed_behaviour": 1
+      },
+      "lodash": {
+        "needs_review": 12,
+        "validated_executable": 3,
+        "failed_behaviour": 1
+      },
+      "mermaid": {
+        "needs_review": 23
+      },
+      "minimist": {
+        "validated_executable": 10,
+        "needs_review": 4,
+        "failed_behaviour": 2
+      },
+      "moment": {
+        "validated_executable": 8,
+        "needs_review": 5
+      },
+      "multer": {
+        "needs_review": 13,
+        "source_or_parse_mismatch": 4,
+        "failed_behaviour": 2,
+        "validated_executable": 2
+      },
+      "next": {
+        "needs_review": 25,
+        "failed_behaviour": 2,
+        "validated_executable": 2
+      },
+      "nodemailer": {
+        "needs_review": 22,
+        "failed_behaviour": 1,
+        "validated_executable": 5
+      },
+      "nuxt": {
+        "needs_review": 67,
+        "validated_executable": 23,
+        "validated_source_review": 6,
+        "failed_behaviour": 1
+      },
+      "parse-server": {
+        "validated_executable": 61,
+        "failed_behaviour": 12,
+        "needs_review": 64,
+        "validated_source_review": 4,
+        "source_or_parse_mismatch": 15,
+        "failed_runtime_parse": 1
+      },
+      "qs": {
+        "validated_executable": 28,
+        "failed_behaviour": 8
+      },
+      "semver": {
+        "validated_executable": 4
+      },
+      "undici": {
+        "validated_executable": 14,
+        "needs_review": 18,
+        "failed_runtime_parse": 1,
+        "failed_behaviour": 1,
+        "validated_source_review": 2
+      },
+      "validator": {
+        "needs_review": 4,
+        "validated_executable": 2
+      },
+      "vite": {
+        "needs_review": 38,
+        "validated_executable": 26,
+        "failed_behaviour": 10,
+        "validated_source_review": 4
+      },
+      "ws": {
+        "validated_executable": 1
+      }
+    },
+    "paired_eligible": 226,
+    "paired_packages": {
+      "parse-server": 52,
+      "fastify": 16,
+      "electron": 20,
+      "nuxt": 26,
+      "handlebars": 2,
+      "liquidjs": 18,
+      "vite": 24,
+      "multer": 2,
+      "minimist": 8,
+      "undici": 16,
+      "semver": 4,
+      "moment": 8,
+      "qs": 24,
+      "lodash": 2,
+      "nodemailer": 2,
+      "axios": 2
+    },
+    "confirmed_clone_types": {
+      "unconfirmed": 221,
+      "type_1": 3,
+      "type_2": 2
+    }
+  },
+  "transitions": [
+    {
+      "tier": "tier1",
+      "before": "needs_review",
+      "after": "validated_executable",
+      "cases": 14
+    },
+    {
+      "tier": "tier1",
+      "before": "validated_source_review",
+      "after": "validated_executable",
+      "cases": 4
+    },
+    {
+      "tier": "tier2",
+      "before": "needs_review",
+      "after": "failed_behaviour",
+      "cases": 3
+    },
+    {
+      "tier": "tier2",
+      "before": "needs_review",
+      "after": "validated_executable",
+      "cases": 29
+    }
+  ],
+  "scope": "New security-boundary tests for selected origins; other evidence inherited from verified prior records. Automated extracted-function validation with explicit stubs, not human vetting or full-package exploit testing. Active experiment freeze and original fixtures remain unchanged. Requested clone categories remain unconfirmed unless mechanically established.",
+  "cases_rechecked": 50,
+  "origins_rechecked": 9,
+  "previous_report": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\revalidation-v5",
+  "newly_supported": 43,
+  "unresolved_origins": 204
+}

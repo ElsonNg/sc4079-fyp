@@ -1,0 +1,12 @@
+{
+  "tests_passed": 93,
+  "revalidation_test_count": 24,
+  "all_case_records": 1388,
+  "resume_all_output_hashes_identical": true,
+  "checkpoint_bytes_and_mtime_unchanged": true,
+  "old_60_admissions_retained": true,
+  "new_pair_eligible_cases": 24,
+  "denominators_checked": true,
+  "active_frozen_manifest_verified_by_both_runs": true,
+  "output_lock_sha256": "b3324d721e7a78e985ff2ef8c4cc683ae3d9f4d5e7d23787e2ec4f87109b875e"
+}

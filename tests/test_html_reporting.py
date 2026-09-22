@@ -2,18 +2,23 @@ import json
 import re
 import shutil
 import subprocess
+from copy import deepcopy
 from datetime import datetime, timezone
+
+import pytest
 
 from provtrail.cli.main import main
 from provtrail.corpus.models.corpus import CorpusEntry, DiagnosticLine
 from provtrail.pipeline.controller.html_reporting import (
     _advisory_summary,
     _candidate_lines,
+    _excerpt,
     build_html_report_data,
     render_html_report,
 )
 from provtrail.pipeline.controller.region_extraction import enumerate_candidate_regions
 from provtrail.pipeline.scanning.scanner import ScanConfig, ScanSummary
+from provtrail.pipeline.controller.finding_exports import project_findings
 
 
 VULNERABLE = "function request(url) {\n  return fetch(url);\n}"
@@ -107,52 +112,22 @@ def _build(summary=None):
     )
 
 
-def test_html_report_is_directory_centered_and_minimal():
+def test_html_report_bundles_offline_resources_and_decision_views():
     data = _build()
     output = render_html_report(data)
-    for expected in (
-        "Project</strong>", 'id="tree"', "LLM second opinion",
-        "Flagged (Exact)",
-        "Flagged (Inferred)", "Needs Review", "Evidence chain",
-        "Hide low-confidence lineages", "Project matched region",
-        "Vulnerable reference", "Patched reference",
-        "Recommended action", "View full comparison",
-        "View info", "Scan Info", 'id="finding-info-dialog"',
-        'id="comparison-dialog"', 'id="scan-info-dialog"',
-        "Retrieval similarity", "Minimum vulnerable score",
-        'class="metrics fix-boundary-table"', "referenceDiff(finding)",
-        "referenceDiffSnippets(reference.vulnerable,reference.patched)",
-        'codePanel("Project matched region",reference.candidate,"project-reference")',
-        'diff.vulnerable,"vulnerable-reference"',
-        'diff.patched,"patched-reference"',
-        "Vulnerable reference − removed", "Patched reference + added",
-    ):
-        assert expected in output
-    for removed in (
-        "data-tab=", ">Recommendations</button>", ">Dependencies</button>",
-        "LLM Decision", "Flagged · Exact", "Flagged · Inferred", "/private/work/demo",
-        "Open advisory", "Open fix commit",
-    ):
-        assert removed not in output
-    assert "const flagIcon=" in output
-    assert "const reviewIcon=" in output
-    assert "const dismissedIcon=" in output
-    assert 'class="marker llm-flagged"' in output
-    assert 'class="marker llm-dismissed"' in output
-    assert "--violet:" in output
-    assert 'class="external-link"' in output
-    assert 'Advisory <span aria-hidden="true">↗</span>' in output
-    assert 'Fix Commit <span aria-hidden="true">↗</span>' in output
-    assert ".lineage-confidence.high{font-weight:900" in output
-    assert output.index('<h4>Recommended action</h4>') < output.index('<h4>Evidence chain</h4>')
-    assert "LLM Verdict" in output
+    assert "__REPORT_" not in output
+    assert '<script src=' not in output
+    assert '/private/work/demo' not in output
+    assert 'id="count-patched"' in output
+    assert 'aria-labelledby="comparison-title"' in output
     assert data["findings"][0]["outcome"] == "flagged_exact"
-    assert data["findings"][0]["lineages"][0]["reference"]["candidate"]
-    assert data["findings"][0]["lineages"][0]["reference"]["vulnerable"]
-    assert data["findings"][0]["lineages"][0]["reference"]["patched"]
+    boundary = data["findings"][0]["boundaries"][0]
+    assert boundary["state"]["fix_boundary_id"] == "boundary-test"
+    assert all(boundary["reference"][side] for side in ("candidate", "vulnerable", "patched"))
     assert data["outcome_counts"] == {
-        "flagged_exact": 1, "flagged_inferred": 0, "manual_review": 0,
+        "flagged_exact": 1, "flagged_inferred": 0, "manual_review": 0, "patched": 0,
     }
+    assert data["coverage"]["corpus_entries"] == 1
 
 
 def test_inferred_and_review_outcomes_have_distinct_copy_and_scores():
@@ -169,17 +144,19 @@ def test_inferred_and_review_outcomes_have_distinct_copy_and_scores():
         "patched_score": 0.47, "vulnerable_minus_patched": 0.36,
         "ast_coverage": 0.72,
     }]
+    result["vulnerability_states"][0]["evidence_pair_ids"] = ["pair-1"]
     data = _build(summary)
     finding = data["findings"][0]
     assert finding["outcome"] == "flagged_inferred"
-    assert "independent region" in finding["reason"].lower()
-    assert finding["diagnostics"]["supporting_region_count"] == 1
+    assert "specific upstream fix" in finding["reason"]
+    assert "independent" not in finding["reason"]
     assert finding["evidence"]["structural_vulnerable"] == 0.90
 
     result["priority"] = "manual_review"
+    result["vulnerability_states"][0].update(status="uncertain", abstention_reason="E_MARGIN_AMBIGUOUS")
     finding = _build(summary)["findings"][0]
     assert finding["outcome"] == "manual_review"
-    assert "cannot be resolved confidently" in finding["reason"]
+    assert "too similar to distinguish confidently" in finding["reason"]
 
 
 def test_llm_verdict_is_presented_as_review_only_second_opinion():
@@ -198,20 +175,11 @@ def test_llm_verdict_is_presented_as_review_only_second_opinion():
     assert finding["review_explanation"]["verdict_rationale"] == (
         "The candidate retains the **unsafe** `URL` flow."
     )
-    output = render_html_report(data)
-    assert '<p class="second-opinion">Second opinion only</p>' in output
-    assert "The candidate retains the **unsafe** `URL` flow." in output
-    assert 'replace(/`([^`\\n]+)`/g,"<code>$1</code>")' in output
-    assert 'replace(/\\*\\*([^*\\n]+)\\*\\*/g,"<strong>$1</strong>")' in output
-    assert 'if(finding.outcome!=="manual_review")return ""' in output
-    assert 'id="hide-llm-dismissed"' not in output
-    assert 'id="problems-only"' not in output
-    assert "if(!findings.some(visibleFinding))return false" in output
-    assert 'id="filter-state"' in output
-    assert 'aria-pressed="false"' in output
-    assert "LLM Flagged" in output
-    assert "LLM Dismissed" in output
-    assert "LLM Uncertain" in output
+    assert finding["review_explanation"]["reference_matches"] is False
+    summary.findings[0]["review_explanation"]["fix_boundary_id"] = "boundary-test"
+    bound = _build(summary)["findings"][0]
+    assert bound["review_explanation"]["reference_matches"] is True
+    assert bound["outcome"] == "manual_review"
 
 
 def test_html_payload_escapes_script_terminators_but_round_trips_source():
@@ -253,9 +221,7 @@ def test_target_package_is_resolved_separately(tmp_path):
     finding = _build(summary)["findings"][0]
     assert finding["target_package"]["name"] == "demo-http"
     assert finding["target_package"]["version"] == "1.5.0"
-    assert finding["lineages"][0]["reference_packages"] == [
-        {"name": "demo-http", "ecosystem": "npm"}
-    ]
+    assert finding["boundaries"][0]["advisories"][0]["package_name"] == "demo-http"
 
 
 def test_candidate_highlight_uses_local_verified_region():
@@ -300,4 +266,190 @@ def test_cli_scan_writes_redesigned_artifacts(monkeypatch, tmp_path):
     html_path = tmp_path / ".provtrail" / "latest-scan.html"
     assert json.loads(json_path.read_text(encoding="utf-8"))["schema"] == "provtrail_scan_v5"
     assert "source" not in json_path.read_text(encoding="utf-8")
-    assert "Flagged (Exact)" in html_path.read_text(encoding="utf-8")
+    assert "Vulnerable matches" in html_path.read_text(encoding="utf-8")
+
+
+def _add_unrelated_candidate(result):
+    alias = {**_alias(), "ghsa_id": "GHSA-noise", "cve_id": "CVE-NOISE", "severity": "critical"}
+    result["lineages"].append({
+        "lineage_id": "lineage-noise", "score": 1.0, "confidence": "low",
+        "repo": "other/library", "file_path": "other.js", "reference_function": "unrelated",
+        "associated_advisories": [alias], "evidence_pair_ids": ["boundary-noise:changed"],
+    })
+    result["vulnerability_states"].append({
+        "lineage_id": "lineage-noise", "fix_boundary_id": "boundary-noise",
+        "fix_commit_sha": "other-fix", "status": "uncertain", "abstention_reason": "T_FAILED",
+        "advisories": [alias], "evidence_pair_ids": ["boundary-noise:changed"],
+    })
+    result["evidence"].append({
+        "pair_id": "boundary-noise:changed", "vulnerable_minus_patched": 0.99,
+        "vulnerable_score": 0.99, "patched_score": 0.0,
+    })
+
+
+def test_headline_scores_advisory_and_exports_follow_the_same_boundary():
+    summary = _summary()
+    result = summary.findings[0]["result"]
+    result["hash_matches"] = []
+    result["evidence"] = [{
+        "pair_id": "boundary-test:changed", "candidate_span": {"start_line": 1, "end_line": 1},
+        "reference_granularity": "changed", "candidate_granularity": "changed",
+        "vulnerable_score": 0.9, "patched_score": 0.8, "vulnerable_minus_patched": 0.1,
+    }]
+    _add_unrelated_candidate(result)
+    finding = _build(summary)["findings"][0]
+    boundary = finding["boundaries"][0]
+    assert finding["primary"]["cve_id"] == "CVE-2026-1234"
+    assert finding["severity"] == "high"
+    assert finding["evidence"]["pair_id"] == "boundary-test:changed"
+    assert boundary["state"]["vulnerable_score"] == 1.0
+    assert finding["evidence"]["vulnerable_score"] == 0.9
+    assert [line["number"] for line in finding["reference"]["candidate"]["lines"] if line["marker"]] == [6]
+    assert len(finding["boundaries"]) == 2
+    exported = project_findings(summary.to_dict())[0]
+    assert "CVE-NOISE" not in exported.advisory_ids
+    assert exported.reason == finding["reason"]
+
+
+def test_two_fixes_in_one_lineage_keep_their_advisories_and_states_separate():
+    summary = _summary()
+    result = summary.findings[0]["result"]
+    unrelated_alias = {**_alias(), "ghsa_id": "GHSA-earlier", "cve_id": "CVE-EARLIER", "severity": "critical"}
+    result["lineages"][0]["associated_advisories"].insert(0, unrelated_alias)
+    result["vulnerability_states"].insert(0, {
+        "lineage_id": "lineage-test", "fix_boundary_id": "boundary-earlier",
+        "fix_commit_sha": "old-fix", "status": "patched", "advisories": [unrelated_alias],
+    })
+    finding = _build(summary)["findings"][0]
+    assert finding["primary"]["fix_commit_sha"] == "abc123"
+    assert finding["severity"] == "high"
+    assert finding["boundaries"][1]["state"]["status"] == "patched"
+    assert finding["boundaries"][1]["advisories"][0]["cve_id"] == "CVE-EARLIER"
+    assert "CVE-EARLIER" not in project_findings(summary.to_dict())[0].advisory_ids
+
+
+def test_patched_results_keep_source_and_choose_the_patched_boundary():
+    summary = _summary(PATCHED)
+    result = summary.findings[0]["result"]
+    result["priority"] = "informational_lineage"
+    result["hash_matches"][0]["side"] = "patched"
+    result["vulnerability_states"][0]["status"] = "patched"
+    _add_unrelated_candidate(result)
+    result["lineages"][1].update(confidence="high", score=2.0)
+    data = _build(summary)
+    finding = data["findings"][0]
+    assert data["outcome_counts"]["patched"] == 1
+    assert finding["outcome"] == "patched"
+    assert finding["primary"]["fix_commit_sha"] == "abc123"
+    assert finding["reference"]["candidate"] and finding["reference"]["patched"]
+    assert project_findings(summary.to_dict()) == []
+
+
+def test_uncertainty_explains_failed_correspondence_without_inventing_a_verdict():
+    summary = _summary()
+    result = summary.findings[0]["result"]
+    result["priority"] = "manual_review"
+    result["hash_matches"] = []
+    result["vulnerability_states"][0].update(status="uncertain", abstention_reason="T_FAILED")
+    finding = _build(summary)["findings"][0]
+    assert "Generic structure alone" in finding["reason"]
+    result["vulnerability_states"] = []
+    unknown = _build(summary)["findings"][0]
+    assert unknown["boundaries"][0]["state"] == {}
+    assert "cannot resolve" in unknown["reason"]
+
+
+def test_long_sources_preserve_complete_context_and_original_coordinates():
+    source = "\n".join(f"  const value{index} = {index};" for index in range(200))
+    snippet = _excerpt(source, first_line=10, focus_lines={150}, marker="detected")
+    assert snippet["truncated"]
+    assert len(snippet["lines"]) == 120
+    assert snippet["full_source"] == source
+    assert snippet["highlight_lines"] == [160]
+    assert any(line["number"] == 160 and line["marker"] == "detected" for line in snippet["lines"])
+
+
+def _run_view(data, assertions, tmp_path):
+    if shutil.which("node") is None:
+        pytest.skip("Node is required to execute the report view")
+    output = render_html_report(data)
+    script = re.findall(r"<script>(.*?)</script>", output, re.DOTALL)[0]
+    script = re.sub(r"\ninit\(\);\s*$", "", script)
+    payload_path = tmp_path / "view.json"
+    payload_path.write_text(json.dumps({"data": data, "script": script, "assertions": assertions}), encoding="utf-8")
+    runner = tmp_path / "view.cjs"
+    runner.write_text(r'''
+const fs = require("fs"), vm = require("vm"), assert = require("assert/strict");
+const payload = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+const elements = new Map();
+let context;
+function element(selector) {
+  if (!elements.has(selector)) elements.set(selector, {
+    value: "", checked: false, innerHTML: "", textContent: "", dataset: {},
+    setAttribute() {}, showModal() {}, addEventListener() {},
+    querySelector: child => element(selector + " " + child),
+  });
+  const node = elements.get(selector);
+  if (selector === "#content details.finding") node.dataset.finding = vm.runInContext("matches.find(f=>visibleFinding(f)&&(!selectedFile||f.path===selectedFile))?.id", context);
+  return node;
+}
+context = vm.createContext({assert, element, document: {
+  getElementById: () => ({textContent: JSON.stringify(payload.data)}),
+  querySelector: element, querySelectorAll: () => [],
+}});
+vm.runInContext(payload.script, context);
+vm.runInContext(payload.assertions, context);
+''', encoding="utf-8")
+    result = subprocess.run(["node", str(runner), str(payload_path)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
+def test_view_search_patched_navigation_and_empty_states(tmp_path):
+    data = _build()
+    patched = deepcopy(data["findings"][0])
+    patched.update(id="patched", path="src/patched.js", name="safeRequest", outcome="patched")
+    patched["boundaries"][0]["state"]["status"] = "patched"
+    data["findings"].append(patched)
+    data["scanned_files"].append("src/patched.js")
+    _run_view(data, r'''
+assert.equal(matches.filter(visibleFinding).length, 1);
+viewFilter = "patched";
+render();
+assert(element("#content").innerHTML.includes("safeRequest"));
+assert(element("#tree").innerHTML.includes("patched.js"));
+assert(!element("#tree").innerHTML.includes("request.js"));
+viewFilter = "all";
+element("#search").value = "safeRequest";
+render();
+assert(!element("#content").innerHTML.includes('data-finding="src/request.js::0:20"'));
+assert(!element("#tree").innerHTML.includes("request.js"));
+element("#search").value = "CVE-2026-1234";
+assert.equal(matches.filter(visibleFinding).length, 2);
+element("#search").value = "no-such-finding";
+render();
+assert(element("#content").innerHTML.includes("No findings match this view"));
+assert(element("#tree").innerHTML.includes("No files match"));
+assert.equal(score(null), "Not recorded");
+assert.equal(score(0), "0.000");
+openScanInfo();
+assert(element("#scan-info-body").innerHTML.includes("Minimum edit-side score"));
+assert(element("#scan-info-body").innerHTML.includes("0.9"));
+''', tmp_path)
+
+
+def test_complete_comparison_contains_project_and_untruncated_source(tmp_path):
+    source = "\n".join(f"project_line_{index}" for index in range(200))
+    data = _build(_summary(source))
+    _run_view(data, r'''
+openComparison(report.findings[0].id, 0);
+assert(element("#comparison-body").innerHTML.includes("Project code"));
+assert(element("#comparison-body").innerHTML.includes("project_line_199"));
+assert(element("#comparison-body").innerHTML.includes("Patched reference"));
+assert(!element("#comparison-body").innerHTML.includes("Vulnerable reference"));
+comparisonMode = "vulnerable";
+renderComparison();
+assert(element("#comparison-body").innerHTML.includes("Vulnerable reference"));
+assert(!element("#comparison-body").innerHTML.includes("Patched reference"));
+assert(codePanel("Project", report.findings[0].reference.candidate).includes("Partial source excerpt"));
+assert(codePanel("Project", {lines:[{number:12,text:"one;line;function",marker:""}],total_lines:1}).includes("one;line;function"));
+''', tmp_path)

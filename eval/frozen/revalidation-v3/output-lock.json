@@ -1,0 +1,15 @@
+{
+  "run_lock_sha256": "9709c911ceff2559edbf65b35ceb93af30fb9904b9e78e344a2d2cc4a7485329",
+  "active_manifest_verified": true,
+  "outputs": {
+    "checks.jsonl": "06afff39218c24a7b001ea32178c531d4dae18cd6fb0ef5766697c975a443aad",
+    "validation.jsonl": "19a9473454b6cdc81c0dae272fff8e62105e19113630e2fc0ceaeb81dda1ff2c",
+    "changes.jsonl": "728e177a828329e3766838930b0a0844631f984faf674ebace29a398827f506e",
+    "summary.json": "632675554781d9f386fb0409de2545a6ba4f98c03d5e11caa7564f1d3d064810",
+    "report.md": "2869036b12c6b08e6b99819d540195cb21f180f7d562cd1b198a473ee231c963",
+    "tier1-validated.jsonl": "af46d3296d81cf7e87d6fa1b76668dffbb6ad8bb59e060574bdf64854ec0be2b",
+    "tier2-paired.jsonl": "bcf1b20acc09f96ed498ee30802a203060e040dac21364a6f8598028077367a8",
+    "followup.jsonl": "9aa49af0584068c1dd4cd508c011fe3fcc599c3055a6931829981172fbc7f9e5"
+  },
+  "content_sha256": "c94bd1338b113531f945220b4ca4147898e7227f398e3e04254d14441c39c5ab"
+}

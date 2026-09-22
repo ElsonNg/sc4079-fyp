@@ -21,6 +21,8 @@ class ReviewExplanation(BaseModel):
     status: Literal["generated", "unavailable"]
     model: str
     generated_at: str | None = None
+    # Identifies the upstream fix assessed by this saved opinion.
+    fix_boundary_id: str | None = None
     relevance_tier: Literal[1, 2, 3] | None = None
     llm_verdict: Literal["flagged", "needs_review", "dismissed"] | None = None
     verdict_rationale: str = ""

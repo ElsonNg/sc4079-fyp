@@ -1,0 +1,18 @@
+{
+  "tests_passed": 123,
+  "new_tests": 30,
+  "total_cases": 1388,
+  "cases_rechecked": 112,
+  "origins_rechecked": 21,
+  "new_supported_cases": 77,
+  "new_behaviour_mismatches": 8,
+  "all_previous_supported_cases_retained": true,
+  "all_previous_84_pairs_cases_retained": true,
+  "additional_pair_eligible_cases": 46,
+  "resume_all_output_hashes_identical": true,
+  "resume_checkpoint_mtime_unchanged": true,
+  "prior_report_all_hashes_unchanged": true,
+  "denominators_verified": true,
+  "active_frozen_manifest_verified_by_both_runs": true,
+  "output_lock_sha256": "553ace22f421ff7fd1f026885d131b234c83865dc66fabd90f6dbeb25c2636d3"
+}

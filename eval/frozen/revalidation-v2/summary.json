@@ -1,0 +1,237 @@
+{
+  "tier1": {
+    "total": 600,
+    "statuses": {
+      "validated_executable": 56,
+      "needs_review": 446,
+      "validated_source_review": 80,
+      "reference_source_mismatch": 18
+    },
+    "validated": 136,
+    "packages": {
+      "axios": {
+        "needs_review": 26,
+        "validated_executable": 2,
+        "validated_source_review": 4
+      },
+      "better-auth": {
+        "validated_source_review": 2,
+        "reference_source_mismatch": 2,
+        "needs_review": 10
+      },
+      "dompurify": {
+        "needs_review": 26,
+        "validated_source_review": 2
+      },
+      "electron": {
+        "needs_review": 18,
+        "reference_source_mismatch": 2,
+        "validated_source_review": 2
+      },
+      "fastify": {
+        "validated_source_review": 2,
+        "needs_review": 12
+      },
+      "handlebars": {
+        "needs_review": 10
+      },
+      "liquidjs": {
+        "needs_review": 14,
+        "validated_source_review": 12
+      },
+      "lodash": {
+        "needs_review": 6,
+        "validated_executable": 2
+      },
+      "mermaid": {
+        "needs_review": 22,
+        "validated_source_review": 2
+      },
+      "minimist": {
+        "needs_review": 4,
+        "validated_executable": 4
+      },
+      "moment": {
+        "validated_executable": 2,
+        "needs_review": 6
+      },
+      "multer": {
+        "needs_review": 10,
+        "reference_source_mismatch": 2,
+        "validated_source_review": 2
+      },
+      "next": {
+        "needs_review": 20,
+        "validated_executable": 2
+      },
+      "nodemailer": {
+        "validated_executable": 2,
+        "validated_source_review": 4,
+        "needs_review": 12
+      },
+      "nuxt": {
+        "needs_review": 48,
+        "validated_executable": 4,
+        "validated_source_review": 12
+      },
+      "parse-server": {
+        "validated_source_review": 18,
+        "needs_review": 64,
+        "validated_executable": 12,
+        "reference_source_mismatch": 8
+      },
+      "qs": {
+        "validated_executable": 18
+      },
+      "semver": {
+        "validated_executable": 2
+      },
+      "undici": {
+        "needs_review": 50,
+        "validated_executable": 6,
+        "validated_source_review": 2
+      },
+      "validator": {
+        "validated_source_review": 4,
+        "needs_review": 2
+      },
+      "vite": {
+        "needs_review": 66,
+        "validated_source_review": 12
+      },
+      "ws": {
+        "reference_source_mismatch": 4,
+        "needs_review": 20
+      }
+    },
+    "historical_targets_recovered_but_reference_mismatched": 14
+  },
+  "tier2": {
+    "total": 788,
+    "statuses": {
+      "needs_review": 632,
+      "validated_executable": 84,
+      "failed_behaviour": 22,
+      "source_or_parse_mismatch": 27,
+      "validated_source_review": 22,
+      "failed_runtime_parse": 1
+    },
+    "validated": 106,
+    "packages": {
+      "axios": {
+        "needs_review": 35,
+        "validated_executable": 3,
+        "failed_behaviour": 1
+      },
+      "better-auth": {
+        "needs_review": 18,
+        "source_or_parse_mismatch": 4
+      },
+      "dompurify": {
+        "needs_review": 41
+      },
+      "electron": {
+        "needs_review": 40,
+        "source_or_parse_mismatch": 4
+      },
+      "fastify": {
+        "needs_review": 20,
+        "validated_source_review": 1
+      },
+      "handlebars": {
+        "needs_review": 9
+      },
+      "liquidjs": {
+        "needs_review": 47,
+        "validated_source_review": 4
+      },
+      "lodash": {
+        "needs_review": 12,
+        "validated_executable": 3,
+        "failed_behaviour": 1
+      },
+      "mermaid": {
+        "needs_review": 23
+      },
+      "minimist": {
+        "needs_review": 8,
+        "validated_executable": 6,
+        "failed_behaviour": 2
+      },
+      "moment": {
+        "needs_review": 9,
+        "validated_executable": 4
+      },
+      "multer": {
+        "needs_review": 17,
+        "source_or_parse_mismatch": 4
+      },
+      "next": {
+        "needs_review": 25,
+        "failed_behaviour": 2,
+        "validated_executable": 2
+      },
+      "nodemailer": {
+        "needs_review": 24,
+        "failed_behaviour": 1,
+        "validated_executable": 3
+      },
+      "nuxt": {
+        "needs_review": 83,
+        "validated_executable": 7,
+        "validated_source_review": 6,
+        "failed_behaviour": 1
+      },
+      "parse-server": {
+        "needs_review": 114,
+        "validated_executable": 16,
+        "failed_behaviour": 6,
+        "validated_source_review": 5,
+        "source_or_parse_mismatch": 15,
+        "failed_runtime_parse": 1
+      },
+      "qs": {
+        "validated_executable": 28,
+        "failed_behaviour": 8
+      },
+      "semver": {
+        "validated_executable": 4
+      },
+      "undici": {
+        "needs_review": 26,
+        "validated_executable": 8,
+        "validated_source_review": 2
+      },
+      "validator": {
+        "needs_review": 6
+      },
+      "vite": {
+        "needs_review": 74,
+        "validated_source_review": 4
+      },
+      "ws": {
+        "needs_review": 1
+      }
+    },
+    "paired_eligible": 84,
+    "paired_packages": {
+      "parse-server": 14,
+      "lodash": 2,
+      "undici": 10,
+      "liquidjs": 4,
+      "qs": 24,
+      "axios": 2,
+      "nuxt": 10,
+      "vite": 4,
+      "moment": 4,
+      "semver": 4,
+      "nodemailer": 2,
+      "minimist": 4
+    },
+    "confirmed_clone_types": {
+      "unconfirmed": 82,
+      "type_1": 2
+    }
+  },
+  "scope": "All input cases assessed. Validation means recorded bounded executable or source-review evidence, not proof of full package security. Unresolved cases remain excluded. Pair/duplicate eligibility is separate. No human validation, release refetch, new generation, freeze replacement, or full ablations."
+}

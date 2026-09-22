@@ -1,0 +1,160 @@
+{
+  "reference_sha256": "2e158eac8a029d3bc7787b2adb2d5a526f9bbcc390d14f6546a942d06ec7c01f",
+  "input_cases": 788,
+  "accepted_cases": 60,
+  "quarantined_cases": 728,
+  "accepted_packages": {
+    "parse-server": 10,
+    "lodash": 2,
+    "undici": 2,
+    "liquidjs": 4,
+    "qs": 24,
+    "axios": 2,
+    "nuxt": 4,
+    "vite": 4,
+    "moment": 4,
+    "semver": 4
+  },
+  "accepted_requested_types": {
+    "type_3": 36,
+    "type_4": 24
+  },
+  "accepted_reviewed_types": {
+    "unconfirmed": 58,
+    "type_1": 2
+  },
+  "shortfalls": {
+    "axios": {
+      "selected_origins": 10,
+      "available_max_cases": 40,
+      "unavailable_origin_slots": 0,
+      "accepted_origins": 1,
+      "quarantined_cases": 37,
+      "accepted_cases": 2,
+      "target_max_cases": 40
+    },
+    "lodash": {
+      "selected_origins": 4,
+      "available_max_cases": 16,
+      "unavailable_origin_slots": 6,
+      "accepted_origins": 1,
+      "quarantined_cases": 14,
+      "accepted_cases": 2,
+      "target_max_cases": 40
+    },
+    "minimist": {
+      "selected_origins": 4,
+      "available_max_cases": 16,
+      "unavailable_origin_slots": 6,
+      "accepted_origins": 0,
+      "quarantined_cases": 16,
+      "accepted_cases": 0,
+      "target_max_cases": 40
+    },
+    "moment": {
+      "selected_origins": 4,
+      "available_max_cases": 16,
+      "unavailable_origin_slots": 6,
+      "accepted_origins": 1,
+      "quarantined_cases": 9,
+      "accepted_cases": 4,
+      "target_max_cases": 40
+    },
+    "nodemailer": {
+      "selected_origins": 9,
+      "available_max_cases": 36,
+      "unavailable_origin_slots": 1,
+      "accepted_origins": 0,
+      "quarantined_cases": 28,
+      "accepted_cases": 0,
+      "target_max_cases": 40
+    },
+    "qs": {
+      "selected_origins": 9,
+      "available_max_cases": 36,
+      "unavailable_origin_slots": 1,
+      "accepted_origins": 8,
+      "quarantined_cases": 12,
+      "accepted_cases": 24,
+      "target_max_cases": 40
+    },
+    "semver": {
+      "selected_origins": 1,
+      "available_max_cases": 4,
+      "unavailable_origin_slots": 9,
+      "accepted_origins": 1,
+      "quarantined_cases": 0,
+      "accepted_cases": 4,
+      "target_max_cases": 40
+    },
+    "undici": {
+      "selected_origins": 10,
+      "available_max_cases": 40,
+      "unavailable_origin_slots": 0,
+      "accepted_origins": 1,
+      "quarantined_cases": 34,
+      "accepted_cases": 2,
+      "target_max_cases": 40
+    }
+  },
+  "rejection_reasons": {
+    "review_rejected_or_uncertain_or_unverifiable_quotes": 371,
+    "pair_quarantined": 728,
+    "changed_literal_or_regex_requires_further_behaviour_evidence": 41,
+    "security_delta_not_supported_in_extracted_context": 52,
+    "incomplete_pair": 156,
+    "paired_member_failed_screening": 42,
+    "duplicate_candidate_source": 24,
+    "independent_candidate_preservation_review_failed": 13,
+    "missing_candidate_preservation_audit": 5,
+    "security_litmus_failed_or_inconclusive": 11,
+    "vulnerable_source_identity_mismatch": 27,
+    "vulnerable_embedded_source_mismatch": 27,
+    "patched_source_identity_mismatch": 27,
+    "patched_embedded_source_mismatch": 27
+  },
+  "review_policy": "Automated package-specific executable security litmus where supported; otherwise model source-and-patch review of the security delta with exact quoted evidence, supplemented by conservative AST preservation checks. No human validation claimed.",
+  "historical_provenance": "Legacy generation model string only; original digest, prompts, attempts unavailable. Not retroactively inferred.",
+  "generation": {
+    "selected_origins": 51,
+    "planned_tasks": 204,
+    "successful_tasks": 188,
+    "attempts": 259,
+    "exhausted_tasks": [
+      "0cc4d84f5917073d270d2889afd8417d619f7ba8f389d74122180f5ecbb17717",
+      "186e762743318172735b9e667f8992ca523143b2257d9caca44fdb455aec31b7",
+      "2336ad9ca160cff6a570d567b56de5f460851845c1c099515ae1caf4c742fdcb",
+      "2f7d74fa63d9d2dc555068f8474bde6f5360003afedd726919f58f0ef8c2136c",
+      "2ff598869f2fc47f9c812668d30956194072ddb71459bb6e1cea49a58802fe4c",
+      "3c58972576a8e0e071c0bae2cd8731b195dedd7422b442a6fe5e298a7c5b1295",
+      "3ca4487299e6b422de1bf03dfbf6db1e0c4f197b54e8db90fb1a90c223274de2",
+      "58fb3bfbcf811dfcb70bb2a0819fbe88a82ed625bed9d948e5b17eb0dbe54c7b",
+      "5f203e28a6ed6ebfefd8ddf1b87c7dff90cfeeeef627653759fad0593c9ce6b6",
+      "63de323be6a2713ce820677b5467b4357037ea9b44047e5d0688a7508070050e",
+      "6540dd21c29820343ad2ca49da6c65b6845cd516287ae8f6a2ef6fcdf03c1e29",
+      "957ec0f64d031c57f88656bf46d9caf06e7361f54fe57cda4eda97c75b1e228d",
+      "9c64dbcf054f4085cad2bb1e4e9e2f2b175cb43eec1b55decf620b5255559e4b",
+      "c7816400a9c19391b12915691f392cd9be7bc6325851bd1eae04bb3a674d0c5b",
+      "d191b53f2220b5a116d18192396b39aacfcea22db40e75e6f5f5c0630fda0994",
+      "ec92876506d9670ee2b94771cbe1ed17e7ede685034a8c3694e4c19a9b728f58"
+    ],
+    "attempt_rejection_reasons": {
+      "declared_language_parse_error": 66,
+      "unchanged_source": 4,
+      "ReadTimeout: HTTPConnectionPool(host='127.0.0.1', port=11434): Read timed out. (read timeout=180)": 1
+    }
+  },
+  "provisional_accepted_cases": 172,
+  "accepted_proposed_types": {
+    "type_4": 21,
+    "unconfirmed": 34,
+    "type_1": 3,
+    "type_3": 1,
+    "type_2": 1
+  },
+  "accepted_by_provenance": {
+    "historical": 22,
+    "new": 38
+  },
+  "audit_policy": "Second automated audit of extracted original security deltas, conservative literal/regex preservation screen, and paired re-admission. Never promotes rejected or unreviewed cases. Model clone classifications remain proposals unless mechanically confirmed."
+}

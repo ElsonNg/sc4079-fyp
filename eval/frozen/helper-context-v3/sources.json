@@ -1,0 +1,173 @@
+[
+  {
+    "package": "axios",
+    "repo": "axios/axios",
+    "commit": "fb3befb6daac6cad26b2e54094d0f2d9e47f24df",
+    "file": "lib/adapters/http.js",
+    "url": "https://raw.githubusercontent.com/axios/axios/fb3befb6daac6cad26b2e54094d0f2d9e47f24df/lib/adapters/http.js",
+    "path": "eval/frozen/helper-context-v3/axios-fb3befb6-http.js",
+    "sha256": "4b773a44804aa8222038acbb3627722f7232a9ec87a9fba53c9e57d3f6c22992"
+  },
+  {
+    "package": "axios",
+    "repo": "axios/axios",
+    "commit": "fb3befb6daac6cad26b2e54094d0f2d9e47f24df",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/axios/axios/fb3befb6daac6cad26b2e54094d0f2d9e47f24df/LICENSE",
+    "path": "eval/frozen/helper-context-v3/axios-fb3befb6-LICENSE",
+    "sha256": "82761059eaedacb3356803aea8a170d8298609f91b14fc32ee1bfb40d690183c"
+  },
+  {
+    "package": "undici",
+    "repo": "nodejs/undici",
+    "commit": "2b39440bd9ded841c93dd72138f3b1763ae26055",
+    "file": "lib/fetch/util.js",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/2b39440bd9ded841c93dd72138f3b1763ae26055/lib/fetch/util.js",
+    "path": "eval/frozen/helper-context-v3/undici-2b39440b-util.js",
+    "sha256": "bb2befd3c6bcbe2f378543474df1326c196ae5942494ff92f02b2767905649d4"
+  },
+  {
+    "package": "undici",
+    "repo": "nodejs/undici",
+    "commit": "2b39440bd9ded841c93dd72138f3b1763ae26055",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/2b39440bd9ded841c93dd72138f3b1763ae26055/LICENSE",
+    "path": "eval/frozen/helper-context-v3/undici-2b39440b-LICENSE",
+    "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+  },
+  {
+    "package": "undici",
+    "repo": "nodejs/undici",
+    "commit": "d542b8cd39ec1ba303f038ea26098c3f355974f3",
+    "file": "lib/web/fetch/util.js",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/d542b8cd39ec1ba303f038ea26098c3f355974f3/lib/web/fetch/util.js",
+    "path": "eval/frozen/helper-context-v3/undici-d542b8cd-util.js",
+    "sha256": "040b104ad7257f4fa61001b36e72c60bd841dc028907bf190c350dde9feea8c1"
+  },
+  {
+    "package": "undici",
+    "repo": "nodejs/undici",
+    "commit": "d542b8cd39ec1ba303f038ea26098c3f355974f3",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/d542b8cd39ec1ba303f038ea26098c3f355974f3/LICENSE",
+    "path": "eval/frozen/helper-context-v3/undici-d542b8cd-LICENSE",
+    "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+  },
+  {
+    "package": "axios",
+    "repo": "axios/axios",
+    "commit": "afca61a070728e717203c2bc21e7b589b59b858b",
+    "file": "lib/adapters/http.js",
+    "url": "https://raw.githubusercontent.com/axios/axios/afca61a070728e717203c2bc21e7b589b59b858b/lib/adapters/http.js",
+    "path": "eval/frozen/helper-context-v3/axios-afca61a0-http.js",
+    "sha256": "1208cfd7594c429e5d1662f11673ae3f8e4d6dc7e0d028e731a23b29a56d9301"
+  },
+  {
+    "package": "axios",
+    "repo": "axios/axios",
+    "commit": "afca61a070728e717203c2bc21e7b589b59b858b",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/axios/axios/afca61a070728e717203c2bc21e7b589b59b858b/LICENSE",
+    "path": "eval/frozen/helper-context-v3/axios-afca61a0-LICENSE",
+    "sha256": "82761059eaedacb3356803aea8a170d8298609f91b14fc32ee1bfb40d690183c"
+  },
+  {
+    "package": "fastify",
+    "repo": "fastify/fastify",
+    "commit": "436da4c06dfbbb8c24adee3a64de0c51e4f47418",
+    "file": "lib/validation.js",
+    "url": "https://raw.githubusercontent.com/fastify/fastify/436da4c06dfbbb8c24adee3a64de0c51e4f47418/lib/validation.js",
+    "path": "eval/frozen/helper-context-v3/fastify-436da4c0-validation.js",
+    "sha256": "255b5b5cbabc2616f55bd76ddce3b2afbc7f4d17b9695acb0d9626a929e4f6a7"
+  },
+  {
+    "package": "fastify",
+    "repo": "fastify/fastify",
+    "commit": "436da4c06dfbbb8c24adee3a64de0c51e4f47418",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/fastify/fastify/436da4c06dfbbb8c24adee3a64de0c51e4f47418/LICENSE",
+    "path": "eval/frozen/helper-context-v3/fastify-436da4c0-LICENSE",
+    "sha256": "5970150ebcc7745e4f139ad9664687e1abfa8bcf99f368e4fcde76fe3495eaa5"
+  },
+  {
+    "package": "fastify",
+    "repo": "fastify/fastify",
+    "commit": "436da4c06dfbbb8c24adee3a64de0c51e4f47418",
+    "file": "lib/contentTypeParser.js",
+    "url": "https://raw.githubusercontent.com/fastify/fastify/436da4c06dfbbb8c24adee3a64de0c51e4f47418/lib/contentTypeParser.js",
+    "path": "eval/frozen/helper-context-v3/fastify-436da4c0-contentTypeParser.js",
+    "sha256": "02a1f7b35c8d93c856f8bebfba780431d0c6c2a397853624d9133eeca5e7ece2"
+  },
+  {
+    "package": "undici",
+    "repo": "nodejs/undici",
+    "commit": "10d93fc332f2c8c161982dec3833201de29891b5",
+    "file": "lib/web/cookies/util.js",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/10d93fc332f2c8c161982dec3833201de29891b5/lib/web/cookies/util.js",
+    "path": "eval/frozen/helper-context-v3/undici-10d93fc3-util.js",
+    "sha256": "87d0ed0bc0c00a6446a25a439d0b79d9191a12c461185850bbbc054dcb268d32"
+  },
+  {
+    "package": "undici",
+    "repo": "nodejs/undici",
+    "commit": "10d93fc332f2c8c161982dec3833201de29891b5",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/10d93fc332f2c8c161982dec3833201de29891b5/LICENSE",
+    "path": "eval/frozen/helper-context-v3/undici-10d93fc3-LICENSE",
+    "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+  },
+  {
+    "package": "undici",
+    "repo": "nodejs/undici",
+    "commit": "3bf91ddb493e853957f3a58e155326a668ab8aef",
+    "file": "lib/web/cookies/util.js",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/3bf91ddb493e853957f3a58e155326a668ab8aef/lib/web/cookies/util.js",
+    "path": "eval/frozen/helper-context-v3/undici-3bf91ddb-util.js",
+    "sha256": "51941b2fb0a6f29e389b91236050b1fc4bdaf57051ae53145767219a9d3c5f09"
+  },
+  {
+    "package": "undici",
+    "repo": "nodejs/undici",
+    "commit": "3bf91ddb493e853957f3a58e155326a668ab8aef",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/3bf91ddb493e853957f3a58e155326a668ab8aef/LICENSE",
+    "path": "eval/frozen/helper-context-v3/undici-3bf91ddb-LICENSE",
+    "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+  },
+  {
+    "package": "undici",
+    "repo": "nodejs/undici",
+    "commit": "af7484043ee075a6f216da0ad77e1dac55199235",
+    "file": "lib/web/cookies/util.js",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/af7484043ee075a6f216da0ad77e1dac55199235/lib/web/cookies/util.js",
+    "path": "eval/frozen/helper-context-v3/undici-af748404-util.js",
+    "sha256": "51941b2fb0a6f29e389b91236050b1fc4bdaf57051ae53145767219a9d3c5f09"
+  },
+  {
+    "package": "undici",
+    "repo": "nodejs/undici",
+    "commit": "af7484043ee075a6f216da0ad77e1dac55199235",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/af7484043ee075a6f216da0ad77e1dac55199235/LICENSE",
+    "path": "eval/frozen/helper-context-v3/undici-af748404-LICENSE",
+    "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+  },
+  {
+    "package": "axios",
+    "repo": "axios/axios",
+    "commit": "fb3befb6daac6cad26b2e54094d0f2d9e47f24df",
+    "file": "lib/helpers/shouldBypassProxy.js",
+    "url": "https://raw.githubusercontent.com/axios/axios/fb3befb6daac6cad26b2e54094d0f2d9e47f24df/lib/helpers/shouldBypassProxy.js",
+    "path": "eval/frozen/helper-context-v3/axios-fb3befb6-shouldBypassProxy.js",
+    "sha256": "a50f04138322e28269a640a08e3be61d0049c6df52c163249f457726c483d9e5"
+  },
+  {
+    "package": "axios",
+    "repo": "axios/axios",
+    "commit": "afca61a070728e717203c2bc21e7b589b59b858b",
+    "file": "lib/helpers/shouldBypassProxy.js",
+    "url": "https://raw.githubusercontent.com/axios/axios/afca61a070728e717203c2bc21e7b589b59b858b/lib/helpers/shouldBypassProxy.js",
+    "path": "eval/frozen/helper-context-v3/axios-afca61a0-shouldBypassProxy.js",
+    "sha256": "b491bb6227d862a8927027e8bb82d68e7d97269326fd3c0b9018eb995db8c41b"
+  }
+]

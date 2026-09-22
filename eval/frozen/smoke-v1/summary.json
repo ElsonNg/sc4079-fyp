@@ -1,0 +1,459 @@
+{
+  "summaries": [
+    {
+      "labelled_cases": 1,
+      "positive_cases": 0,
+      "patched_cases": 1,
+      "decided_cases": 1,
+      "runtime_seconds": 0.01602500001899898,
+      "expected_retrieved": {
+        "count": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "expected_shortlisted": {
+        "count": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "expected_visible": {
+        "count": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "wrong_origin_automatic": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "abstained": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "correct_origin_automatic": {
+        "count": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "patched_false_positive": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "hash_retrieval": {
+        "count": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "non_hash_retrieval": {
+        "count": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "conditional_correct_origin_recall_excluding_abstentions": {
+        "count": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "conditional_patched_fp_excluding_abstentions": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "correct_origin_automatic_over_all_labelled": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "patched_false_positive_over_all_labelled": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "configuration_id": "7c4923733a1b5a7ed7406619cbcbc019e20d917f9a9c34f9303abcd2b7c739b1",
+      "tier": "tier1",
+      "split": "tuning",
+      "configuration": {
+        "model_id": "qwen3-embedding-0.6b",
+        "retrieval_top_k": 10,
+        "retrieval_threshold": 0.0,
+        "max_candidate_regions": 96,
+        "max_verification_candidates": 10,
+        "max_verification_regions_per_pair": 3,
+        "include_local_correspondence_fallback": false,
+        "max_candidate_chars": null,
+        "max_edit_candidate_chars": null,
+        "verifier": {
+          "minimum_structure_score": 0.7,
+          "minimum_token_score": 0.7,
+          "minimum_edit_side_score": 0.9,
+          "minimum_edit_margin": 0.1,
+          "minimum_supporting_regions": 2,
+          "minimum_consensus_ratio": 0.6,
+          "contradiction_margin": 0.08,
+          "signature_threshold": 0.65,
+          "minimum_containment_coverage": 0.5,
+          "include_containment_fallback": true,
+          "max_containment_cells": null
+        }
+      },
+      "experiments": [
+        "baseline"
+      ]
+    },
+    {
+      "labelled_cases": 7,
+      "positive_cases": 5,
+      "patched_cases": 2,
+      "decided_cases": 6,
+      "runtime_seconds": 62.83147809994989,
+      "expected_retrieved": {
+        "count": 7,
+        "denominator": 7,
+        "rate": 1.0
+      },
+      "expected_shortlisted": {
+        "count": 7,
+        "denominator": 7,
+        "rate": 1.0
+      },
+      "expected_visible": {
+        "count": 7,
+        "denominator": 7,
+        "rate": 1.0
+      },
+      "wrong_origin_automatic": {
+        "count": 4,
+        "denominator": 7,
+        "rate": 0.5714285714285714
+      },
+      "abstained": {
+        "count": 1,
+        "denominator": 7,
+        "rate": 0.14285714285714285
+      },
+      "correct_origin_automatic": {
+        "count": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "patched_false_positive": {
+        "count": 0,
+        "denominator": 2,
+        "rate": 0.0
+      },
+      "hash_retrieval": {
+        "count": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "non_hash_retrieval": {
+        "count": 7,
+        "denominator": 7,
+        "rate": 1.0
+      },
+      "conditional_correct_origin_recall_excluding_abstentions": {
+        "count": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "conditional_patched_fp_excluding_abstentions": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "correct_origin_automatic_over_all_labelled": {
+        "count": 5,
+        "denominator": 7,
+        "rate": 0.7142857142857143
+      },
+      "patched_false_positive_over_all_labelled": {
+        "count": 0,
+        "denominator": 7,
+        "rate": 0.0
+      },
+      "configuration_id": "7c4923733a1b5a7ed7406619cbcbc019e20d917f9a9c34f9303abcd2b7c739b1",
+      "tier": "tier2",
+      "split": "tuning",
+      "configuration": {
+        "model_id": "qwen3-embedding-0.6b",
+        "retrieval_top_k": 10,
+        "retrieval_threshold": 0.0,
+        "max_candidate_regions": 96,
+        "max_verification_candidates": 10,
+        "max_verification_regions_per_pair": 3,
+        "include_local_correspondence_fallback": false,
+        "max_candidate_chars": null,
+        "max_edit_candidate_chars": null,
+        "verifier": {
+          "minimum_structure_score": 0.7,
+          "minimum_token_score": 0.7,
+          "minimum_edit_side_score": 0.9,
+          "minimum_edit_margin": 0.1,
+          "minimum_supporting_regions": 2,
+          "minimum_consensus_ratio": 0.6,
+          "contradiction_margin": 0.08,
+          "signature_threshold": 0.65,
+          "minimum_containment_coverage": 0.5,
+          "include_containment_fallback": true,
+          "max_containment_cells": null
+        }
+      },
+      "experiments": [
+        "baseline"
+      ]
+    },
+    {
+      "labelled_cases": 1,
+      "positive_cases": 0,
+      "patched_cases": 1,
+      "decided_cases": 1,
+      "runtime_seconds": 0.006339899991871789,
+      "expected_retrieved": {
+        "count": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "expected_shortlisted": {
+        "count": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "expected_visible": {
+        "count": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "wrong_origin_automatic": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "abstained": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "correct_origin_automatic": {
+        "count": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "patched_false_positive": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "hash_retrieval": {
+        "count": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "non_hash_retrieval": {
+        "count": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "conditional_correct_origin_recall_excluding_abstentions": {
+        "count": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "conditional_patched_fp_excluding_abstentions": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "correct_origin_automatic_over_all_labelled": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "patched_false_positive_over_all_labelled": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "configuration_id": "8ec8d769169ca8ab8851106980c2538c24e5b5196309afcacd493835b56a4b5e",
+      "tier": "tier1",
+      "split": "tuning",
+      "configuration": {
+        "model_id": "qwen3-embedding-0.6b",
+        "retrieval_top_k": 1,
+        "retrieval_threshold": 0.0,
+        "max_candidate_regions": 96,
+        "max_verification_candidates": 10,
+        "max_verification_regions_per_pair": 3,
+        "include_local_correspondence_fallback": false,
+        "max_candidate_chars": null,
+        "max_edit_candidate_chars": null,
+        "verifier": {
+          "minimum_structure_score": 0.7,
+          "minimum_token_score": 0.7,
+          "minimum_edit_side_score": 0.9,
+          "minimum_edit_margin": 0.1,
+          "minimum_supporting_regions": 2,
+          "minimum_consensus_ratio": 0.6,
+          "contradiction_margin": 0.08,
+          "signature_threshold": 0.65,
+          "minimum_containment_coverage": 0.5,
+          "include_containment_fallback": true,
+          "max_containment_cells": null
+        }
+      },
+      "experiments": [
+        "smoke_top_k_control"
+      ]
+    },
+    {
+      "labelled_cases": 7,
+      "positive_cases": 5,
+      "patched_cases": 2,
+      "decided_cases": 6,
+      "runtime_seconds": 62.957314700004645,
+      "expected_retrieved": {
+        "count": 7,
+        "denominator": 7,
+        "rate": 1.0
+      },
+      "expected_shortlisted": {
+        "count": 7,
+        "denominator": 7,
+        "rate": 1.0
+      },
+      "expected_visible": {
+        "count": 7,
+        "denominator": 7,
+        "rate": 1.0
+      },
+      "wrong_origin_automatic": {
+        "count": 4,
+        "denominator": 7,
+        "rate": 0.5714285714285714
+      },
+      "abstained": {
+        "count": 1,
+        "denominator": 7,
+        "rate": 0.14285714285714285
+      },
+      "correct_origin_automatic": {
+        "count": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "patched_false_positive": {
+        "count": 0,
+        "denominator": 2,
+        "rate": 0.0
+      },
+      "hash_retrieval": {
+        "count": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "non_hash_retrieval": {
+        "count": 7,
+        "denominator": 7,
+        "rate": 1.0
+      },
+      "conditional_correct_origin_recall_excluding_abstentions": {
+        "count": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "conditional_patched_fp_excluding_abstentions": {
+        "count": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "correct_origin_automatic_over_all_labelled": {
+        "count": 5,
+        "denominator": 7,
+        "rate": 0.7142857142857143
+      },
+      "patched_false_positive_over_all_labelled": {
+        "count": 0,
+        "denominator": 7,
+        "rate": 0.0
+      },
+      "configuration_id": "8ec8d769169ca8ab8851106980c2538c24e5b5196309afcacd493835b56a4b5e",
+      "tier": "tier2",
+      "split": "tuning",
+      "configuration": {
+        "model_id": "qwen3-embedding-0.6b",
+        "retrieval_top_k": 1,
+        "retrieval_threshold": 0.0,
+        "max_candidate_regions": 96,
+        "max_verification_candidates": 10,
+        "max_verification_regions_per_pair": 3,
+        "include_local_correspondence_fallback": false,
+        "max_candidate_chars": null,
+        "max_edit_candidate_chars": null,
+        "verifier": {
+          "minimum_structure_score": 0.7,
+          "minimum_token_score": 0.7,
+          "minimum_edit_side_score": 0.9,
+          "minimum_edit_margin": 0.1,
+          "minimum_supporting_regions": 2,
+          "minimum_consensus_ratio": 0.6,
+          "contradiction_margin": 0.08,
+          "signature_threshold": 0.65,
+          "minimum_containment_coverage": 0.5,
+          "include_containment_fallback": true,
+          "max_containment_cells": null
+        }
+      },
+      "experiments": [
+        "smoke_top_k_control"
+      ]
+    }
+  ],
+  "tuning_tradeoffs": [
+    {
+      "tier": "tier1",
+      "non_dominated": [
+        "8ec8d769169ca8ab8851106980c2538c24e5b5196309afcacd493835b56a4b5e"
+      ],
+      "baseline_deltas": [
+        {
+          "configuration_id": "7c4923733a1b5a7ed7406619cbcbc019e20d917f9a9c34f9303abcd2b7c739b1",
+          "correct_origin": 0,
+          "patched_fp": 0,
+          "abstentions": 0,
+          "runtime_seconds": 0.0
+        },
+        {
+          "configuration_id": "8ec8d769169ca8ab8851106980c2538c24e5b5196309afcacd493835b56a4b5e",
+          "correct_origin": 0,
+          "patched_fp": 0,
+          "abstentions": 0,
+          "runtime_seconds": -0.009685100027127191
+        }
+      ]
+    },
+    {
+      "tier": "tier2",
+      "non_dominated": [
+        "7c4923733a1b5a7ed7406619cbcbc019e20d917f9a9c34f9303abcd2b7c739b1"
+      ],
+      "baseline_deltas": [
+        {
+          "configuration_id": "7c4923733a1b5a7ed7406619cbcbc019e20d917f9a9c34f9303abcd2b7c739b1",
+          "correct_origin": 0,
+          "patched_fp": 0,
+          "abstentions": 0,
+          "runtime_seconds": 0.0
+        },
+        {
+          "configuration_id": "8ec8d769169ca8ab8851106980c2538c24e5b5196309afcacd493835b56a4b5e",
+          "correct_origin": 0,
+          "patched_fp": 0,
+          "abstentions": 0,
+          "runtime_seconds": 0.12583660005475394
+        }
+      ]
+    }
+  ],
+  "notes": "Known-origin retrospective benchmark. Conditional metrics exclude manual-review abstentions. Full detection per configuration. No winner selected. Runtime includes retrieval and verification, excludes model/index setup."
+}

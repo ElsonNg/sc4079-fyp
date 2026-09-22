@@ -100,6 +100,7 @@ def _normalized_finding():
         "severity": "high",
         "primary": {
             "identifier": "CVE-2026-1234",
+            "fix_boundary_id": "boundary-test",
             "title": "Redirect validation can be bypassed",
             "cwes": ["CWE-918"],
             "package_name": "demo-http",
@@ -194,6 +195,7 @@ def test_explanations_are_attached_and_reused_from_content_cache(monkeypatch, tm
     assert first.generated == 1
     assert first_summary.findings[0]["review_explanation"]["status"] == "generated"
     assert first_summary.findings[0]["review_explanation"]["llm_verdict"] == "needs_review"
+    assert first_summary.findings[0]["review_explanation"]["fix_boundary_id"] == "boundary-test"
     assert cache_path.exists()
 
     second_summary = _summary()
@@ -209,6 +211,7 @@ def test_explanations_are_attached_and_reused_from_content_cache(monkeypatch, tm
 
     assert second.reused == 1
     assert second.generated == 0
+    assert second_summary.findings[0]["review_explanation"]["fix_boundary_id"] == "boundary-test"
     assert second_session.get_calls == []
     assert second_session.post_calls == []
 
@@ -273,8 +276,8 @@ def test_complete_project_function_marks_region_without_dropping_context():
 
     assert payload["scope"] == "complete_function"
     assert [line["text"] for line in payload["lines"]] == source.splitlines()
-    assert payload["detected_region_lines"] == [10, 11, 12, 13]
-    assert all(line["in_detected_region"] for line in payload["lines"])
+    assert payload["detected_region_lines"] == []
+    assert not any(line["in_detected_region"] for line in payload["lines"])
 
 
 def test_project_function_input_is_not_truncated_by_reference_snippet_limit():

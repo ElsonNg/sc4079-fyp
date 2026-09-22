@@ -26,13 +26,16 @@ def _report(root: str = "/tmp/project") -> dict:
                 "lineages": [{"confidence": "high", "associated_advisories": [alias]}],
                 "package_applicabilities": [{"package": "axios", "status": "affected"}],
                 "vulnerability_states": [{
+                    "fix_boundary_id": f"boundary-{index}",
                     "status": "vulnerable" if index == 0 else "uncertain",
                     "abstention_reason": "E_MARGIN_AMBIGUOUS",
                     "advisories": [{"cve_id": "CVE-2026-5678", "package_name": "axios"}] if index == 0 else [],
                 }],
             },
         })
-    findings[1]["review_explanation"] = {"status": "generated", "llm_verdict": "dismissed"}
+    findings[1]["review_explanation"] = {
+        "status": "generated", "llm_verdict": "dismissed", "fix_boundary_id": "boundary-1",
+    }
     return {"schema": "provtrail_scan_v5", "target_root": root, "findings": findings}
 
 
@@ -64,6 +67,19 @@ def test_empty_report_is_valid_sarif_and_ai():
     jsonschema.validate(sarif, SCHEMA)
     assert sarif["runs"][0]["results"] == []
     assert format_ai(report).endswith("total=0 vuln=0 review=0\n")
+
+
+def test_exports_keep_review_but_omit_opinion_for_a_different_boundary():
+    report = _report()
+    explanation = report["findings"][1]["review_explanation"]
+    for boundary_id in (None, "different-fix"):
+        explanation["fix_boundary_id"] = boundary_id
+        results = build_sarif(report, tool_version="0.1.0")["runs"][0]["results"]
+        review = next(item for item in results if item["ruleId"] == "provtrail/manual-review")
+        assert review["properties"]["provtrail"]["llmVerdict"] is None
+        ai = format_ai(report)
+        assert "ollama=" not in ai
+        assert "total=2 vuln=1 review=1" in ai
 
 
 def test_saved_report_ai_stdout_and_collisions(tmp_path, capsys):

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from provtrail.pipeline.controller.reporting import ACTIVE_PRIORITIES
+from provtrail.pipeline.controller.reporting import ACTIVE_PRIORITIES, finding_detail
 
 SARIF_SCHEMA = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
 RULES = {
@@ -33,26 +33,6 @@ class ExportFinding:
     fingerprint: str
 
 
-def _first_reason(result: dict[str, Any]) -> str:
-    matches = [
-        match for match in result.get("hash_matches") or []
-        if match.get("side") == "vulnerable"
-    ]
-    if matches:
-        kinds = sorted({str(match["match_type"]) for match in matches if match.get("match_type")})
-        if kinds:
-            return f"vulnerable-side {'/'.join(kinds)} hash match"
-        return "vulnerable-side hash match"
-    for state in result.get("vulnerability_states") or []:
-        if state.get("status") == "vulnerable":
-            return "vulnerable fix-boundary evidence"
-    for state in result.get("vulnerability_states") or []:
-        if state.get("abstention_reason"):
-            return str(state["abstention_reason"]).lower().replace("_", " ")
-    message = result.get("message")
-    return str(message) if message else "candidate needs manual verification"
-
-
 def project_findings(report: dict[str, Any]) -> list[ExportFinding]:
     """Use saved scan facts only, including review findings dismissed by Ollama."""
     projected = []
@@ -62,18 +42,8 @@ def project_findings(report: dict[str, Any]) -> list[ExportFinding]:
         if priority not in ACTIVE_PRIORITIES:
             continue
 
-        aliases = []
-        for lineage in result.get("lineages") or []:
-            aliases.extend(lineage.get("associated_advisories") or [])
-        for state in result.get("vulnerability_states") or []:
-            aliases.extend(state.get("advisories") or [])
-        for match in result.get("hash_matches") or []:
-            aliases.append(match)
-            aliases.extend(match.get("advisories") or [])
-        for aggregate in result.get("aggregates") or []:
-            for match in aggregate.get("top_matches") or []:
-                aliases.append(match)
-                aliases.extend(match.get("advisories") or [])
+        detail = finding_detail(finding)
+        aliases = detail["advisories"]
         advisory_ids = tuple(sorted({
             str(alias[key])
             for alias in aliases
@@ -82,20 +52,17 @@ def project_findings(report: dict[str, Any]) -> list[ExportFinding]:
         }))
 
         packages = set()
+        reference_packages = {alias.get("package_name") for alias in aliases}
         for application in result.get("package_applicabilities") or []:
             package = application.get("package")
-            if package:
+            if package in reference_packages:
                 packages.add(f"{package}:{application.get('status') or 'unknown'}")
         for alias in aliases:
             package = alias.get("package_name")
             if package and not any(item.startswith(f"{package}:") for item in packages):
                 packages.add(f"{package}:unknown")
 
-        confidences = {str(lineage.get("confidence")) for lineage in result.get("lineages") or []}
-        confidence = next(
-            (value for value in ("high", "medium", "low", "ambiguous") if value in confidences),
-            None,
-        )
+        confidence = (detail.get("primary_lineage") or {}).get("confidence")
         path = str(finding.get("path") or "").replace("\\", "/").lstrip("/")
         start = max(1, int(finding.get("start_line") or 0) + 1)
         end = max(start, int(finding.get("end_line") or 0) + 1)
@@ -106,7 +73,9 @@ def project_findings(report: dict[str, Any]) -> list[ExportFinding]:
         ))
         fingerprint = hashlib.sha256(identity.encode("utf-8")).hexdigest()
         explanation = finding.get("review_explanation") or {}
-        verdict = explanation.get("llm_verdict") if explanation.get("status") == "generated" else None
+        boundary_id = (detail.get("primary_boundary") or {}).get("fix_boundary_id")
+        reference_matches = bool(boundary_id and explanation.get("fix_boundary_id") == boundary_id)
+        verdict = explanation.get("llm_verdict") if explanation.get("status") == "generated" and reference_matches else None
         projected.append(ExportFinding(
             path=path,
             name=name,
@@ -116,7 +85,7 @@ def project_findings(report: dict[str, Any]) -> list[ExportFinding]:
             advisory_ids=advisory_ids,
             packages=tuple(sorted(packages)),
             confidence=confidence,
-            reason=_first_reason(result),
+            reason=detail["reason"],
             llm_verdict=str(verdict) if verdict else None,
             fingerprint=fingerprint,
         ))

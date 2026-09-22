@@ -235,7 +235,7 @@ def test_report_view_excludes_informational_by_default_and_can_include_them():
     assert report_view(report)["findings"][1]["review_explanation"]["model"] == "qwen3:8b"
 
 
-def test_report_primary_lineage_uses_the_highest_credible_score():
+def test_report_primary_lineage_follows_the_verified_boundary():
     report = _report()
     result = report["findings"][0]["result"]
     later_alias = {**_alias(), "ghsa_id": "GHSA-later", "cve_id": "CVE-LATER"}
@@ -245,9 +245,9 @@ def test_report_primary_lineage_uses_the_highest_credible_score():
 
     detail = report_view(report)["findings"][0]
 
-    assert detail["primary_lineage"]["lineage_id"] == "lineage-later"
+    assert detail["primary_lineage"]["lineage_id"] == "lineage-test"
     assert {item["cve_id"] for item in detail["advisories"]} == {
-        "CVE-2026-1234", "CVE-LATER",
+        "CVE-2026-1234",
     }
 
 
@@ -264,12 +264,12 @@ def test_report_retains_low_confidence_lineages_but_primary_stays_credible():
 
     detail = report_view(report)["findings"][1]
 
-    assert detail["primary_lineage"]["lineage_id"] == "lineage-strong"
+    assert detail["primary_lineage"]["lineage_id"] == "lineage-test"
     assert {item["lineage_id"] for item in detail["lineages"]} == {
         "lineage-test", "lineage-strong", "lineage-noise",
     }
     assert {item["ghsa_id"] for item in detail["advisories"]} == {
-        "GHSA-test", "GHSA-strong", "GHSA-noise",
+        "GHSA-test",
     }
 
 

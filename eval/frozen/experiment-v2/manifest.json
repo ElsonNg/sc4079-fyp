@@ -1,0 +1,2334 @@
+{
+  "schema": "provtrail-frozen-experiment-v1",
+  "artifacts": {
+    "reference": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\experiment-v2\\reference\\corpus.db",
+      "sha256": "2e158eac8a029d3bc7787b2adb2d5a526f9bbcc390d14f6546a942d06ec7c01f"
+    },
+    "tier2": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\accepted.jsonl",
+      "sha256": "c0bbe976dce03187c49d06f427c526ac0277c2967f0c5014dc05274700385fde"
+    },
+    "validation": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\validation.jsonl",
+      "sha256": "160a99daf0068bdc9576595321ed6330f3aa26c1e6191d045e062aa75cc8b86b"
+    },
+    "reviews": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\reviews.jsonl",
+      "sha256": "9fbfb88b528d07d24f629d3f2837c6e8df2be25cfd5622fe919fa9c63c4e2238"
+    },
+    "attrition": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\attrition.json",
+      "sha256": "32fa209e747fd067ccdef5d1fa2ed77c27b9f43f9da4c2ab7e3598cf3d9db778"
+    },
+    "generation_lock": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\generation-lock.json",
+      "sha256": "170665cf5c0a0b70c66a6bd341a7ff4e48463d1c4737f29e2c0b05e2cbfb7eb3"
+    },
+    "generation_settings": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\generation-settings.json",
+      "sha256": "ebc81811701e9f1b4cb523cc86bec0cb2999804f90edb86f3921690fa7b742b2"
+    },
+    "attempts": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\attempts.jsonl",
+      "sha256": "3e5a29f375fe0e6a52f8f590c6c5ebe1d388dc0efc11d95783347c8fca2fd952"
+    },
+    "tier1_labels": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\tier1_curated_labels.jsonl",
+      "sha256": "20ecd430c6cd6ae8ca36a55743464f71fd48b9f844d54d571e4891869ccc1764"
+    },
+    "audit_lock": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\audit-lock.json",
+      "sha256": "c7a04adbc7b72edaba39295617c399ab77deee75f7ce77eb473ef9648dfb6491"
+    },
+    "adjudication": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\adjudication.jsonl",
+      "sha256": "8cefc1b90362e8801fa94edb510a8110aa2a31905b77de175fd9a221889f941f"
+    },
+    "source_adjudications": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\source-adjudications.jsonl",
+      "sha256": "eeebe21a0ae6f725b695155ebe189e81289e79e1094bd2cca28ea1ffd177ecd8"
+    },
+    "quarantine": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\quarantine.jsonl",
+      "sha256": "509ce5ae1d9ff2a6fdecdd9a6cda478c51746badee2cbc532a20588eff5d482f"
+    },
+    "generated": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\tier2-v2\\generated.jsonl",
+      "sha256": "5f10e85fcf04b7c758d2e59bcedbf8a111aad88ece8a4a0a010a02b6859c4574"
+    },
+    "tier1": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\experiment-v2\\tier1.jsonl",
+      "sha256": "ac4b0565189b4731072a64b80530d05cf1b08812107b4c9282076e26b929a8f8"
+    },
+    "tier1_excluded": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\experiment-v2\\tier1-excluded.jsonl",
+      "sha256": "974bcac7c7744d2b862d67b384e6399376463e84cec48e4bf2291a1faf2e9c4a"
+    },
+    "split": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\experiment-v2\\split.json",
+      "sha256": "5d9163f9b65457d86db48c4502ff0d1cf54a747a154d29df69e0acf4e07211c9"
+    },
+    "index": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\experiment-v2\\reference\\qwen3-embedding-0.6b.faiss",
+      "sha256": "846fbb33c971c9399ac44a157d22bdd62159b9859f76bf34bb0ffc8511ae8c47"
+    },
+    "index_metadata": {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\experiment-v2\\reference\\qwen3-embedding-0.6b.meta.json",
+      "sha256": "32df2abdd27d428330cf637cbcc524fbfa77f0bfa85b0ea067411ee8574e4b58"
+    }
+  },
+  "reference_entries": 301,
+  "baseline": {
+    "model_id": "qwen3-embedding-0.6b",
+    "retrieval_top_k": 10,
+    "retrieval_threshold": 0.0,
+    "max_candidate_regions": 96,
+    "max_verification_candidates": 10,
+    "max_verification_regions_per_pair": 3,
+    "include_local_correspondence_fallback": false,
+    "max_candidate_chars": null,
+    "max_edit_candidate_chars": null,
+    "verifier": {
+      "minimum_structure_score": 0.7,
+      "minimum_token_score": 0.7,
+      "minimum_edit_side_score": 0.9,
+      "minimum_edit_margin": 0.1,
+      "minimum_supporting_regions": 2,
+      "minimum_consensus_ratio": 0.6,
+      "contradiction_margin": 0.08,
+      "signature_threshold": 0.65,
+      "minimum_containment_coverage": 0.5,
+      "include_containment_fallback": true,
+      "max_containment_cells": null
+    }
+  },
+  "index_provenance": "Existing symmetric-v3-fp32 index retained after reference fingerprint and origin checks. Historical build metadata records model ID but not the weight revision; query model bytes and index bytes are pinned separately by this freeze.",
+  "expected_origins": [
+    [
+      "GHSA-2v8p-3f2j-5mp7",
+      "ef60adc837d9d5107af21285f01e83dea309bd0a",
+      "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      "transformDataWithoutCategory"
+    ],
+    [
+      "GHSA-2v8p-3f2j-5mp7",
+      "ef60adc837d9d5107af21285f01e83dea309bd0a",
+      "packages/mermaid/src/diagrams/xychart/xychartDb.ts",
+      null
+    ],
+    [
+      "GHSA-353f-5xf4-qw67",
+      "813ddd6155c3d54801e264ba832d8347f6f66b32",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "viteServeRawFsMiddleware"
+    ],
+    [
+      "GHSA-353f-5xf4-qw67",
+      "813ddd6155c3d54801e264ba832d8347f6f66b32",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "viteServeStaticMiddleware"
+    ],
+    [
+      "GHSA-35p6-xmwp-9g52",
+      "6ea54ef8c4051e95bb68c89d4a5c9274fe6fbb4b",
+      "lib/dispatcher/client-h1.js",
+      "busy"
+    ],
+    [
+      "GHSA-36rg-gfq2-3h56",
+      "9801d1be53d9da04686b94c6286c53ec97496740",
+      "packages/expo/src/index.ts",
+      "init"
+    ],
+    [
+      "GHSA-37mj-c2wf-cx96",
+      "5b8998e6866bcf75be7b5bb625e27d23bfaf912c",
+      "src/Routers/UsersRouter.js",
+      "handleMe"
+    ],
+    [
+      "GHSA-37mj-c2wf-cx96",
+      "875cf10ac979bd60f70e7a0c534e2bc194d6982f",
+      "src/Routers/UsersRouter.js",
+      "handleMe"
+    ],
+    [
+      "GHSA-3cqr-58rm-57f8",
+      "156061eb7707575293613d7fdf90e2bdaac029ee",
+      "lib/handlebars/base.js",
+      null
+    ],
+    [
+      "GHSA-3cqr-58rm-57f8",
+      "156061eb7707575293613d7fdf90e2bdaac029ee",
+      "lib/handlebars/compiler/javascript-compiler.js",
+      "nameLookup"
+    ],
+    [
+      "GHSA-3fjj-p79j-c9hh",
+      "62dde76f1f7aca76e38625fe8d983761f26e6fc9",
+      "lib/contentTypeParser.js",
+      "ContentTypeParser"
+    ],
+    [
+      "GHSA-3fjj-p79j-c9hh",
+      "62dde76f1f7aca76e38625fe8d983761f26e6fc9",
+      "lib/contentTypeParser.js",
+      "ContentTypeParser.prototype.add"
+    ],
+    [
+      "GHSA-3fjj-p79j-c9hh",
+      "62dde76f1f7aca76e38625fe8d983761f26e6fc9",
+      "lib/contentTypeParser.js",
+      "ContentTypeParser.prototype.getParser"
+    ],
+    [
+      "GHSA-3h5v-q93c-6h6q",
+      "22c28763234aa75a7e1b76f5c01c181260d7917f",
+      "lib/websocket-server.js",
+      "handleUpgrade"
+    ],
+    [
+      "GHSA-3h5v-q93c-6h6q",
+      "22c28763234aa75a7e1b76f5c01c181260d7917f",
+      "lib/websocket.js",
+      null
+    ],
+    [
+      "GHSA-3h5v-q93c-6h6q",
+      "4abd8f6de4b0b65ef80b3ff081989479ed93377e",
+      "lib/websocket-server.js",
+      "handleUpgrade"
+    ],
+    [
+      "GHSA-3h5v-q93c-6h6q",
+      "e55e5106f10fcbaac37cfa89759e4cc0d073a52c",
+      "lib/websocket-server.js",
+      "handleUpgrade"
+    ],
+    [
+      "GHSA-3h5v-q93c-6h6q",
+      "e55e5106f10fcbaac37cfa89759e4cc0d073a52c",
+      "lib/websocket.js",
+      null
+    ],
+    [
+      "GHSA-3h5v-q93c-6h6q",
+      "eeb76d313e2a00dd5247ca3597bba7877d064a63",
+      "lib/websocket-server.js",
+      "handleUpgrade"
+    ],
+    [
+      "GHSA-3p68-rc4w-qgx5",
+      "fb3befb6daac6cad26b2e54094d0f2d9e47f24df",
+      "lib/adapters/http.js",
+      "setProxy"
+    ],
+    [
+      "GHSA-43fc-jf86-j433",
+      "d7ff1409c68168d3057fc3891f911b2b92616f9e",
+      "lib/core/mergeConfig.js",
+      "computeConfigValue"
+    ],
+    [
+      "GHSA-446m-mv8f-q348",
+      "69ed9d44957fa6ab12b73d2ae29d286a857b80eb",
+      "min/moment-with-locales.js",
+      null
+    ],
+    [
+      "GHSA-446m-mv8f-q348",
+      "69ed9d44957fa6ab12b73d2ae29d286a857b80eb",
+      "moment.js",
+      null
+    ],
+    [
+      "GHSA-45rm-2893-5f49",
+      "7eb621601c2b05d6e379e5ce42219f2b1f556208",
+      "src/context/context.ts",
+      "readJSProperty"
+    ],
+    [
+      "GHSA-45rm-2893-5f49",
+      "7eb621601c2b05d6e379e5ce42219f2b1f556208",
+      "src/context/context.ts",
+      "readProperty"
+    ],
+    [
+      "GHSA-4c39-4ccg-62r3",
+      "57c31f724d746e86a9e8b92aa8be538a922446a4",
+      "packages/next/src/server/app-render/action-handler.ts",
+      null
+    ],
+    [
+      "GHSA-4c39-4ccg-62r3",
+      "9a4651e754f70b12e397694ffc41f44c3ba8cc17",
+      "packages/next/src/server/app-render/action-handler.ts",
+      null
+    ],
+    [
+      "GHSA-4cwx-7wf7-3272",
+      "4fe5bc5fefe5ac81a200fc8e1cf84b8bf8464451",
+      "lib/util/cache.js",
+      "parseCacheControlHeader"
+    ],
+    [
+      "GHSA-4q3h-vp4r-prv2",
+      "9b94083accb7f3e72c6b8126c195c7a03dd2dfd7",
+      "src/Adapters/Auth/apple.js",
+      "verifyIdToken"
+    ],
+    [
+      "GHSA-4q3h-vp4r-prv2",
+      "9b94083accb7f3e72c6b8126c195c7a03dd2dfd7",
+      "src/Adapters/Auth/facebook.js",
+      "verifyIdToken"
+    ],
+    [
+      "GHSA-4q3h-vp4r-prv2",
+      "9b94083accb7f3e72c6b8126c195c7a03dd2dfd7",
+      "src/Adapters/Auth/google.js",
+      "getGoogleKeyByKeyId"
+    ],
+    [
+      "GHSA-4q3h-vp4r-prv2",
+      "9b94083accb7f3e72c6b8126c195c7a03dd2dfd7",
+      "src/Adapters/Auth/google.js",
+      "verifyIdToken"
+    ],
+    [
+      "GHSA-4q3h-vp4r-prv2",
+      "9d5942d50e55c822924c27b05aa98f1393e7a330",
+      "src/Adapters/Auth/apple.js",
+      "verifyIdToken"
+    ],
+    [
+      "GHSA-4q3h-vp4r-prv2",
+      "9d5942d50e55c822924c27b05aa98f1393e7a330",
+      "src/Adapters/Auth/facebook.js",
+      "verifyIdToken"
+    ],
+    [
+      "GHSA-4q3h-vp4r-prv2",
+      "9d5942d50e55c822924c27b05aa98f1393e7a330",
+      "src/Adapters/Auth/google.js",
+      "getGoogleKeyByKeyId"
+    ],
+    [
+      "GHSA-4q3h-vp4r-prv2",
+      "9d5942d50e55c822924c27b05aa98f1393e7a330",
+      "src/Adapters/Auth/google.js",
+      "verifyIdToken"
+    ],
+    [
+      "GHSA-4w2v-q235-vp99",
+      "c7329fefc890050edd51e40e469a154d0117fc55",
+      "lib/adapters/http.js",
+      "dispatchHttpRequest"
+    ],
+    [
+      "GHSA-4xc9-xhrj-v574",
+      "90e6199a161b6445b01454517b40ef65ebecd2ad",
+      "lodash.js",
+      "safeGet"
+    ],
+    [
+      "GHSA-534h-c3cw-v3h9",
+      "1f9f4767a8725104da9bee872bb8d35246f25ae5",
+      "packages/vite/src/plugins/vite-node.ts",
+      "ViteNodePlugin"
+    ],
+    [
+      "GHSA-534h-c3cw-v3h9",
+      "1f9f4767a8725104da9bee872bb8d35246f25ae5",
+      "packages/vite/src/plugins/vite-node.ts",
+      "cleanupSocket"
+    ],
+    [
+      "GHSA-534h-c3cw-v3h9",
+      "1f9f4767a8725104da9bee872bb8d35246f25ae5",
+      "packages/vite/src/plugins/vite-node.ts",
+      "createViteNodeSocketServer"
+    ],
+    [
+      "GHSA-534h-c3cw-v3h9",
+      "1f9f4767a8725104da9bee872bb8d35246f25ae5",
+      "packages/vite/src/plugins/vite-node.ts",
+      "generateSocketPath"
+    ],
+    [
+      "GHSA-534h-c3cw-v3h9",
+      "1f9f4767a8725104da9bee872bb8d35246f25ae5",
+      "packages/vite/src/plugins/vite-node.ts",
+      null
+    ],
+    [
+      "GHSA-534h-c3cw-v3h9",
+      "c293bf9503ccb3bc9559bff4a1f592f99063c9ea",
+      "packages/vite/src/plugins/vite-node.ts",
+      "ViteNodePlugin"
+    ],
+    [
+      "GHSA-534h-c3cw-v3h9",
+      "c293bf9503ccb3bc9559bff4a1f592f99063c9ea",
+      "packages/vite/src/plugins/vite-node.ts",
+      "cleanupSocket"
+    ],
+    [
+      "GHSA-534h-c3cw-v3h9",
+      "c293bf9503ccb3bc9559bff4a1f592f99063c9ea",
+      "packages/vite/src/plugins/vite-node.ts",
+      "createViteNodeSocketServer"
+    ],
+    [
+      "GHSA-534h-c3cw-v3h9",
+      "c293bf9503ccb3bc9559bff4a1f592f99063c9ea",
+      "packages/vite/src/plugins/vite-node.ts",
+      "generateSocketPath"
+    ],
+    [
+      "GHSA-534h-c3cw-v3h9",
+      "c293bf9503ccb3bc9559bff4a1f592f99063c9ea",
+      "packages/vite/src/plugins/vite-node.ts",
+      null
+    ],
+    [
+      "GHSA-5528-5vmv-3xc2",
+      "7e66481f8b2e6c54b982b34c152479e096ce2752",
+      "lib/remove-uploaded-files.js",
+      null
+    ],
+    [
+      "GHSA-55q2-fjhq-7xh7",
+      "3067f7746769",
+      "src/purify.ts",
+      "DOMPurify.sanitize"
+    ],
+    [
+      "GHSA-55q2-fjhq-7xh7",
+      "3067f7746769",
+      "src/purify.ts",
+      "_createNodeIterator"
+    ],
+    [
+      "GHSA-55q2-fjhq-7xh7",
+      "3067f7746769",
+      "src/purify.ts",
+      "_sanitizeDisallowedNode"
+    ],
+    [
+      "GHSA-55q2-fjhq-7xh7",
+      "3067f7746769",
+      "src/purify.ts",
+      "_sanitizeElements"
+    ],
+    [
+      "GHSA-55q2-fjhq-7xh7",
+      "3067f7746769",
+      "src/purify.ts",
+      "_scrubTemplateExpressions"
+    ],
+    [
+      "GHSA-58qx-3vcg-4xpx",
+      "c0327ec15a54d701eb6ccefaa8bef328cfc03086",
+      "lib/sender.js",
+      "close"
+    ],
+    [
+      "GHSA-5v72-xg48-5rpm",
+      "c4fe46608acd61fbf7397eadc47378903f95b78a",
+      "lib/Extensions.js",
+      null
+    ],
+    [
+      "GHSA-5v72-xg48-5rpm",
+      "f8fdcd40ac8be7318a6ee41f5ceb7e77c995b407",
+      "lib/Extensions.js",
+      null
+    ],
+    [
+      "GHSA-62hf-57xw-28j9",
+      "85132ffba1a77609ea5d101c8a413dea7174932f",
+      "lib/core/AxiosError.js",
+      "constructor"
+    ],
+    [
+      "GHSA-62hf-57xw-28j9",
+      "85132ffba1a77609ea5d101c8a413dea7174932f",
+      "lib/helpers/toFormData.js",
+      "build"
+    ],
+    [
+      "GHSA-62hf-57xw-28j9",
+      "85132ffba1a77609ea5d101c8a413dea7174932f",
+      "lib/helpers/toFormData.js",
+      "each"
+    ],
+    [
+      "GHSA-63q7-h895-m982",
+      "02724b8eb048dd219d6725b05c3000936f11d62d",
+      "src/purify.js",
+      "_sanitizeElements"
+    ],
+    [
+      "GHSA-64vr-g452-qvp3",
+      "179b17773cf35c73ddb041f9e6c703fd9f3126af",
+      "packages/vite/src/node/build.ts",
+      "getRelativeUrlFromDocument"
+    ],
+    [
+      "GHSA-64vr-g452-qvp3",
+      "2691bb3ff6b073b41fb9046909e1e03a74e36675",
+      "packages/vite/src/node/build.ts",
+      "getRelativeUrlFromDocument"
+    ],
+    [
+      "GHSA-64vr-g452-qvp3",
+      "2ddd8541ec3b2d2e5b698749e0f2362ef28056bd",
+      "packages/vite/src/node/build.ts",
+      "getRelativeUrlFromDocument"
+    ],
+    [
+      "GHSA-64vr-g452-qvp3",
+      "ebb94c5b3bf41950f45562595adec117a4d0ba5e",
+      "packages/vite/src/node/build.ts",
+      "getRelativeUrlFromDocument"
+    ],
+    [
+      "GHSA-6fc8-4gx4-v693",
+      "00c425ec77993773d823f018f64a5c44e17023ff",
+      "lib/websocket-server.js",
+      "completeUpgrade"
+    ],
+    [
+      "GHSA-6qh5-m6g3-xhq6",
+      "060d27053fb0fadf613c25aabab7fe0c82b7a899",
+      "src/LiveQuery/ParseLiveQueryServer.ts",
+      "_handleSubscribe"
+    ],
+    [
+      "GHSA-6qh5-m6g3-xhq6",
+      "2126fe4e12f9b399dc6b4b6a3fa70cb1825f159b",
+      "src/LiveQuery/ParseLiveQueryServer.ts",
+      "_handleSubscribe"
+    ],
+    [
+      "GHSA-6x64-9x62-f2gx",
+      "7e83f1533318b307764d961906a73377266f4c5e",
+      "packages/mermaid/src/mermaidAPI.ts",
+      null
+    ],
+    [
+      "GHSA-6x64-9x62-f2gx",
+      "7e83f1533318b307764d961906a73377266f4c5e",
+      "packages/mermaid/src/styles.ts",
+      "getStyles"
+    ],
+    [
+      "GHSA-765h-qjxv-5f44",
+      "f0589701698268578199be25285b2ebea1c1e427",
+      "lib/handlebars/compiler/javascript-compiler.js",
+      "depthedLookup"
+    ],
+    [
+      "GHSA-792q-q67h-w579",
+      "686a9f282dc23c31beab3d93e6d21ccd0e1328fe",
+      "src/Routers/FilesRouter.js",
+      "createHandler"
+    ],
+    [
+      "GHSA-792q-q67h-w579",
+      "fd86278919556d3682e7e2c856dfccd5beffbfc0",
+      "src/Routers/FilesRouter.js",
+      "createHandler"
+    ],
+    [
+      "GHSA-7c4v-fwgw-9rf7",
+      "00f71bb6517abff67257c8ea1fcdc777b938b68d",
+      "packages/nitro-server/src/index.ts",
+      null
+    ],
+    [
+      "GHSA-859w-5945-r5v3",
+      "c22c43de612eebb6c182dd67850c24e4fab8cacb",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "ensureServingAccess"
+    ],
+    [
+      "GHSA-859w-5945-r5v3",
+      "c22c43de612eebb6c182dd67850c24e4fab8cacb",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "viteServeRawFsMiddleware"
+    ],
+    [
+      "GHSA-859w-5945-r5v3",
+      "c22c43de612eebb6c182dd67850c24e4fab8cacb",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "viteServeStaticMiddleware"
+    ],
+    [
+      "GHSA-859w-5945-r5v3",
+      "c22c43de612eebb6c182dd67850c24e4fab8cacb",
+      "packages/vite/src/node/server/middlewares/transform.ts",
+      "deniedServingAccessForTransform"
+    ],
+    [
+      "GHSA-87f9-hvmw-gh4p",
+      "a9d9f0d8eb790349121508688cd338253fd80d76",
+      "packages/mermaid/src/mermaidAPI.ts",
+      "createUserStyles"
+    ],
+    [
+      "GHSA-89xv-2m56-2m9x",
+      "b51206321854193208c0805ba42acc49287f942b",
+      "packages/next/src/server/app-render/action-handler.ts",
+      "createForwardedActionResponse"
+    ],
+    [
+      "GHSA-89xv-2m56-2m9x",
+      "b51206321854193208c0805ba42acc49287f942b",
+      "packages/next/src/server/app-render/action-handler.ts",
+      "createRedirectRenderResult"
+    ],
+    [
+      "GHSA-89xv-2m56-2m9x",
+      "e3e5666ccead3a15162793d697af5e48b7cc0498",
+      "packages/next/src/server/app-render/action-handler.ts",
+      "createForwardedActionResponse"
+    ],
+    [
+      "GHSA-89xv-2m56-2m9x",
+      "e3e5666ccead3a15162793d697af5e48b7cc0498",
+      "packages/next/src/server/app-render/action-handler.ts",
+      "createRedirectRenderResult"
+    ],
+    [
+      "GHSA-8hc4-vh64-cxmj",
+      "6b6b605eaf73852fb2dae033f1e786155959de3a",
+      "lib/adapters/http.js",
+      "dispatchHttpRequest"
+    ],
+    [
+      "GHSA-8hc4-vh64-cxmj",
+      "6b6b605eaf73852fb2dae033f1e786155959de3a",
+      "lib/helpers/isAbsoluteURL.js",
+      "isAbsoluteURL"
+    ],
+    [
+      "GHSA-8hfj-j24r-96c4",
+      "4211bfc8f15746be4019bba557e29a7ba83d54c5",
+      "src/lib/locale/locales.js",
+      "loadLocale"
+    ],
+    [
+      "GHSA-8jhw-289h-jh2g",
+      "5a056dd2fc80dbafed033062fe6aaf4717309f48",
+      "packages/vite/src/node/server/index.ts",
+      "_createServer"
+    ],
+    [
+      "GHSA-8jhw-289h-jh2g",
+      "96a7f3a41ef2f9351c46f3ab12489bb4efa03cc9",
+      "packages/vite/src/node/server/index.ts",
+      "_createServer"
+    ],
+    [
+      "GHSA-8jhw-289h-jh2g",
+      "ba5269cca81de3f5fbb0f49d58a1c55688043258",
+      "packages/vite/src/node/server/index.ts",
+      "_createServer"
+    ],
+    [
+      "GHSA-8jhw-289h-jh2g",
+      "d2db33f7d4b96750b35370c70dd2c35ec3b9b649",
+      "packages/vite/src/node/server/index.ts",
+      "_createServer"
+    ],
+    [
+      "GHSA-8qr4-xgw6-wmr3",
+      "124f7ebf705366b2e1844dff721928d270f87895",
+      "index.js",
+      null
+    ],
+    [
+      "GHSA-8qr4-xgw6-wmr3",
+      "124f7ebf705366b2e1844dff721928d270f87895",
+      "lib/core/util.js",
+      "parseURL"
+    ],
+    [
+      "GHSA-8w3j-g983-8jh5",
+      "73b0f9a339b81f5d757725dc557955a7b670a3ec",
+      "src/RestWrite.js",
+      null
+    ],
+    [
+      "GHSA-8xwg-wv7v-4vqp",
+      "1a48ee28276e6588dbf4e70e58d78e7bfdc57043",
+      "lib/browser/guest-view-manager.js",
+      null
+    ],
+    [
+      "GHSA-8xwg-wv7v-4vqp",
+      "1a48ee28276e6588dbf4e70e58d78e7bfdc57043",
+      "lib/browser/guest-window-manager.js",
+      "canAccessWindow"
+    ],
+    [
+      "GHSA-8xwg-wv7v-4vqp",
+      "1a48ee28276e6588dbf4e70e58d78e7bfdc57043",
+      "lib/browser/guest-window-manager.js",
+      "mergeBrowserWindowOptions"
+    ],
+    [
+      "GHSA-934w-87qh-qr26",
+      "0103ce06fbbbdfa079a7f020ef8ce00121eac4a3",
+      "packages/nuxt/src/app/components/nuxt-link.ts",
+      "onClick"
+    ],
+    [
+      "GHSA-934w-87qh-qr26",
+      "0103ce06fbbbdfa079a7f020ef8ce00121eac4a3",
+      "packages/nuxt/src/app/components/nuxt-link.ts",
+      "useNuxtLink"
+    ],
+    [
+      "GHSA-934w-87qh-qr26",
+      "0103ce06fbbbdfa079a7f020ef8ce00121eac4a3",
+      "packages/nuxt/src/app/components/nuxt-link.ts",
+      null
+    ],
+    [
+      "GHSA-934w-87qh-qr26",
+      "53284043dc21210a25d629d1cec67d3ae557ffd0",
+      "packages/nuxt/src/app/components/nuxt-link.ts",
+      "onClick"
+    ],
+    [
+      "GHSA-934w-87qh-qr26",
+      "53284043dc21210a25d629d1cec67d3ae557ffd0",
+      "packages/nuxt/src/app/components/nuxt-link.ts",
+      "useNuxtLink"
+    ],
+    [
+      "GHSA-934w-87qh-qr26",
+      "53284043dc21210a25d629d1cec67d3ae557ffd0",
+      "packages/nuxt/src/app/components/nuxt-link.ts",
+      null
+    ],
+    [
+      "GHSA-93m4-6634-74q7",
+      "f479cc57c425ed41ceb434fecebd63931b1ed4ed",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "isFileLoadingAllowed"
+    ],
+    [
+      "GHSA-9965-vmph-33xx",
+      "cbef5088f02d36caf978f378bb845fe49bdc0809",
+      "src/lib/isURL.js",
+      "isURL"
+    ],
+    [
+      "GHSA-99h5-pjcv-gr6v",
+      "556085067609c508f8c546ceef9003ee8c607d39",
+      "packages/better-auth/src/plugins/api-key/routes/create-api-key.ts",
+      null
+    ],
+    [
+      "GHSA-9f24-jqhm-jfcw",
+      "87a48113f1f68f60aa09abb07276d7c35467c663",
+      "lib/fetch/index.js",
+      "httpNetworkFetch"
+    ],
+    [
+      "GHSA-9f24-jqhm-jfcw",
+      "87a48113f1f68f60aa09abb07276d7c35467c663",
+      "lib/fetch/index.js",
+      "start"
+    ],
+    [
+      "GHSA-9h6g-pr28-7cqp",
+      "dd8f5e8a4ddc99992e31df76bcff9c590035cd4a",
+      "lib/mail-composer/index.js",
+      "_processDataUrl"
+    ],
+    [
+      "GHSA-9h6g-pr28-7cqp",
+      "dd8f5e8a4ddc99992e31df76bcff9c590035cd4a",
+      "lib/mailer/index.js",
+      null
+    ],
+    [
+      "GHSA-9qxr-qj54-h672",
+      "2b39440bd9ded841c93dd72138f3b1763ae26055",
+      "lib/fetch/util.js",
+      "bytesMatch"
+    ],
+    [
+      "GHSA-9qxr-qj54-h672",
+      "2b39440bd9ded841c93dd72138f3b1763ae26055",
+      "lib/fetch/util.js",
+      "parseMetadata"
+    ],
+    [
+      "GHSA-9qxr-qj54-h672",
+      "d542b8cd39ec1ba303f038ea26098c3f355974f3",
+      "lib/web/fetch/util.js",
+      "bytesMatch"
+    ],
+    [
+      "GHSA-9qxr-qj54-h672",
+      "d542b8cd39ec1ba303f038ea26098c3f355974f3",
+      "lib/web/fetch/util.js",
+      "parseMetadata"
+    ],
+    [
+      "GHSA-c24v-8rfc-w8vw",
+      "91641c4da0a011d4c5352e88fc68389d4e1289a5",
+      "packages/vite/src/node/server/index.ts",
+      "_createServer"
+    ],
+    [
+      "GHSA-c24v-8rfc-w8vw",
+      "a26c87d20f9af306b5ce3ff1648be7fa5146c278",
+      "packages/vite/src/node/server/index.ts",
+      "createServer"
+    ],
+    [
+      "GHSA-c24v-8rfc-w8vw",
+      "eeec23bbc9d476c54a3a6d36e78455867185a7cb",
+      "packages/vite/src/node/server/index.ts",
+      "_createServer"
+    ],
+    [
+      "GHSA-c2j3-45gr-mqc4",
+      "a9ca1e537422319a557a9a2aa61f003b23b4a197",
+      "src/purify.ts",
+      "DOMPurify.sanitize"
+    ],
+    [
+      "GHSA-c2j3-45gr-mqc4",
+      "a9ca1e537422319a557a9a2aa61f003b23b4a197",
+      "src/purify.ts",
+      "_sanitizeElements"
+    ],
+    [
+      "GHSA-c2j3-45gr-mqc4",
+      "a9ca1e537422319a557a9a2aa61f003b23b4a197",
+      "src/purify.ts",
+      "_sanitizeShadowDOM"
+    ],
+    [
+      "GHSA-c2j3-45gr-mqc4",
+      "a9ca1e537422319a557a9a2aa61f003b23b4a197",
+      "src/purify.ts",
+      "createDOMPurify"
+    ],
+    [
+      "GHSA-c4c3-pg64-4m4v",
+      "c34b07a0815842327e70794d69b0c8c5a1e2a956",
+      "packages/mermaid/src/assignWithDepth.ts",
+      "assignWithDepth"
+    ],
+    [
+      "GHSA-c4c3-pg64-4m4v",
+      "c34b07a0815842327e70794d69b0c8c5a1e2a956",
+      "packages/mermaid/src/assignWithDepth.ts",
+      null
+    ],
+    [
+      "GHSA-c4c3-pg64-4m4v",
+      "c34b07a0815842327e70794d69b0c8c5a1e2a956",
+      "packages/mermaid/src/config.ts",
+      "setConfig"
+    ],
+    [
+      "GHSA-c76h-2ccp-4975",
+      "711e20772764c29f6622ddc937c63b6eefdf07d0",
+      "lib/fetch/body.js",
+      "extractBody"
+    ],
+    [
+      "GHSA-c76h-2ccp-4975",
+      "c2d78cd19fe4f4c621424491e26ce299e65e934a",
+      "lib/web/fetch/body.js",
+      "extractBody"
+    ],
+    [
+      "GHSA-c76h-2ccp-4975",
+      "c3acc6050b781b827d80c86cbbab34f14458d385",
+      "lib/web/fetch/body.js",
+      "extractBody"
+    ],
+    [
+      "GHSA-c7w3-x93f-qmm8",
+      "2d7b9710e63555a1eb13d721296c51186d4b5651",
+      "lib/smtp-connection/index.js",
+      "_setEnvelope"
+    ],
+    [
+      "GHSA-c9cv-mq2m-ppp3",
+      "1f2dd5e78c77576437138e97671965573c232835",
+      "packages/nuxt/src/app/composables/router.ts",
+      "encodeURL"
+    ],
+    [
+      "GHSA-c9cv-mq2m-ppp3",
+      "1f2dd5e78c77576437138e97671965573c232835",
+      "packages/nuxt/src/app/composables/router.ts",
+      "redirect"
+    ],
+    [
+      "GHSA-c9cv-mq2m-ppp3",
+      "2cce6fb02e621196d56df92e05594e07469b5a6d",
+      "packages/nuxt/src/app/composables/router.ts",
+      "encodeURL"
+    ],
+    [
+      "GHSA-c9cv-mq2m-ppp3",
+      "2cce6fb02e621196d56df92e05594e07469b5a6d",
+      "packages/nuxt/src/app/composables/router.ts",
+      "redirect"
+    ],
+    [
+      "GHSA-c9cv-mq2m-ppp3",
+      "6497d99dd106254abd089f6a263d7773869a343b",
+      "packages/nuxt/src/app/composables/chunk.ts",
+      "reloadNuxtApp"
+    ],
+    [
+      "GHSA-c9cv-mq2m-ppp3",
+      "e447a793c47766834f7497f8412a76cd56fd8ee1",
+      "packages/nuxt/src/app/composables/chunk.ts",
+      "reloadNuxtApp"
+    ],
+    [
+      "GHSA-f2jv-r9rf-7988",
+      "b6d3de7123eebba603e321f04afdbae608e8fea8",
+      "lib/handlebars/runtime.js",
+      "strict"
+    ],
+    [
+      "GHSA-f6j3-w9v3-cq22",
+      "90802969fc713b7bc9733d7255c7519a6ed75d21",
+      "src/RestWrite.js",
+      "RestWrite.prototype.handleSession"
+    ],
+    [
+      "GHSA-f6j3-w9v3-cq22",
+      "ebccd7fe2708007e62f705ee1c820a6766178777",
+      "src/RestWrite.js",
+      "RestWrite.prototype.handleSession"
+    ],
+    [
+      "GHSA-f772-66g8-q5h3",
+      "66165d604fd0aee70a93ed5c44ad4cc2df395f80",
+      "lib/core/request.js",
+      "processHeader"
+    ],
+    [
+      "GHSA-f82v-jwr5-mffw",
+      "52a078da3884efe6501613c7834a3d02a91676d2",
+      "packages/next/src/server/lib/router-server.ts",
+      "initialize"
+    ],
+    [
+      "GHSA-fjgf-rc76-4x9p",
+      "adfeaf669f0e7fe953eab191a762164a452d143b",
+      "lib/make-middleware.js",
+      null
+    ],
+    [
+      "GHSA-fmh4-wcc4-5jm3",
+      "23094a628f007f801be6d26e5b15dc5fc6fc4eb8",
+      "packages/better-auth/src/plugins/organization/routes/crud-invites.ts",
+      null
+    ],
+    [
+      "GHSA-fph2-r4qg-9576",
+      "6c3317aca6eb618ac48f999021ae3ef7766ad1ea",
+      "src/LiveQuery/ParseLiveQueryServer.ts",
+      "_matchesCLP"
+    ],
+    [
+      "GHSA-fph2-r4qg-9576",
+      "6c3317aca6eb618ac48f999021ae3ef7766ad1ea",
+      "src/LiveQuery/ParseLiveQueryServer.ts",
+      null
+    ],
+    [
+      "GHSA-fph2-r4qg-9576",
+      "976dad109f3fe3fbd0a3a35ef62e7a5d35eb0bee",
+      "src/LiveQuery/ParseLiveQueryServer.ts",
+      "_matchesCLP"
+    ],
+    [
+      "GHSA-fph2-r4qg-9576",
+      "976dad109f3fe3fbd0a3a35ef62e7a5d35eb0bee",
+      "src/LiveQuery/ParseLiveQueryServer.ts",
+      null
+    ],
+    [
+      "GHSA-fvcv-3m26-pcqx",
+      "363185461b90b1b78845dc8a99a1f103d9b122a1",
+      "lib/core/Axios.js",
+      "request"
+    ],
+    [
+      "GHSA-fvcv-3m26-pcqx",
+      "363185461b90b1b78845dc8a99a1f103d9b122a1",
+      "lib/core/AxiosHeaders.js",
+      "normalizeValue"
+    ],
+    [
+      "GHSA-fvqr-27wr-82fm",
+      "d8e069cc3410082e44eb18fcf8e7f3d08ebe1d4a",
+      "lodash.js",
+      "baseMergeDeep"
+    ],
+    [
+      "GHSA-fvqr-27wr-82fm",
+      "d8e069cc3410082e44eb18fcf8e7f3d08ebe1d4a",
+      "lodash.js",
+      null
+    ],
+    [
+      "GHSA-g357-x5c3-c72p",
+      "8a0c74a7fcb1671aa1dcb71ec82ba0602dc90d04",
+      "src/filters/array.ts",
+      "pop"
+    ],
+    [
+      "GHSA-g357-x5c3-c72p",
+      "8a0c74a7fcb1671aa1dcb71ec82ba0602dc90d04",
+      "src/filters/array.ts",
+      "sample"
+    ],
+    [
+      "GHSA-g38m-r43w-p2q7",
+      "da7e50beee849c59a2ed1ec6b3a38cc6ab9fb563",
+      "packages/better-auth/src/plugins/one-tap/index.ts",
+      null
+    ],
+    [
+      "GHSA-g4cf-xj29-wqqr",
+      "40eb442e02672986730007d0a1edb22c1c4bd357",
+      "src/Auth.js",
+      null
+    ],
+    [
+      "GHSA-g4cf-xj29-wqqr",
+      "fbac847499e57f243315c5fc7135be1d58bb8e54",
+      "src/Auth.js",
+      null
+    ],
+    [
+      "GHSA-g77x-44xx-532m",
+      "d11cbc9ff0b1aaefabcba9afe1e562e0b1fde65a",
+      "packages/next/src/server/image-optimizer.ts",
+      "validateParams"
+    ],
+    [
+      "GHSA-ggv3-7p47-pfv8",
+      "dc98c04f376c6a1df76ec3e0a2d07edf4abdabd6",
+      "packages/next/src/compiled/http-proxy/index.js",
+      "82"
+    ],
+    [
+      "GHSA-ggv3-7p47-pfv8",
+      "dc98c04f376c6a1df76ec3e0a2d07edf4abdabd6",
+      "packages/next/src/compiled/http-proxy/index.js",
+      "993"
+    ],
+    [
+      "GHSA-ggv3-7p47-pfv8",
+      "dc98c04f376c6a1df76ec3e0a2d07edf4abdabd6",
+      "packages/next/src/compiled/http-proxy/index.js",
+      "deleteLength"
+    ],
+    [
+      "GHSA-ghcm-xqfw-q4vr",
+      "4e2d512bf5bf6f9de1a8f0a48da78dc4d09ac4f3",
+      "packages/mermaid/src/mermaidAPI.ts",
+      "createCssStyles"
+    ],
+    [
+      "GHSA-ghcm-xqfw-q4vr",
+      "4e2d512bf5bf6f9de1a8f0a48da78dc4d09ac4f3",
+      "packages/mermaid/src/mermaidAPI.ts",
+      "cssImportantStyles"
+    ],
+    [
+      "GHSA-ghcm-xqfw-q4vr",
+      "4e2d512bf5bf6f9de1a8f0a48da78dc4d09ac4f3",
+      "packages/mermaid/src/mermaidAPI.ts",
+      null
+    ],
+    [
+      "GHSA-h4mf-75hf-67w4",
+      "3a3a5eee5ffa48da1352423312cb767de14de269",
+      "src/Routers/PublicAPIRouter.js",
+      "requestResetPassword"
+    ],
+    [
+      "GHSA-h4mf-75hf-67w4",
+      "3a3a5eee5ffa48da1352423312cb767de14de269",
+      "src/Routers/PublicAPIRouter.js",
+      "resetPassword"
+    ],
+    [
+      "GHSA-h4mf-75hf-67w4",
+      "3a3a5eee5ffa48da1352423312cb767de14de269",
+      "src/Routers/PublicAPIRouter.js",
+      "verifyEmail"
+    ],
+    [
+      "GHSA-hpm8-9qx6-jvwv",
+      "053109b3ee71815bc39ed84116c108ff9edbf337",
+      "src/Routers/FilesRouter.js",
+      "getHandler"
+    ],
+    [
+      "GHSA-hpm8-9qx6-jvwv",
+      "053109b3ee71815bc39ed84116c108ff9edbf337",
+      "src/Routers/FilesRouter.js",
+      "metadataHandler"
+    ],
+    [
+      "GHSA-hpm8-9qx6-jvwv",
+      "a0b0c69fc44f87f80d793d257344e7dcbf676e22",
+      "src/Routers/FilesRouter.js",
+      "getHandler"
+    ],
+    [
+      "GHSA-hpm8-9qx6-jvwv",
+      "a0b0c69fc44f87f80d793d257344e7dcbf676e22",
+      "src/Routers/FilesRouter.js",
+      "metadataHandler"
+    ],
+    [
+      "GHSA-hrpp-h998-j3pp",
+      "4310742efbd8c03f6495f07906b45213da0a32ec",
+      "lib/parse.js",
+      "parseObjectRecursive"
+    ],
+    [
+      "GHSA-hrpp-h998-j3pp",
+      "727ef5d34605108acb3513f72d5435972ed15b68",
+      "lib/parse.js",
+      "parseObjectRecursive"
+    ],
+    [
+      "GHSA-hrpp-h998-j3pp",
+      "73205259936317b40f447c5cdb71c5b341848e1b",
+      "lib/parse.js",
+      "parseObject"
+    ],
+    [
+      "GHSA-hrpp-h998-j3pp",
+      "8b4cc14cda94a5c89341b77e5fe435ec6c41be2d",
+      "lib/parse.js",
+      "parseObject"
+    ],
+    [
+      "GHSA-hrpp-h998-j3pp",
+      "ba24e74dd17931f825adb52f5633e48293b584e1",
+      "lib/parse.js",
+      "parseObject"
+    ],
+    [
+      "GHSA-hrpp-h998-j3pp",
+      "e799ba57e573a30c14b67c1889c7c04d508b9105",
+      "lib/parse.js",
+      "parseObject"
+    ],
+    [
+      "GHSA-hrpp-h998-j3pp",
+      "ed0f5dcbef4b168a8ae299d78b1e4a2e9b1baf1f",
+      "lib/parse.js",
+      "parseObject"
+    ],
+    [
+      "GHSA-hrpp-h998-j3pp",
+      "f945393cfe442fe8c6e62b4156fd35452c0686ee",
+      "lib/parse.js",
+      "parseObject"
+    ],
+    [
+      "GHSA-hrpp-h998-j3pp",
+      "fc3682776670524a42e19709ec4a8138d0d7afda",
+      "lib/parse.js",
+      "parseObject"
+    ],
+    [
+      "GHSA-hv9c-qwqg-qj3v",
+      "519a02d8d4d28e8a467acb40fb26172a80c9454f",
+      "lib/browser/guest-window-manager.js",
+      "mergeOptions"
+    ],
+    [
+      "GHSA-hv9c-qwqg-qj3v",
+      "80221e52d93a96ea704cb6748ead669c55cff504",
+      "lib/browser/guest-window-manager.js",
+      "mergeOptions"
+    ],
+    [
+      "GHSA-hv9c-qwqg-qj3v",
+      "bab968ca776be28791e4dddfd50c86bd5fae62fa",
+      "lib/browser/guest-window-manager.js",
+      "mergeOptions"
+    ],
+    [
+      "GHSA-hv9c-qwqg-qj3v",
+      "ef0a6d9a1c96efc4657c6dd3a6624eba969f095b",
+      "lib/browser/guest-window-manager.js",
+      "mergeOptions"
+    ],
+    [
+      "GHSA-hwqf-gcqm-7353",
+      "7e02648cc8cd863f5085bad3cd09087bccf84b9f",
+      "lib/mime-node/index.js",
+      "_normalizeAddress"
+    ],
+    [
+      "GHSA-hwqf-gcqm-7353",
+      "7e02648cc8cd863f5085bad3cd09087bccf84b9f",
+      "lib/mime-node/index.js",
+      null
+    ],
+    [
+      "GHSA-j5f8-grm9-p9fc",
+      "afca61a070728e717203c2bc21e7b589b59b858b",
+      "lib/adapters/http.js",
+      "beforeRedirect"
+    ],
+    [
+      "GHSA-j5f8-grm9-p9fc",
+      "afca61a070728e717203c2bc21e7b589b59b858b",
+      "lib/adapters/http.js",
+      "setProxy"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "0ab19ea9fcb66f544328f442cf6e70f7c0528d5f",
+      "packages/vite/src/node/preview.ts",
+      "preview"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "0ab19ea9fcb66f544328f442cf6e70f7c0528d5f",
+      "packages/vite/src/node/server/middlewares/indexHtml.ts",
+      "viteIndexHtmlMiddleware"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "0ab19ea9fcb66f544328f442cf6e70f7c0528d5f",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "isUriInFilePath"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "14015d794f69accba68798bd0e15135bc51c9c1e",
+      "packages/vite/src/node/preview.ts",
+      "preview"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "14015d794f69accba68798bd0e15135bc51c9c1e",
+      "packages/vite/src/node/server/middlewares/indexHtml.ts",
+      "viteIndexHtmlMiddleware"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "14015d794f69accba68798bd0e15135bc51c9c1e",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "isFileInTargetPath"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "482000f57f56fe6ff2e905305100cfe03043ddea",
+      "packages/vite/src/node/preview.ts",
+      "preview"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "482000f57f56fe6ff2e905305100cfe03043ddea",
+      "packages/vite/src/node/server/middlewares/indexHtml.ts",
+      "viteIndexHtmlMiddleware"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "482000f57f56fe6ff2e905305100cfe03043ddea",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "isUriInFilePath"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "6f01ff4fe072bcfcd4e2a84811772b818cd51fe6",
+      "packages/vite/src/node/preview.ts",
+      "preview"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "6f01ff4fe072bcfcd4e2a84811772b818cd51fe6",
+      "packages/vite/src/node/server/middlewares/indexHtml.ts",
+      "viteIndexHtmlMiddleware"
+    ],
+    [
+      "GHSA-jqfw-vq24-v9c3",
+      "6f01ff4fe072bcfcd4e2a84811772b818cd51fe6",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "isUriInFilePath"
+    ],
+    [
+      "GHSA-jr5f-v2jv-69x6",
+      "fb8eec214ce7744b5ca787f2c3b8339b2f54b00f",
+      "lib/adapters/http.js",
+      "dispatchHttpRequest"
+    ],
+    [
+      "GHSA-m3q2-p4fw-w38m",
+      "4b054e9d95f8daf366cb144b52782047c511a66e",
+      "packages/nuxt/src/head/runtime/components.ts",
+      null
+    ],
+    [
+      "GHSA-m3q2-p4fw-w38m",
+      "7fea9fd687f1dacbfb63db5fae5839896b017a0e",
+      "packages/nuxt/src/head/runtime/components.ts",
+      null
+    ],
+    [
+      "GHSA-m4v8-wqvr-p9f7",
+      "64e3402da4e032e68de46acb52800c9a06aaea3f",
+      "lib/handler/RedirectHandler.js",
+      "shouldRemoveHeader"
+    ],
+    [
+      "GHSA-m4v8-wqvr-p9f7",
+      "6805746680d27a5369d7fb67bc05f95a28247d75",
+      "lib/handler/redirect-handler.js",
+      "shouldRemoveHeader"
+    ],
+    [
+      "GHSA-m8rv-5g2x-5cg5",
+      "33928bc24f742ea8422ed90d17f2e0cc83e4d09d",
+      "lib/dispatcher/client-h1.js",
+      "writeH1"
+    ],
+    [
+      "GHSA-m8rv-5g2x-5cg5",
+      "740a0b7c173cb4a83a5b693e96e8f3a116cfc400",
+      "lib/dispatcher/client-h1.js",
+      "writeH1"
+    ],
+    [
+      "GHSA-m8rv-5g2x-5cg5",
+      "7d3cf924c262c486bc77f951348f4e5c847b7b42",
+      "lib/dispatcher/client-h1.js",
+      "writeH1"
+    ],
+    [
+      "GHSA-m983-v2ff-wq65",
+      "5834e29234593addaa0251a85f572ad4f376320b",
+      "src/LiveQuery/ParseLiveQueryServer.ts",
+      "filter"
+    ],
+    [
+      "GHSA-m983-v2ff-wq65",
+      "5834e29234593addaa0251a85f572ad4f376320b",
+      "src/LiveQuery/ParseLiveQueryServer.ts",
+      null
+    ],
+    [
+      "GHSA-m983-v2ff-wq65",
+      "776c71c3078e77d38c94937f463741793609d055",
+      "src/LiveQuery/ParseLiveQueryServer.ts",
+      "filter"
+    ],
+    [
+      "GHSA-m983-v2ff-wq65",
+      "776c71c3078e77d38c94937f463741793609d055",
+      "src/LiveQuery/ParseLiveQueryServer.ts",
+      null
+    ],
+    [
+      "GHSA-mfj6-6p54-m98c",
+      "ea15412795f34594cc8a674fe858d445675e0295",
+      "src/GraphQL/helpers/queryComplexity.js",
+      "calculateQueryComplexity"
+    ],
+    [
+      "GHSA-mfj6-6p54-m98c",
+      "ea15412795f34594cc8a674fe858d445675e0295",
+      "src/GraphQL/helpers/queryComplexity.js",
+      "didResolveOperation"
+    ],
+    [
+      "GHSA-mfj6-6p54-m98c",
+      "ea15412795f34594cc8a674fe858d445675e0295",
+      "src/GraphQL/helpers/queryComplexity.js",
+      "visitSelectionSet"
+    ],
+    [
+      "GHSA-mfj6-6p54-m98c",
+      "f759bda075298ec44e2b4fb57659a0c56620483b",
+      "src/GraphQL/helpers/queryComplexity.js",
+      "calculateQueryComplexity"
+    ],
+    [
+      "GHSA-mfj6-6p54-m98c",
+      "f759bda075298ec44e2b4fb57659a0c56620483b",
+      "src/GraphQL/helpers/queryComplexity.js",
+      "didResolveOperation"
+    ],
+    [
+      "GHSA-mfj6-6p54-m98c",
+      "f759bda075298ec44e2b4fb57659a0c56620483b",
+      "src/GraphQL/helpers/queryComplexity.js",
+      "visitSelectionSet"
+    ],
+    [
+      "GHSA-mg2h-6x62-wpwc",
+      "436da4c06dfbbb8c24adee3a64de0c51e4f47418",
+      "lib/validation.js",
+      "validate"
+    ],
+    [
+      "GHSA-mg2h-6x62-wpwc",
+      "f3d2bcb3963cd570a582e5d39aab01a9ae692fe4",
+      "lib/validation.js",
+      "getEssenceMediaType"
+    ],
+    [
+      "GHSA-mm7m-92g8-7m47",
+      "07e39cd6f26e407b4192b7865bd17bc44536b9bb",
+      "packages/nitro-server/src/index.ts",
+      "getContents"
+    ],
+    [
+      "GHSA-mm7m-92g8-7m47",
+      "07e39cd6f26e407b4192b7865bd17bc44536b9bb",
+      "packages/nuxt/src/app/composables/manifest.ts",
+      "getRouteRules"
+    ],
+    [
+      "GHSA-mm7m-92g8-7m47",
+      "3f3e3fa7b5eec8e495f4f8ce0a54813a8875a11e",
+      "packages/nitro-server/src/index.ts",
+      "getContents"
+    ],
+    [
+      "GHSA-mm7m-92g8-7m47",
+      "3f3e3fa7b5eec8e495f4f8ce0a54813a8875a11e",
+      "packages/nuxt/src/app/composables/manifest.ts",
+      "getRouteRules"
+    ],
+    [
+      "GHSA-mm7p-fcc7-pg87",
+      "1150d99fba77280df2cfb1885c43df23109a8626",
+      "lib/addressparser/index.js",
+      "_handleAddress"
+    ],
+    [
+      "GHSA-mmg9-6m6j-jqqx",
+      "abc058be0f33d6372cd2216f4945183167abeb25",
+      "src/filters/string.ts",
+      "replace"
+    ],
+    [
+      "GHSA-mmhx-hmjr-r674",
+      "1e520262bf4c66b5efda49e2316d6d1246ca7b21",
+      "src/purify.js",
+      "DOMPurify.sanitize"
+    ],
+    [
+      "GHSA-mmhx-hmjr-r674",
+      "1e520262bf4c66b5efda49e2316d6d1246ca7b21",
+      "src/purify.js",
+      "_sanitizeShadowDOM"
+    ],
+    [
+      "GHSA-mrq3-vjjr-p77c",
+      "eb11156396f6a5fedaceed0140aed2b7f026be37",
+      "lib/reply.js",
+      "onRead"
+    ],
+    [
+      "GHSA-mv48-hcvh-8jj8",
+      "6851009e6725b17608113a5a63474280075cae1c",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "viteServeRawFsMiddleware"
+    ],
+    [
+      "GHSA-mv48-hcvh-8jj8",
+      "6851009e6725b17608113a5a63474280075cae1c",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "viteServeStaticMiddleware"
+    ],
+    [
+      "GHSA-mv48-hcvh-8jj8",
+      "e109d64331d9fa57753832762c3573c3532a6947",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "viteServeRawFsMiddleware"
+    ],
+    [
+      "GHSA-mv48-hcvh-8jj8",
+      "e109d64331d9fa57753832762c3573c3532a6947",
+      "packages/vite/src/node/server/middlewares/static.ts",
+      "viteServeStaticMiddleware"
+    ],
+    [
+      "GHSA-p3vf-v8qc-cwcr",
+      "d1dd0374caef2b4c56c3bd09fe1988c3479166dc",
+      "src/utils.js",
+      "clone"
+    ],
+    [
+      "GHSA-p6jq-8vc4-79f6",
+      "2566d2046bccb158d98fb13e42ce4b2c33fb2595",
+      "packages/nuxt/src/app/plugins/revive-payload.server.ts",
+      null
+    ],
+    [
+      "GHSA-q42p-pg8m-cqh6",
+      "85c8783b34fc6d36145d8b53885ad0b9e3c3f9c4",
+      "lib/handlebars/helpers/lookup.js",
+      null
+    ],
+    [
+      "GHSA-q768-x9m6-m9qp",
+      "0a5bee9465e627be36bac88edf7d9bbc9626126d",
+      "lib/handler/redirect.js",
+      "shouldRemoveHeader"
+    ],
+    [
+      "GHSA-qgmg-gppg-76g5",
+      "496fc8b2a7f5997acaaec33cc44d0b8dba5fb5e1",
+      "src/lib/rtrim.js",
+      "rtrim"
+    ],
+    [
+      "GHSA-qj83-cq47-w5f8",
+      "0588880ac7ddba7594ef179930493884b7e90bf5",
+      "lib/adapters/http.js",
+      "getSession"
+    ],
+    [
+      "GHSA-r6ch-mqf9-qc9w",
+      "f2324e549943f0b0937b09fb1c0c16cc7c93abdf",
+      "lib/fetch/headers.js",
+      "headerValueNormalize"
+    ],
+    [
+      "GHSA-r7g9-xpmj-5fcq",
+      "3616a744b9abeb425c217b340a2397d46176afb8",
+      "src/filters/html.ts",
+      "strip_html"
+    ],
+    [
+      "GHSA-rcmh-qjqh-p98v",
+      "b61b9c0cfd682b6f647754ca338373b68336a150",
+      "lib/addressparser/index.js",
+      "_handleAddress"
+    ],
+    [
+      "GHSA-rcmh-qjqh-p98v",
+      "b61b9c0cfd682b6f647754ca338373b68336a150",
+      "lib/addressparser/index.js",
+      "addressparser"
+    ],
+    [
+      "GHSA-rq7w-g337-39qq",
+      "55c75b78c989b8bd210837b0e5faaebbf2b87b15",
+      "packages/nitro-server/src/index.ts",
+      null
+    ],
+    [
+      "GHSA-rv5g-f82m-qrvv",
+      "e743da0020d34e2ee547e1cc1a86b58377ebe1ce",
+      "src/filters/array.ts",
+      "sort"
+    ],
+    [
+      "GHSA-rv5g-f82m-qrvv",
+      "e743da0020d34e2ee547e1cc1a86b58377ebe1ce",
+      "src/filters/array.ts",
+      "sortBy"
+    ],
+    [
+      "GHSA-rv5g-f82m-qrvv",
+      "e743da0020d34e2ee547e1cc1a86b58377ebe1ce",
+      "src/filters/array.ts",
+      "sort_natural"
+    ],
+    [
+      "GHSA-rv5g-f82m-qrvv",
+      "e743da0020d34e2ee547e1cc1a86b58377ebe1ce",
+      "src/filters/array.ts",
+      null
+    ],
+    [
+      "GHSA-rv5g-f82m-qrvv",
+      "e743da0020d34e2ee547e1cc1a86b58377ebe1ce",
+      "src/util/underscore.ts",
+      "caseInsensitiveCompare"
+    ],
+    [
+      "GHSA-v273-448j-v4qj",
+      "f41c1fc02fe901598f3328118b42b13bc6bc9b04",
+      "src/fs/loader.ts",
+      "lookup"
+    ],
+    [
+      "GHSA-v2wj-7wpq-c8vv",
+      "302b51de22535cc90235472c52e3401bedd46f80",
+      "src/purify.ts",
+      "_sanitizeAttributes"
+    ],
+    [
+      "GHSA-v3r7-h72x-cjcm",
+      "10d93fc332f2c8c161982dec3833201de29891b5",
+      "lib/web/cookies/util.js",
+      "stringify"
+    ],
+    [
+      "GHSA-v3r7-h72x-cjcm",
+      "10d93fc332f2c8c161982dec3833201de29891b5",
+      "lib/web/cookies/util.js",
+      "validateCookieDomain"
+    ],
+    [
+      "GHSA-v3r7-h72x-cjcm",
+      "3bf91ddb493e853957f3a58e155326a668ab8aef",
+      "lib/web/cookies/util.js",
+      "stringify"
+    ],
+    [
+      "GHSA-v3r7-h72x-cjcm",
+      "3bf91ddb493e853957f3a58e155326a668ab8aef",
+      "lib/web/cookies/util.js",
+      "validateCookieDomain"
+    ],
+    [
+      "GHSA-v3r7-h72x-cjcm",
+      "3bf91ddb493e853957f3a58e155326a668ab8aef",
+      "lib/web/cookies/util.js",
+      "validateCookiePath"
+    ],
+    [
+      "GHSA-v3r7-h72x-cjcm",
+      "af7484043ee075a6f216da0ad77e1dac55199235",
+      "lib/web/cookies/util.js",
+      "stringify"
+    ],
+    [
+      "GHSA-v3r7-h72x-cjcm",
+      "af7484043ee075a6f216da0ad77e1dac55199235",
+      "lib/web/cookies/util.js",
+      "validateCookieDomain"
+    ],
+    [
+      "GHSA-v3r7-h72x-cjcm",
+      "af7484043ee075a6f216da0ad77e1dac55199235",
+      "lib/web/cookies/util.js",
+      "validateCookiePath"
+    ],
+    [
+      "GHSA-v52c-386h-88mc",
+      "cccf0fe0e64150c4f42ccf6654165c0d66b9adab",
+      "lib/make-middleware.js",
+      "done"
+    ],
+    [
+      "GHSA-v52c-386h-88mc",
+      "cccf0fe0e64150c4f42ccf6654165c0d66b9adab",
+      "lib/make-middleware.js",
+      "handleRequestFailure"
+    ],
+    [
+      "GHSA-v52c-386h-88mc",
+      "cccf0fe0e64150c4f42ccf6654165c0d66b9adab",
+      "lib/make-middleware.js",
+      "multerMiddleware"
+    ],
+    [
+      "GHSA-v52c-386h-88mc",
+      "cccf0fe0e64150c4f42ccf6654165c0d66b9adab",
+      "lib/make-middleware.js",
+      null
+    ],
+    [
+      "GHSA-v93f-fgjr-hjrj",
+      "30cf3882de75ee651bd4e5f27002f13fd3d3163a",
+      "lib/browser/parse-features-string.ts",
+      "parseFeatures"
+    ],
+    [
+      "GHSA-v93f-fgjr-hjrj",
+      "4eff3dc09e4d1e62d649c5ce9902f532bb7469c7",
+      "lib/browser/parse-features-string.ts",
+      "parseFeatures"
+    ],
+    [
+      "GHSA-v93f-fgjr-hjrj",
+      "fe2e7d0073949b4593b624b93abf1788f5377e55",
+      "lib/browser/parse-features-string.ts",
+      "parseFeatures"
+    ],
+    [
+      "GHSA-vghf-hv5q-vc2g",
+      "d457ecaf55b0f3d8bd379d82757425d0d13dd382",
+      "src/lib/isLength.js",
+      "isLength"
+    ],
+    [
+      "GHSA-vh95-rmgr-6w4m",
+      "38a4d1caead72ef99e824bb420a2528eec03d9ab",
+      "index.js",
+      "setKey"
+    ],
+    [
+      "GHSA-vp58-j275-797x",
+      "b381cac7aafd6aa53ef78b6ab771ebfa24643c80",
+      "packages/better-auth/src/api/middlewares/origin-check.ts",
+      null
+    ],
+    [
+      "GHSA-vvjj-xcjg-gr5g",
+      "0a43876801a420ca528f492eaa01bfc421cc306e",
+      "lib/smtp-connection/index.js",
+      "constructor"
+    ],
+    [
+      "GHSA-w73w-g5xw-rwhf",
+      "661f160edac8daac0486bc94413cf9652876ab92",
+      "src/RestWrite.js",
+      "RestWrite.prototype.handleAuthData"
+    ],
+    [
+      "GHSA-w73w-g5xw-rwhf",
+      "e7efbebba398ce6abe5b6b6fb9829c6ebe310fbf",
+      "src/RestWrite.js",
+      "RestWrite.prototype.handleAuthData"
+    ],
+    [
+      "GHSA-wc69-rhjr-hc9g",
+      "9a3b5894f3d5d602948ac8a02e4ee528a49ca3a3",
+      "src/lib/create/from-string.js",
+      "preprocessRFC2822"
+    ],
+    [
+      "GHSA-wf5p-g6vw-rhxx",
+      "2755df562b9c194fba6d8b609a383443f6a6e967",
+      "lib/adapters/xhr.js",
+      "dispatchXhrRequest"
+    ],
+    [
+      "GHSA-wf5p-g6vw-rhxx",
+      "96ee232bd3ee4de2e657333d4d2191cd389e14d0",
+      "lib/adapters/xhr.js",
+      "dispatchXhrRequest"
+    ],
+    [
+      "GHSA-wm8w-6qjm-cv43",
+      "ac9b41a36b62296a117862254ee7d2b21a2a5203",
+      "packages/nitro-server/src/runtime/handlers/renderer.ts",
+      "renderRoute"
+    ],
+    [
+      "GHSA-wmfp-5q7x-987x",
+      "3cd024d652dc883c46307581e979fe32302adbac",
+      "src/fs/loader.ts",
+      "candidates"
+    ],
+    [
+      "GHSA-wp76-gg32-8258",
+      "770be8647424d92f5425c41fa81065ffbbb171ed",
+      "src/Routers/UsersRouter.js",
+      null
+    ],
+    [
+      "GHSA-wp76-gg32-8258",
+      "a1d4e7b12a12f16d3870dbee582a36765858e94c",
+      "src/Routers/UsersRouter.js",
+      null
+    ],
+    [
+      "GHSA-wxw3-q3m9-c3jr",
+      "9deb7936aba7931f2db4b460141f476508f11bfd",
+      "packages/better-auth/src/state.ts",
+      "generateGenericState"
+    ],
+    [
+      "GHSA-x574-m823-4x7w",
+      "315695e9d97cc6cfa7e6d9e0229fb50cdae3d9f4",
+      "packages/vite/src/node/server/middlewares/transform.ts",
+      "viteTransformMiddleware"
+    ],
+    [
+      "GHSA-x574-m823-4x7w",
+      "80381c38d6f068b12e6e928cd3c616bd1d64803c",
+      "packages/vite/src/node/server/middlewares/transform.ts",
+      "viteTransformMiddleware"
+    ],
+    [
+      "GHSA-x574-m823-4x7w",
+      "807d7f06d33ab49c48a2a3501da3eea1906c0d41",
+      "packages/vite/src/node/server/middlewares/transform.ts",
+      "viteTransformMiddleware"
+    ],
+    [
+      "GHSA-x574-m823-4x7w",
+      "92ca12dc79118bf66f2b32ff81ed09e0d0bd07ca",
+      "packages/vite/src/node/server/middlewares/transform.ts",
+      "viteTransformMiddleware"
+    ],
+    [
+      "GHSA-x574-m823-4x7w",
+      "f234b5744d8b74c95535a7b82cc88ed2144263c1",
+      "packages/vite/src/node/server/middlewares/transform.ts",
+      "viteTransformMiddleware"
+    ],
+    [
+      "GHSA-x5rq-j2xg-h7qm",
+      "5c08f18d365b64063bfbfa686cbb97cdd6267347",
+      "lodash.js",
+      null
+    ],
+    [
+      "GHSA-x6fg-f45m-jf5q",
+      "c80180d8341a8ada0236815c29a2be59864afd70",
+      "semver.js",
+      "parse"
+    ],
+    [
+      "GHSA-xcj9-5m2h-648r",
+      "8fead23c59166b7bab6a39eac81acebee2859102",
+      "packages/mermaid/src/mermaidAPI.ts",
+      "cssImportantStyles"
+    ],
+    [
+      "GHSA-xprv-wvh7-qqqx",
+      "0a2d412e265992d53a670011afd9d2578562adc3",
+      "src/RestWrite.js",
+      "RestWrite"
+    ],
+    [
+      "GHSA-xprv-wvh7-qqqx",
+      "6728da1e3591db1e27031d335d64d8f25546a06f",
+      "src/RestWrite.js",
+      "RestWrite"
+    ],
+    [
+      "GHSA-xvch-5gv4-984h",
+      "34e20b8461118608703d6485326abbb8e35e1703",
+      "index.js",
+      "isConstructorOrProto"
+    ],
+    [
+      "GHSA-xvch-5gv4-984h",
+      "34e20b8461118608703d6485326abbb8e35e1703",
+      "index.js",
+      "setKey"
+    ],
+    [
+      "GHSA-xvch-5gv4-984h",
+      "c2b981977fa834b223b408cfb860f933c9811e4d",
+      "index.js",
+      "setKey"
+    ],
+    [
+      "GHSA-xw5p-hw6r-2j98",
+      "74c3157ca90c3ffed9e4434f63c2017471ec970e",
+      "lib/validation.js",
+      "buildSchemaCompiler"
+    ],
+    [
+      "GHSA-xw6g-jjvf-wwf9",
+      "5be375dec2fa35425c1003ae81c55995ac72af92",
+      "src/Routers/FilesRouter.js",
+      "metadataHandler"
+    ]
+  ],
+  "code_files": [
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\__init__.py",
+      "sha256": "3e3fc0aca4205bcff2ffc69b794d53fa50512e6841e0e4c0142dec4968addde8"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\cli\\__init__.py",
+      "sha256": "d87e2e1c725f6995cc76ab6f05b8cd6a0aed3180b7f0e6e0ae1e47a5f9db3a59"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\cli\\__main__.py",
+      "sha256": "87c8cd22196e11d465c3cd6810035238aa9986670aca7497137ffde7eb99bde0"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\cli\\commands\\__init__.py",
+      "sha256": "bef7b04fa68794b57ba8703fd934f2ab05021e772364fe4a28028c9b047fc5f3"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\cli\\commands\\corpus.py",
+      "sha256": "8032c1fa3686176655d338eb1e44ed1fee8e84d4c12742ead218a79972562d93"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\cli\\commands\\exports.py",
+      "sha256": "9e5f34980e4ed6b23fab45e4405cde89c99f929b7191acce9148a80eea67bdc7"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\cli\\commands\\report.py",
+      "sha256": "a56f757a8dbfc06e7781632bb54c4fdb8ec2d311b6defa29e203cc3a0f5176b2"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\cli\\commands\\scan.py",
+      "sha256": "a29bc019e008b18ffae4d29571ac67f9bc33fb83a507039fd51741edc55de1fa"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\cli\\faiss_builder.py",
+      "sha256": "b2aecbae25ddc283a2c5247783518d6f2d35b40b5a9154d666ad58a81c8e6f3c"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\cli\\main.py",
+      "sha256": "2a7be8ceaccdaee164e86bff252e29a9e72223a117d1e35ea7eec9cb4702a307"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\controller\\__init__.py",
+      "sha256": "c9e8980f6d21dd726d8f04515ec1616b98192efbef03c1e7ff19491057b46e83"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\controller\\build.py",
+      "sha256": "5b5cc5b9fa6ef8b8523c10bda65830b5145c5c4bdc5dd7aa22e58b7e2a05cc2d"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\controller\\deduplication.py",
+      "sha256": "0a67f3beef5920d83d0b2dda7aa7cda64029406386371b83a02e469b8fda6751"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\controller\\extraction.py",
+      "sha256": "79f47d20b19dd439b1defb1a1b27a2a12e0c0cea4c0bb7ae9d802ef1a39ef267"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\controller\\klaban.py",
+      "sha256": "0b72ad71d23b09b3304eb0cdabec67956c4b66de71d1c706facc5648ac28988b"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\controller\\release.py",
+      "sha256": "292e864b4f600e287870976e388ce7acff93daae42f39091875b9b74db4d3fe6"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\controller\\snapshot.py",
+      "sha256": "5ef75b7d349d54a5dd7f2527a0145d733d8d8246427fb849463047a1e3661171"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\integrations\\__init__.py",
+      "sha256": "01f3e3ba2a35132a941c7187b6267753967cd8488a508230443588c5e74b2cba"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\integrations\\github.py",
+      "sha256": "9089f7fa72496a82f33ee4144e346ad2d9fe4eff299470d6869fd6ff168a3954"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\integrations\\npm.py",
+      "sha256": "c7b20a93fd39f2134b5fa8959deb125422ca60afa877e51e70b591d8eb8ee262"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\integrations\\osv.py",
+      "sha256": "2eaecd7d5dc546aca7074983633d07b5d4e53213008aa820876e6e4b0a3ee112"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\integrations\\sandbox_fetch.py",
+      "sha256": "4c75b4ea6f9a0a7707924aabb44dd88f2fffc19b1a4e95a2eadbffae890467c8"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\integrations\\sqlite_store.py",
+      "sha256": "7f3009023771d685830aca217fda05f4e9d9308d28e78f1043bd31ae742290bb"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\models\\__init__.py",
+      "sha256": "1c14c591d124e853d847961bbe97481b29de823bc3141c8063f32da2b29c88d5"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\models\\commit.py",
+      "sha256": "def13eedc66f8e7228a5866f67b0f78897ae13de37409934ae328e28701c1b65"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\models\\corpus.py",
+      "sha256": "2afecec5dad083f9bc2ea9bd9c029ea5cc932f32b54f05cad85664d77c0d5c2a"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\models\\github.py",
+      "sha256": "b193d02698bbfb1cde82c5504c046edcffe26e1e8867e55f5d1295984cf137fe"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\corpus\\models\\osv.py",
+      "sha256": "903923b78bf1640383f245095d969b5efb35204cd9890130cdf09fca5c393363"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\paths.py",
+      "sha256": "a985f9a0499dc439f7491db8289751f4fffdd50e742fb528e9ba6b63779f5867"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\__init__.py",
+      "sha256": "df749ae8268da00bd72af1c5dfb837ba2733fe0601db7cf868516343f1422aa2"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\candidate_gate.py",
+      "sha256": "79e6386dbef50bc08084a5f2aae2d2209254b6ea98dfe180020c1f80ecc99fa8"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\evaluation.py",
+      "sha256": "f40dfa338f492a08706c221a298d17b04ccfae725f9eec78d3372840bde40a29"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\finding_exports.py",
+      "sha256": "913ee59ecfc2d9692ea1b2e7f0ff6dd09e3d9bd4a7356bb11a1b26ab27400b6c"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\hashing.py",
+      "sha256": "93bb85a6a0fd716f4992b7095f88e0e1141ac1e2b41082b8b85cd0fd9bde801f"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\html_reporting.py",
+      "sha256": "7472638908c3d5992f99c032cbe3edf23dcf69775e37773d01293f85e99b12a8"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\local_correspondence.py",
+      "sha256": "7319ad899d77040df723bb0c35120bdb4c97f92e89a83380281bdeb9538afaa9"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\parsing.py",
+      "sha256": "af3266f100ebeeb9cc3ee789ecd312b92b901b6d102f87d7cda6f1cd4a7080d8"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\provenance.py",
+      "sha256": "a0af78e89ba0ade20e64bd392e20a4e695ebce386917fa49f3693000c31a8124"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\region_detection.py",
+      "sha256": "2e28ad12bffb8f8b49edb789eb99dc5ebe38bec1654d8102a6f5080ecee5d0e1"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\region_extraction.py",
+      "sha256": "386a0d6c090c02e47aeaa0353601bf4dfc683f2764db5aadaf765588fc8f3158"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\region_retrieval.py",
+      "sha256": "834488d6ecb1ec4b36dfdd04dff988a3407ca1fe263490609f7518296386856a"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\report_evidence.py",
+      "sha256": "1f202ecbe00c2421dda843194d1a9ccf130ce69463ffffc812d288050aae4459"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\reporting.py",
+      "sha256": "32059970828bfc3e89f26712ba71dc3e5561fcefa1f52fd07ed9a5703aaace8e"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\retrieval.py",
+      "sha256": "651538d262c548bd0b94dc81c8c7ece925a4e3f54f9aca41c116469bdef69e83"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\controller\\review_explanation.py",
+      "sha256": "d99206c8cd254c86a83df7409219d52becb040f5e401fb2bee7c7996a5cf31a5"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\__init__.py",
+      "sha256": "5d5f144d28efae2fc3593155e118391495e8333d59868d43eba7318f3a41c2f4"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\config.py",
+      "sha256": "5194d2baedfe6052491b8de0d32b0541357bb0e674d7ac8abe7df3932b6e9da9"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\hashing.py",
+      "sha256": "8fe3d4c2fa5eff8b6256b6a3a5fbc77320581ea824de82dc102a02730208cfa6"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\lineage.py",
+      "sha256": "c6d52ce1c6ac860f0130d86a716d0e3980a4190c1de17610998e97f01b2a7708"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\priority.py",
+      "sha256": "668262e252c2aa7e27c9cc1747f322074f006eb93c7d7904cc56a7b7137893bb"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\retrieval.py",
+      "sha256": "1e3e5789bc9e9338312cc4c9e582cd4371f07b3611fc41598d75ca6951789dc8"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\verification\\__init__.py",
+      "sha256": "4f5e3d128755503821b0a46112460307ec321cca31842f1fad8b1332a3fb7fb5"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\verification\\aggregation.py",
+      "sha256": "89e139e657ebdc72b81abdebe5469fd882f6c2505a0c8fb1339f52eff36a7acf"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\verification\\classification.py",
+      "sha256": "4176882d7776303ae8cf87cc90f022545cb16f2420c86af09cdb75a00d60d45b"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\verification\\edit_distance.py",
+      "sha256": "f4b2020489f6ac1f1a57fada50f29fbd7ed02e5b522783bdfda67fb124771945"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\verification\\fallback.py",
+      "sha256": "3230ff9c84f762f4725978857dfa4f6a65fc2f1e33aa1b66f266e1ba6be53609"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\verification\\sequences.py",
+      "sha256": "be6d99eadb1ce1bd8cdedc2af9910a1141fda11683d5a1abffbb48d54c7d1d7d"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\verification\\structural.py",
+      "sha256": "d68aa95c1b27ceceb6f7811c80b9798ff199a35bbde26dc5b43223b80aaede98"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\verification\\tokens.py",
+      "sha256": "bf0f820542725c84794c1347759024f72350913d794439c633398fd5f2ec348b"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\detection\\verification\\verifier.py",
+      "sha256": "d9ea8eed37305ee595377a8e6d8f2ecd6921c35b24a0b9f69cc18412fc19f6d3"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\integrations\\__init__.py",
+      "sha256": "01f3e3ba2a35132a941c7187b6267753967cd8488a508230443588c5e74b2cba"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\integrations\\embedding.py",
+      "sha256": "ef720a458e58ba8fc7a9261e22ac3210192973a09793d8ebbbcff3bde87765ef"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\integrations\\ollama.py",
+      "sha256": "f87e4886254eb24b5bfc8346dc3bc108192a14e2f0ecb36f9446393e23f9e57e"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\integrations\\vector_index.py",
+      "sha256": "b4fff22fd97da06f6611fbb0261a46e718395442fe6aebd41df14174bc5b4abb"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\__init__.py",
+      "sha256": "ff9c47e547e1885da6a67edc43f2c29a8c16081f6eac9a5bef56ad85f94ea76d"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\boundary.py",
+      "sha256": "6a5e1e216b3f708cad12eb1223918b0af91db80f11c77b25106747efe3f2edb3"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\embedding.py",
+      "sha256": "4dd483ed70dc979be3d1581fd9467cc84e5f15a9ac3769ad96f73cb79500c713"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\evidence.py",
+      "sha256": "9bf4e8957bf8d48250b67f467b217a6cfb4a4709766d5a3bfc09086561a33f32"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\explanations.py",
+      "sha256": "4e4f4afdb2e6b699c8ee4b5a29e6e2b9e7c1216e9d72142a045aeafae67c08e4"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\hashing.py",
+      "sha256": "16a1510694f1f6b4ce14b7b572aadc12e3da07704a013a8c746881a77487db06"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\lineage.py",
+      "sha256": "93a5b02f59afdb987709feb6524328fdd9f1059c99cebb91efcfa1ae699876b5"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\parsing.py",
+      "sha256": "4afd69268af4b1bc511a3c4b1a8101213117d7a2f2b710a0597487a0b9c7a8af"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\records.py",
+      "sha256": "f9b5bbac9b953f1a6f56677f478274b1ee8f2836dc2c72d822502180567969a2"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\region.py",
+      "sha256": "13de16c2331f3a262921b60bead66c0b923bc33d5e8e320e9738fc37ccb12161"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\region_retrieval.py",
+      "sha256": "8a70c3b5583cb6588c5c598cf435fe785c797c7b669b92f10e1e73c69822471d"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\result.py",
+      "sha256": "bea078da2ed010cea8f50444c78a1418c18c1a676ed554fd9a82773b18da9201"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\models\\retrieval.py",
+      "sha256": "f9c134cb3090f266f437b3ab580d26ae474aa8ffbaa20c8bdd6433fca62c35a5"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\scanning\\__init__.py",
+      "sha256": "03f612959ba981b95174921868880b2a5dd16c4a230e0ad1d6491e91f3b29ad1"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\scanning\\cache.py",
+      "sha256": "acef4a25e275b206a0737a6db8a39fe9bb75a61580f729ca1cf7f9bfa4621f10"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\scanning\\discovery.py",
+      "sha256": "f03db6642e53e0ae3560b238b447b12919a2f821845291e617547b52c96466d0"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\scanning\\project_context.py",
+      "sha256": "2e1afb4c28f8e90a0df74ea486ec3c83d2866e31a786f5b302f72e210789017f"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\pipeline\\scanning\\scanner.py",
+      "sha256": "ef8ce57a19d20d08ff18d277a7b792460ca3515986059dc1ff4097666a23d6b6"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\shared\\__init__.py",
+      "sha256": "842b2a7fe7fdce18f4acdc3070badc0afc18002815d129d2ae4ee27b92b227d2"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\shared\\metadata.py",
+      "sha256": "339c93386bde192a5d20ff26aef8d828078acbb6da592898ad0c23c9678b1a28"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\src\\provtrail\\shared\\records.py",
+      "sha256": "60546ef31f6a007b43cd2d624d0613459b0d6e5b256f1b333986623837e937c2"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\ablation\\__init__.py",
+      "sha256": "2aba40ec2cfb8c07d354223e3e93763bbd08760f67df6d22daabe6c37ea1cffa"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\ablation\\common.py",
+      "sha256": "dd04764b9ae1d411cbc0e90b60799a4bc3ad5e329c2058154959529670fd6f12"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\ablation\\freeze.py",
+      "sha256": "ff6d47b2c6545af61ca488b7aff817b2fc9c4514c9812d092f9bf776330f0bd8"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\ablation\\run_decision_ablations.py",
+      "sha256": "a8b3bde78ac97c08efe1f7173cb15f288110e9cdd8152ef7a21af2e6a9cb984b"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\ablation\\run_frozen.py",
+      "sha256": "736bfdf47af4175ac4f1ad4fa63f9ce9408fa1a0cb5872b52ae8a573bf7c8caf"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\ablation\\run_retrieval_ablations.py",
+      "sha256": "402fc28ac43b93a6443027b136d627cbedb0d4b0170645eab28c7b059bd23344"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\cohort.py",
+      "sha256": "4481821a69efa8f73cfa987073626dbc8d70ccdd5e7e2effd460def9d4190105"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\transform.py",
+      "sha256": "abdbba11e95d1e3d48d0da11275ad35236cd2fdbbff3fce0ea4683e1998394ee"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\generate_llm_transformed_subset.py",
+      "sha256": "e3db6272603529bf0c68eec18cceab3aebed13a709354ee17f4f798f9d8dc70e"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\source_review.py",
+      "sha256": "5d0322ea24b1cb485b35a2ada168ad0be409ec11b61467bb14d7e9d1c66450fc"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\adjudicate.py",
+      "sha256": "7d38aae276006bebb4c8efb7c98ba9699758a29dd81c7076fb3ddc54de9cec61"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\behaviour.py",
+      "sha256": "78b4143ec245f7b39f26acd92fb33c5fa2150a32d7991029a3330aa8e730ccb7"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\tier2\\behaviour.cjs",
+      "sha256": "0a66c6444bb542eb05bf7b42095345f2f42c22a7de559cf7c9eed5da44359fe4"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\common.py",
+      "sha256": "7c74fcaacd85586baf24059934406301e82fb2189fcb99882b30843a888a859a"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\metrics.py",
+      "sha256": "fbacdfdd5293aee89acc246d994ddb8771c2e5985e6f44e2e1544ceeeae44188"
+    },
+    {
+      "path": "D:\\GitHub\\sc4079-fyp\\eval\\fixtures\\generate_candidate_subset.py",
+      "sha256": "1e26284002c1f0672043eb48d2571dddf33a22da9f50a62c483d32a238ac65cc"
+    }
+  ],
+  "git_head": "cfe57be7eb818252b42599dd6424eae15f80471d",
+  "git_status_at_freeze": " M READABILITY_REFACTOR_PLAN.md\n M README.md\n M examples/scan_demo/README.md\n M pyproject.toml\n M src/provtrail/pipeline/controller/finding_exports.py\n M src/provtrail/pipeline/controller/html_reporting.py\n M src/provtrail/pipeline/controller/report_template.html\n M src/provtrail/pipeline/controller/reporting.py\n M src/provtrail/pipeline/controller/review_explanation.py\n M src/provtrail/pipeline/models/explanations.py\n M tests/test_finding_exports.py\n M tests/test_html_reporting.py\n M tests/test_reporting.py\n M tests/test_review_explanation.py\n?? eval/ablation/README.md\n?? eval/ablation/baseline.json\n?? eval/ablation/common.py\n?? eval/ablation/freeze.py\n?? eval/ablation/run_frozen.py\n?? eval/ablation/smoke.json\n?? eval/ablation/sweep.json\n?? eval/comparison_normalized_findings_corrected_codeql_detached.jsonl\n?? eval/comparison_normalized_findings_corrected_codeql_next_minified.jsonl\n?? eval/comparison_normalized_findings_corrected_codeql_real_metadata.jsonl\n?? eval/comparison_normalized_findings_corrected_osv_real.jsonl\n?? eval/comparison_normalized_findings_corrected_provtrail_controls.jsonl\n?? eval/comparison_normalized_findings_corrected_semgrep_all.jsonl\n?? eval/comparison_normalized_findings_detached_osv_retry.jsonl\n?? eval/comparison_normalized_findings_pilot_tier1.jsonl\n?? eval/comparison_normalized_findings_pilot_v2_metadata_osv_explicit.jsonl\n?? eval/comparison_normalized_findings_pilot_v2_metadata_osv_final.jsonl\n?? eval/comparison_normalized_findings_pilot_v2_metadata_osv_retry.jsonl\n?? eval/comparison_summary.json\n?? eval/frozen/\n?? eval/tier2/adjudicate.py\n?? eval/tier2/behaviour.cjs\n?? eval/tier2/behaviour.py\n?? eval/tier2/cohort.py\n?? eval/tier2/source_review.py\n?? examples/paired_demo/\n?? scripts/run_jscpd_pilot.py\n?? src/provtrail/pipeline/controller/report_evidence.py\n?? src/provtrail/pipeline/controller/report_styles.css\n?? src/provtrail/pipeline/controller/report_view.js\n?? tests/test_frozen_ablation.py\n",
+  "dependencies": {
+    "torch": "2.13.0+cu130",
+    "numpy": "2.4.6",
+    "sentence-transformers": "6.0.0",
+    "transformers": "5.15.1",
+    "faiss-cpu": "1.15.0",
+    "tree-sitter": "0.26.0",
+    "tree-sitter-javascript": "0.25.0",
+    "tree-sitter-typescript": "0.23.2",
+    "pydantic": "2.13.4"
+  },
+  "embedding_model": {
+    "model_id": "qwen3-embedding-0.6b",
+    "snapshot": "C:\\Users\\compu\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-Embedding-0.6B\\snapshots\\97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+    "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+    "precision": "float32",
+    "device": "cpu",
+    "max_seq_length": 64,
+    "files": [
+      {
+        "path": "C:\\Users\\compu\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-Embedding-0.6B\\blobs\\b6291baabbc39f9792d6759883a47d7d5bd0fbcf",
+        "sha256": "37bf193fa101f19101bfad9c31d3eb0f786e247b7b1e5cb7f007d730eed1ddbd"
+      },
+      {
+        "path": "C:\\Users\\compu\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-Embedding-0.6B\\blobs\\cef2749ee93607b8f9a58ec72f4f6bfaf874e71d",
+        "sha256": "b5bf1f51fc45be473a54718cef92448d90a1be001bf9b9a44b8c7f10a19feaa9"
+      },
+      {
+        "path": "C:\\Users\\compu\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-Embedding-0.6B\\blobs\\76aef3ade63553ebb698fe3c2a3264040ed093f8",
+        "sha256": "10667c72ddb772627bf1780cb7f86af8e2ae0032b8c243c731172064105c6961"
+      },
+      {
+        "path": "C:\\Users\\compu\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-Embedding-0.6B\\blobs\\31349551d90c7606f325fe0f11bbb8bd5fa0d7c7",
+        "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5"
+      },
+      {
+        "path": "C:\\Users\\compu\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-Embedding-0.6B\\blobs\\0437e45c94563b09e13cb7a64478fc406947a93cb34a7e05870fc8dcd48e23fd",
+        "sha256": "0437e45c94563b09e13cb7a64478fc406947a93cb34a7e05870fc8dcd48e23fd"
+      },
+      {
+        "path": "C:\\Users\\compu\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-Embedding-0.6B\\blobs\\952a9b81c0bfd99800fabf352f69c7ccd46c5e43",
+        "sha256": "84e40c8e006c9b1d6c122e02cba9b02458120b5fb0c87b746c41e0207cf642cf"
+      },
+      {
+        "path": "C:\\Users\\compu\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-Embedding-0.6B\\blobs\\00a82ea60dfb1d8aed899c16e2b4f12673cd2f79",
+        "sha256": "c34d9b7e5a267ad3fdd13227a253686bc90844ff4744a2a6a86c7c905e3d06f3"
+      },
+      {
+        "path": "C:\\Users\\compu\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-Embedding-0.6B\\blobs\\def76fb086971c7867b829c23a26261e38d9d74e02139253b38aeb9df8b4b50a",
+        "sha256": "def76fb086971c7867b829c23a26261e38d9d74e02139253b38aeb9df8b4b50a"
+      },
+      {
+        "path": "C:\\Users\\compu\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-Embedding-0.6B\\blobs\\7345216a0785dc7086e8c245b2a9d3896ce2b756",
+        "sha256": "253153d0738ceb4c668d2eff957714dd2bea0b56de772a9fdccd96cbf517e6a0"
+      },
+      {
+        "path": "C:\\Users\\compu\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-Embedding-0.6B\\blobs\\4783fe10ac3adce15ac8f358ef5462739852c569",
+        "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+      }
+    ]
+  },
+  "exposure": "Retrospective grouped split. Both tiers and reference origins have historical development/evaluation exposure; not a pristine holdout. Known-origin retrieval keeps reference origins searchable.",
+  "content_sha256": "9a8d85335965c36f21080ddcd419fe6424967f6a4229bcd158e84cf0018c0f5c"
+}

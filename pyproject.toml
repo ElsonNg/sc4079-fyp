@@ -33,4 +33,4 @@ provtrail = "provtrail.cli.main:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"provtrail.pipeline.controller" = ["report_template.html"]
+"provtrail.pipeline.controller" = ["report_template.html", "report_styles.css", "report_view.js"]

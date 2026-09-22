@@ -1,0 +1,83 @@
+[
+  {
+    "package": "moment",
+    "repo": "moment/moment",
+    "commit": "4211bfc8f15746be4019bba557e29a7ba83d54c5",
+    "file": "src/lib/locale/locales.js",
+    "url": "https://raw.githubusercontent.com/moment/moment/4211bfc8f15746be4019bba557e29a7ba83d54c5/src/lib/locale/locales.js",
+    "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\moment.js",
+    "sha256": "185a6ab8c9791c753b7ab991f5520b2828d46c88dceb478ff697c5a5e2129ae2"
+  },
+  {
+    "package": "undici",
+    "repo": "nodejs/undici",
+    "commit": "66165d604fd0aee70a93ed5c44ad4cc2df395f80",
+    "file": "lib/core/request.js",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/66165d604fd0aee70a93ed5c44ad4cc2df395f80/lib/core/request.js",
+    "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\undici.js",
+    "sha256": "595cd273d62bb437dadde12c887169f087f1ea4e000792110b82dc0221639a5c"
+  },
+  {
+    "package": "fastify",
+    "repo": "fastify/fastify",
+    "commit": "62dde76f1f7aca76e38625fe8d983761f26e6fc9",
+    "file": "lib/contentTypeParser.js",
+    "url": "https://raw.githubusercontent.com/fastify/fastify/62dde76f1f7aca76e38625fe8d983761f26e6fc9/lib/contentTypeParser.js",
+    "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\fastify.js",
+    "sha256": "816119bfa54a9786c6929f65f62103d2e3a1e0f3f080808e83abf74a543c6979"
+  },
+  {
+    "package": "fastify-package",
+    "repo": "fastify/fastify",
+    "commit": "62dde76f1f7aca76e38625fe8d983761f26e6fc9",
+    "file": "package.json",
+    "url": "https://raw.githubusercontent.com/fastify/fastify/62dde76f1f7aca76e38625fe8d983761f26e6fc9/package.json",
+    "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\fastify-package.json",
+    "sha256": "1341605939149312fccdddcaadcd3b90f1fd876f38b381c756e349411a1c079a"
+  },
+  {
+    "package": "content-type",
+    "repo": "jshttp/content-type",
+    "commit": "v1.0.4",
+    "file": "index.js",
+    "url": "https://raw.githubusercontent.com/jshttp/content-type/v1.0.4/index.js",
+    "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\content-type.js",
+    "sha256": "85ffe59d050974725c044a0cead644db76f4bffe823753723670244b90629c5b"
+  },
+  {
+    "package": "moment-license",
+    "repo": "moment/moment",
+    "commit": "4211bfc8f15746be4019bba557e29a7ba83d54c5",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/moment/moment/4211bfc8f15746be4019bba557e29a7ba83d54c5/LICENSE",
+    "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\moment-LICENSE",
+    "sha256": "8f38f320bbf5eb84c08e08676f7ee1d2204ebe5797f6a090d077329cf212fca3"
+  },
+  {
+    "package": "fastify-license",
+    "repo": "fastify/fastify",
+    "commit": "62dde76f1f7aca76e38625fe8d983761f26e6fc9",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/fastify/fastify/62dde76f1f7aca76e38625fe8d983761f26e6fc9/LICENSE",
+    "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\fastify-LICENSE",
+    "sha256": "a4463829a5b1e8b38dffe363c609847b9fcf172f5ebd7d1ba8b46a8b746067dc"
+  },
+  {
+    "package": "undici-license",
+    "repo": "nodejs/undici",
+    "commit": "66165d604fd0aee70a93ed5c44ad4cc2df395f80",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/66165d604fd0aee70a93ed5c44ad4cc2df395f80/LICENSE",
+    "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\undici-LICENSE",
+    "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+  },
+  {
+    "package": "content-type-license",
+    "repo": "jshttp/content-type",
+    "commit": "v1.0.4",
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/jshttp/content-type/v1.0.4/LICENSE",
+    "path": "D:\\GitHub\\sc4079-fyp\\eval\\frozen\\helper-context-v1\\content-type-LICENSE",
+    "sha256": "257aed98914108e91a337912727b6a802eef218248507f74b76faffaff517a38"
+  }
+]

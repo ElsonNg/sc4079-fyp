@@ -1,0 +1,1 @@
+{"experiments": [{"name": "smoke_top_k_control", "grid": {"retrieval_top_k": [1]}}]}
