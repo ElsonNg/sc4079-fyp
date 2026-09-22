@@ -13,6 +13,7 @@ AGENTS.md
 docs/*
 !docs/tool-comparison.md
 !docs/jscpd-clone-pilot.md
+!docs/images/
 # Generated embedding indexes and local incremental-scan state
 corpus/data/corpus.db
 corpus/data/embeddings/*

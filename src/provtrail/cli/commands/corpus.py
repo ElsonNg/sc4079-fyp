@@ -65,7 +65,7 @@ def _corpus_build_progress(event: dict) -> None:
 
 
 def build(args: argparse.Namespace) -> int:
-    packages = tuple(args.packages) if args.packages else None
+    packages = None if args.all_packages else tuple(args.packages)
     try:
         result = build_corpus_result(packages=packages, progress_callback=_corpus_build_progress)
     except requests.RequestException as exc:

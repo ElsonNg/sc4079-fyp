@@ -51,6 +51,40 @@ def test_build_promotes_snapshot_to_requested_database(monkeypatch, tmp_path, ca
     assert "Promoted immutable snapshot snapshot-1 with 1 entries" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("options, expected_packages", [
+    (["--all"], None),
+    (["--package", "axios", "--package", "dompurify"], ("axios", "dompurify")),
+])
+def test_build_passes_explicit_scope_to_discovery(monkeypatch, tmp_path, options, expected_packages):
+    calls = []
+
+    def build(**kwargs):
+        calls.append(kwargs["packages"])
+        return BuildResult(entries=[])
+
+    monkeypatch.setattr(corpus, "build_corpus_result", build)
+    assert main([
+        "corpus", "build", *options, "--db-path", str(tmp_path / "corpus.db"),
+    ]) == 2
+    assert calls == [expected_packages]
+
+
+@pytest.mark.parametrize("options", [
+    [],
+    ["--all", "--package", "axios"],
+    ["--package", ""],
+    ["--package", "   "],
+])
+def test_build_rejects_invalid_scope_before_discovery(monkeypatch, options):
+    def unexpected_build(**kwargs):
+        pytest.fail("Missing, conflicting, or empty scope must not start discovery")
+
+    monkeypatch.setattr(corpus, "build_corpus_result", unexpected_build)
+    with pytest.raises(SystemExit) as exc:
+        main(["corpus", "build", *options])
+    assert exc.value.code == 2
+
+
 @pytest.mark.parametrize("failure", ["discovery", "empty", "integrity"])
 def test_failed_build_preserves_active_database(monkeypatch, tmp_path, failure):
     database = tmp_path / "active.db"
@@ -68,7 +102,7 @@ def test_failed_build_preserves_active_database(monkeypatch, tmp_path, failure):
     monkeypatch.setattr(corpus, "build_corpus_result", build)
     monkeypatch.setattr(corpus, "promote_snapshot", promote)
     assert main([
-        "corpus", "build", "--db-path", str(database),
+        "corpus", "build", "--all", "--db-path", str(database),
         "--snapshots-dir", str(tmp_path / "snapshots"),
     ]) == 2
     assert database.read_bytes() == b"existing corpus"

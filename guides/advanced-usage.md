@@ -176,15 +176,17 @@ Corpus maintenance commands are:
 
 ```bash
 provtrail corpus stats
-provtrail corpus build
+provtrail corpus build --package axios --package express
 provtrail corpus ingest-klaban
 provtrail corpus index
 ```
 
-`corpus build` discovers every reviewed, non-withdrawn npm advisory automatically. It
+`corpus build` requires an explicit scope: repeat `--package` to select packages,
+or use `--all` to discover every reviewed, non-withdrawn npm advisory. The options
+are mutually exclusive; omitting both fails before discovery. It
 admits entries only after GitHub Advisory Database, OSV, npm tarball, repository, release,
-commit-ancestry, focused-diff, parser, and executable-AST checks agree. `--package` is a
-diagnostic restriction and does not bypass any check. Severity, popularity, maintenance,
+commit-ancestry, focused-diff, parser, and executable-AST checks agree. `--package`
+restricts coverage and does not bypass any check. Severity, popularity, maintenance,
 and the post-admission high-impact cohort are metadata rather than admission gates.
 
 ```mermaid

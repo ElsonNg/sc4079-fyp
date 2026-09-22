@@ -44,6 +44,13 @@ def _positive_float(value: str) -> float:
     return parsed
 
 
+def _package_name(value: str) -> str:
+    package = value.strip()
+    if not package:
+        raise argparse.ArgumentTypeError("package name must not be empty")
+    return package
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="provtrail",
@@ -113,7 +120,15 @@ def build_parser() -> argparse.ArgumentParser:
     corpus = commands.add_parser("corpus", help="Manage the vulnerability corpus")
     corpus_commands = corpus.add_subparsers(dest="corpus_command", required=True)
     build = corpus_commands.add_parser("build", help="Build the corpus from advisory sources")
-    build.add_argument("--package", action="append", dest="packages", default=None)
+    build_scope = build.add_mutually_exclusive_group(required=True)
+    build_scope.add_argument(
+        "--package", action="append", dest="packages", type=_package_name, default=None,
+        help="Build only the selected package; repeat to select multiple packages",
+    )
+    build_scope.add_argument(
+        "--all", action="store_true", dest="all_packages",
+        help="Fetch all reviewed npm advisories instead of a restricted package set",
+    )
     _add_db_path(build)
     build.add_argument("--snapshots-dir", type=Path, default=DEFAULT_SNAPSHOTS_DIR)
     build.add_argument(
