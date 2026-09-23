@@ -1,0 +1,19 @@
+{
+  "total": 788,
+  "dispositions": {
+    "admitted_v43": 388,
+    "excluded_source_label": 78,
+    "rejected_v43_failure": 88,
+    "excluded_insufficient_preservation_evidence": 161,
+    "rejected_changed_source": 14,
+    "admitted_static_preservation": 54,
+    "excluded_prior_negative_review": 5
+  },
+  "admitted_candidates": 442,
+  "not_admitted_candidates": 346,
+  "undecided_for_admission": 0,
+  "source_validity_complete": true,
+  "unverified_transformations_excluded_not_proven_invalid": 161,
+  "v43_pair_eligibility_recomputed": false,
+  "scope": "Static/source-supported candidate admission; no exploitability inference or new exploit execution."
+}

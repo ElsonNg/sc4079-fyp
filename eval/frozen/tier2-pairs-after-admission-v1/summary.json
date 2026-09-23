@@ -1,0 +1,36 @@
+{
+  "tier2_candidates": 788,
+  "admitted_candidates": 442,
+  "eligible_pairs": 167,
+  "eligible_candidates": 334,
+  "v43_eligible_pairs": 158,
+  "newly_eligible_pairs": 9,
+  "admitted_candidates_not_pair_eligible": 108,
+  "eligible_pairs_by_requested_type": {
+    "type_3": 100,
+    "type_4": 67
+  },
+  "eligible_pairs_by_package": {
+    "vite": 17,
+    "undici": 10,
+    "better-auth": 5,
+    "parse-server": 35,
+    "handlebars": 3,
+    "fastify": 8,
+    "axios": 3,
+    "lodash": 4,
+    "dompurify": 9,
+    "mermaid": 1,
+    "nuxt": 25,
+    "next": 1,
+    "moment": 4,
+    "electron": 11,
+    "liquidjs": 10,
+    "qs": 12,
+    "nodemailer": 2,
+    "multer": 1,
+    "semver": 2,
+    "minimist": 4
+  },
+  "rule": "Exactly one flagged and one cleared candidate per origin/requested clone type; both admitted and syntax-source-unique across all 788 Tier 2 records."
+}

@@ -1,0 +1,11 @@
+{
+  "original_valid_cases": 548,
+  "replacement_pairs": 26,
+  "replacement_cases": 52,
+  "combined_valid_cases": 600,
+  "excluded_original_cases_retained": 52,
+  "distinct_replacement_advisories": 21,
+  "distinct_replacement_source_pairs": 26,
+  "release_source_exact_pairs": 26,
+  "scope": "advisory-cited fix, direct function change, exact source in vulnerable and first-fixed npm tarballs"
+}

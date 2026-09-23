@@ -1,0 +1,30 @@
+{
+  "new_pairs": 80,
+  "new_verified_tier2_cases": 160,
+  "previous_verified_tier2_cases": 442,
+  "combined_verified_tier2_cases": 602,
+  "previous_eligible_pairs": 167,
+  "combined_eligible_pairs": 247,
+  "combined_eligible_cases": 494,
+  "confirmed_clone_type": "type_2",
+  "new_pairs_by_package": {
+    "axios": 9,
+    "better-auth": 2,
+    "dompurify": 4,
+    "fastify": 1,
+    "handlebars": 1,
+    "liquidjs": 4,
+    "mermaid": 7,
+    "minimist": 1,
+    "multer": 1,
+    "next": 6,
+    "nodemailer": 1,
+    "nuxt": 7,
+    "parse-server": 4,
+    "undici": 14,
+    "validator": 3,
+    "vite": 13,
+    "ws": 2
+  },
+  "method": "Deterministic unique top-level local-binding renames with full-tree static preservation proof; no exploit execution."
+}

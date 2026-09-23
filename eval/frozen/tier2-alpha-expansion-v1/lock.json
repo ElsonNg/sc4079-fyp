@@ -1,0 +1,17 @@
+{
+  "records.jsonl": "6e37b73f12c40196a162fa263ed56da58135f4241e1f00f065824aceb6709583",
+  "validation.jsonl": "d4df838fcadb2d380d4fa77060a413f172039e77b12f7ae2bcd692b4a8490802",
+  "pairs.jsonl": "742791c5c74323ea2270f0ad2af985105ac1f0a31a1df4cb75af7589411fa287",
+  "combined_admitted.jsonl": "46b03cda38e9db6fda5ebc9f81003d5c9aea8d4830c963d63926c8e449b6cb1d",
+  "combined_eligible_pairs.jsonl": "e731847a3198698f50ccb9c252c9ab88b6a906d78a95399e91510103e078698b",
+  "summary.json": "e4c406eda35cee5939d6d450874eb5476d8ccef9c8c6a83cfb2a43805d7ba16e",
+  "README.md": "fd060813f0d99eba9165579d6d15d31fab449ea90e68b3407e53db736d9dd4d4",
+  "inputs": {
+    "eval/frozen/tier2-pairs-after-admission-v1/groups.jsonl": "b76036b694181fae00a31c2cabb78c6782b5b81b1a2f5299c61d90c0b8632b24",
+    "eval/frozen/tier2-candidate-admission-v1/cases.jsonl": "79fe9e8714065d889da7843a0cb0a34a8dd6b18145e0b99ec201a45c240938b5",
+    "eval/tier2/build_alpha_expansion.py": "6452ad54a34157f1f1b7a5b98b5829efabaa8d1b1aba81d280f7ed30cc6ddbd8",
+    "eval/tier2/alpha_expansion_probe.py": "ace39b0ca78164e1f71e5b93513f341a7d2cd019605f3881ce38d8c4cf15beb6",
+    "eval/tier2/static_preservation.py": "5e0c633dfaa455b8758056025a946d4a597ab88cf2cb8fd2b141572fda305edf",
+    "corpus/data/corpus.db": "2e158eac8a029d3bc7787b2adb2d5a526f9bbcc390d14f6546a942d06ec7c01f"
+  }
+}

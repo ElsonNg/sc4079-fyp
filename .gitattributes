@@ -1,6 +1,16 @@
 # Frozen manifests hash raw bytes, including original mixed line endings.
 # Preserve their artifacts and pinned source inputs when adding/checking out.
 /eval/frozen/** -text
+/eval/active/** -text
+/eval/tier1/advisory_validity_audit.py -text
+/eval/tier1/build_replacement_manifest.py -text
+/eval/tier1/check_replacement_release_commits.py -text
+/eval/tier1/discover_replacements.py -text
+/eval/tier1/extract_replacement_candidates.py -text
+/eval/tier1/verify_replacement_releases.py -text
+/eval/tier2/alpha_expansion_probe.py -text
+/eval/tier2/build_alpha_expansion.py -text
+/eval/tier2/static_preservation.py -text
 /eval/ablation/__init__.py -text
 /eval/ablation/common.py -text
 /eval/ablation/freeze.py -text
@@ -12,6 +22,8 @@
 /eval/metrics.py -text
 /eval/tier1_curated_labels.jsonl -text
 /eval/tier2/additional_boundaries.cjs -text
+/eval/tier2/access_boundaries.cjs -text
+/eval/tier2/access_checks.py -text
 /eval/tier2/additional_checks.py -text
 /eval/tier2/adjudicate.py -text
 /eval/tier2/batch_support.py -text
@@ -33,6 +45,10 @@
 /eval/tier2/revalidate.py -text
 /eval/tier2/routing_boundaries.cjs -text
 /eval/tier2/routing_checks.py -text
+/eval/tier2/run_pinned_validation.py -text
+/eval/tier2/security_config_boundaries.cjs -text
+/eval/tier2/security_config_checks.py -text
+/eval/tier2/security_config_checks_v2.py -text
 /eval/tier2/source_review.py -text
 /eval/tier2/transform.py -text
 /src/provtrail/__init__.py -text
@@ -122,3 +138,41 @@
 /src/provtrail/shared/__init__.py -text
 /src/provtrail/shared/metadata.py -text
 /src/provtrail/shared/records.py -text
+
+/eval/tier2/fast_boundary_checks.py -text
+/eval/tier2/fast_boundaries.cjs -text
+
+/eval/tier2/resource_checks.py -text
+/eval/tier2/resource_boundaries.cjs -text
+/eval/tier2/text_content_checks.py -text
+/eval/tier2/text_content_boundaries.cjs -text
+
+/eval/tier2/provider_checks.py -text
+/eval/tier2/provider_boundaries.cjs -text
+/eval/tier2/token_checks.py -text
+/eval/tier2/token_boundaries.cjs -text
+/eval/tier2/link_checks.py -text
+/eval/tier2/link_boundaries.cjs -text
+
+/eval/tier2/reload_checks.py -text
+/eval/tier2/reload_boundaries.cjs -text
+/eval/tier2/manifest_checks.py -text
+/eval/tier2/manifest_boundaries.cjs -text
+/eval/tier2/depth_forward_checks.py -text
+/eval/tier2/depth_forward_boundaries.cjs -text
+/eval/tier2/build_meta_runtime.cjs -text
+
+/eval/tier2/stream_pressure_checks.py -text
+/eval/tier2/query_budget_checks.py -text
+/eval/tier2/merge_callback_checks.py -text
+/eval/tier2/merge_deep_checks.py -text
+/eval/tier2/css_declaration_checks.py -text
+/eval/tier2/css_compilation_checks.py -text
+/eval/tier2/shadow_depth_checks.py -text
+/eval/tier2/static_decoding_checks.py -text
+/eval/tier2/oauth_binding_checks.py -text
+/eval/tier2/reference_delta_checks.py -text
+/eval/tier2/continued_checks_support.py -text
+/eval/tier2/continued_boundaries.cjs -text
+
+/eval/tier2/oauth_binding_checks_v2.py -text

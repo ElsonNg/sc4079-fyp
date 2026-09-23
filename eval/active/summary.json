@@ -1,0 +1,14 @@
+{
+  "tier1_valid_cases": 600,
+  "tier1_vulnerable_cases": 300,
+  "tier1_fixed_cases": 300,
+  "tier1_reference_entries": 327,
+  "tier1_new_reference_entries": 26,
+  "tier2_source_verified_cases": 602,
+  "tier2_active_valid_cases": 600,
+  "tier2_pruned_cases": 2,
+  "tier2_eligible_pairs": 247,
+  "tier2_eligible_cases": 494,
+  "tier2_active_not_pair_eligible": 106,
+  "total_active_validated_cases": 1200
+}

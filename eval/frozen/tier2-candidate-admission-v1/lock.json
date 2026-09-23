@@ -1,0 +1,11 @@
+{
+  "cases.jsonl": "79fe9e8714065d889da7843a0cb0a34a8dd6b18145e0b99ec201a45c240938b5",
+  "summary.json": "1ba19515406b4d40537b8f77ccdf768aaadcb51ce975507480f5de87be602dae",
+  "README.md": "17116d8871feb1b883735f19c7694d1b524709fc7aad5b0d313334ca3f0ce616",
+  "inputs": {
+    "eval/frozen/tier2-advisory-audit-v1/cases.jsonl": "7c88b2a13f655fdc545f7431967bcd9b88516453e570473f96189387786e2ba6",
+    "eval/frozen/revalidation-v43/validation.jsonl": "d0a109f68cd9b6dff884fb5a3e5f99e8313061c922328827734d340a36f7ba04",
+    "eval/frozen/tier2-transformation-static-audit-v2/cases.jsonl": "de007bede92134bdf6783f30404ecf2979339b88b92491c32c2dfcf4732ce2ca",
+    "eval/tier2/candidate_admission_audit.py": "641a7086fc9c10d0eab67b8b7ed88d1e63e6a9a6582d5bac9e9850c885a45319"
+  }
+}

@@ -29,7 +29,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from provtrail.corpus.integrations.github import GitHubRateLimitError, fetch_source_tree
 from provtrail.corpus.integrations.sqlite_store import load_entries
-from eval.common import DEFAULT_SNAPSHOT_DB, extract_ghsa_ids
+from eval.active import TIER1_CORPUS, TIER1_LABELS
+from eval.common import extract_ghsa_ids
 from eval.metrics import (
     METRICS_SCHEMA,
     classification_outcome,
@@ -47,9 +48,9 @@ from provtrail.pipeline.scanning.scanner import (
     scan_directory,
 )
 
-DEFAULT_LABELS = Path(__file__).resolve().parents[2] / "eval" / "tier1_release_labels.jsonl"
-DEFAULT_OUTPUT = Path(__file__).resolve().parents[2] / "eval" / "tier1_release_results.json"
-SANDBOX_ROOT = Path(__file__).resolve().parents[2] / "eval" / "tier1_source_sandbox"
+DEFAULT_LABELS = TIER1_LABELS
+DEFAULT_OUTPUT = Path(__file__).resolve().parents[2] / "eval" / "active" / "tier1_release_results.json"
+SANDBOX_ROOT = Path(__file__).resolve().parents[2] / "eval" / "active" / "tier1_source_sandbox"
 
 _AUDITED_ABSENT_BOUNDARIES = {
     (
@@ -494,7 +495,7 @@ def main() -> int:
     load_dotenv()
     parser = argparse.ArgumentParser()
     parser.add_argument("--labels", type=Path, default=DEFAULT_LABELS)
-    parser.add_argument("--snapshot", type=Path, default=DEFAULT_SNAPSHOT_DB)
+    parser.add_argument("--snapshot", type=Path, default=TIER1_CORPUS)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument(

@@ -1,0 +1,20 @@
+{
+  "total": 600,
+  "verdicts": {
+    "valid_advisory_reference": 532,
+    "excluded_security_label": 50,
+    "valid_release_specific_reference": 16,
+    "excluded_incompatible_release_pair": 2
+  },
+  "exact_reference_sources": 582,
+  "fixed_versions_matching_advisory": 300,
+  "vulnerable_versions_not_listed_as_fixed": 300,
+  "advisory_commit_references": 600,
+  "previously_pending_now_advisory_valid": 178,
+  "valid_advisory_sources": 548,
+  "excluded_as_security_sources": 52,
+  "security_exclusions_retained": 50,
+  "source_mismatches_unverified": 0,
+  "source": "frozen local advisory/release-label/corpus snapshots plus four pinned ws release files",
+  "previous_validation": "eval\\frozen\\revalidation-v43\\validation.jsonl"
+}
