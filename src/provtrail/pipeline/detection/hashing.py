@@ -38,12 +38,20 @@ def build_hash_result(
     for boundary_id in sorted({match.fix_boundary_id for match in hash_matches if match.fix_boundary_id}):
         members = [match for match in hash_matches if match.fix_boundary_id == boundary_id]
         first = members[0]
-        vulnerable = any(match.side == "vulnerable" for match in members)
-        patched = any(match.side == "patched" for match in members)
+        # Abstraction can erase the change separating the two fix sides. Prefer
+        # exact evidence within this boundary; a shared abstracted hash is
+        # ambiguous side evidence, not a contradiction.
+        exact = [match for match in members if match.match_type == "exact"]
+        decisive = exact or members
+        vulnerable = any(match.side == "vulnerable" for match in decisive)
+        patched = any(match.side == "patched" for match in decisive)
         status = "uncertain" if vulnerable and patched else "vulnerable" if vulnerable else "patched"
+        contradictory = bool(exact) and vulnerable and patched
         states.append(VulnerabilityState(
             status=status,
-            abstention_reason='CONTRADICTORY_EVIDENCE' if status == 'uncertain' else None,
+            abstention_reason=(
+                "CONTRADICTORY_EVIDENCE" if contradictory else "HASH_SIDE_AMBIGUOUS"
+            ) if status == "uncertain" else None,
             advisories=first.advisories,
             boundary=BoundaryIdentity(
                 lineage_id=first.lineage_id or '',
@@ -56,8 +64,8 @@ def build_hash_result(
                 contrast_score=0.0 if vulnerable and patched else 1.0 if vulnerable else -1.0,
             ),
             support=BoundarySupport(
-                fix_evidence=[f'{first.match_type} {first.side}-side hash match'],
-                contradictions=['vulnerable and patched hashes both match'] if vulnerable and patched else [],
+                fix_evidence=sorted({f'{match.match_type} {match.side}-side hash match' for match in members}),
+                contradictions=['exact vulnerable and patched hashes both match'] if contradictory else [],
             ),
         ))
 

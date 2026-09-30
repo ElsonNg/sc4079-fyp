@@ -68,6 +68,35 @@ def test_retrieval_ranks_pairs_before_limiting_and_counts_all_support():
     assert aggregate_retrieval_matches([], pairs, limit=2) == []
 
 
+@pytest.mark.parametrize("exact_side", ["vulnerable", "patched"])
+def test_exact_hash_resolves_shared_abstracted_fix_sides(exact_side):
+    match = HashMatch.from_record(PAYLOADS["hash_match"]["payload"])
+    match = match.model_copy(update={"lineage_id": "lineage", "fix_boundary_id": "fix-a"})
+    abstracted = [match.model_copy(update={"match_type": "abstracted", "side": side})
+                  for side in ("vulnerable", "patched")]
+    exact = match.model_copy(update={"side": exact_side, "match_type": "exact"})
+    for matches in ([*abstracted, exact], [exact, *reversed(abstracted)]):
+        result = build_hash_result(matches, "candidate")
+        state = result.vulnerability_states[0]
+        assert state.status == exact_side
+        assert state.abstention_reason is None
+        assert not state.support.contradictions
+        assert len(result.hash_matches) == 3
+        assert result.priority == ("automatic_vulnerability" if exact_side == "vulnerable" else "informational_lineage")
+
+
+def test_shared_abstracted_hash_is_ambiguous_without_exact_evidence():
+    match = HashMatch.from_record(PAYLOADS["hash_match"]["payload"])
+    match = match.model_copy(update={"lineage_id": "lineage", "fix_boundary_id": "fix-a", "match_type": "abstracted"})
+    result = build_hash_result([match.model_copy(update={"side": side})
+                               for side in ("vulnerable", "patched")], "candidate")
+    state = result.vulnerability_states[0]
+    assert state.status == "uncertain"
+    assert state.abstention_reason == "HASH_SIDE_AMBIGUOUS"
+    assert not state.support.contradictions
+    assert result.priority == "manual_review"
+
+
 @pytest.mark.parametrize("score,expected", [
     (0.549, "none"), (0.55, "low"), (0.679, "low"),
     (0.68, "medium"), (0.819, "medium"), (0.82, "high"),

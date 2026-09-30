@@ -28,6 +28,7 @@ AbstentionReason = Literal[
     "CONTRASTIVE_CONFLICT",
     "IDENTITY_REJECTED",
     "CONTRADICTORY_EVIDENCE",
+    "HASH_SIDE_AMBIGUOUS",
 ]
 
 
@@ -190,7 +191,7 @@ class BoundarySupport(BaseModel):
     side_consensus_ratio: float = 0.0
     # Readable evidence notes, e.g. "added fix signature present".
     fix_evidence: list[str] = Field(default_factory=list)
-    # Conflicting evidence, e.g. both reference-side hashes match.
+    # Conflicting verification evidence or exact hashes matching both fix sides.
     contradictions: list[str] = Field(default_factory=list)
 
 

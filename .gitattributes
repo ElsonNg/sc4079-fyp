@@ -176,3 +176,6 @@
 /eval/tier2/continued_boundaries.cjs -text
 
 /eval/tier2/oauth_binding_checks_v2.py -text
+
+# Preserve PDF bytes and cross-reference offsets on Windows checkouts.
+/output/pdf/*.pdf binary
