@@ -42,18 +42,8 @@ class ReferenceSideEvidence(BaseModel):
     api_anchor: float | None = None
     # Historical report field, always None after retiring local alignment.
     local_alignment: float | None = None
-    # Selected side score after any successful containment fallback.
+    # Minimum of this side's structural and token similarity.
     score: float
-    # AST similarity when matching a contained region.
-    containment_structural: float | None = None
-    # Token similarity when matching a contained region.
-    containment_token: float | None = None
-    # Smaller-to-larger region coverage, e.g. 0.50.
-    containment_coverage: float | None = None
-    # Whether containment supplied the selected passing scores.
-    containment_used: bool = False
-    # Whether failed initial gates made containment eligible.
-    containment_attempted: bool = False
 
 
 class RegionComparison(BaseModel):
@@ -69,8 +59,6 @@ class RegionComparison(BaseModel):
     vulnerable_signature_coverage: float = 0.0
     # Confidence of shared origin: high, medium, low or none.
     lineage_confidence: LineageConfidence = "none"
-    # Whether containment supplied either selected side score.
-    alignment_fallback_used: bool = False
 
 
 class RegionVerificationEvidence(FlatRecordModel):

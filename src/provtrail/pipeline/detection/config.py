@@ -12,7 +12,7 @@ HIGH_LINEAGE_CONFIDENCE_MARGIN = 0.15
 
 @dataclass(frozen=True)
 class RegionVerifierConfig:
-    """Thresholds and optional fallbacks for localized verification."""
+    """Thresholds for localized verification."""
 
     minimum_structure_score: float = 0.70
     minimum_token_score: float = 0.70
@@ -22,10 +22,6 @@ class RegionVerifierConfig:
     minimum_consensus_ratio: float = 0.60
     contradiction_margin: float = 0.08
     signature_threshold: float = 0.65
-    minimum_containment_coverage: float = 0.50
-    include_containment_fallback: bool = True
-    # None preserves uncapped evaluation behavior.
-    max_containment_cells: int | None = None
 
 
 @dataclass(frozen=True)

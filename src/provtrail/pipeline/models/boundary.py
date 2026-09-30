@@ -156,10 +156,6 @@ class VerificationGates(BaseModel):
 
 
 class FallbackEvidence(BaseModel):
-    # Whether failed initial gates made containment eligible for use.
-    containment_attempted: bool = False
-    # Whether containment supplied passing structural/token scores.
-    containment_used: bool = False
     # Whether the optional late correspondence check ran.
     local_correspondence_attempted: bool = False
     # Whether that optional check resolved the uncertain verdict.
@@ -210,7 +206,7 @@ class VulnerabilityState(FlatRecordModel):
     edit: BoundaryEditEvidence = Field(default_factory=BoundaryEditEvidence)
     # Checks controlling the verdict, e.g. token_gate_passed=True.
     gates: VerificationGates = Field(default_factory=VerificationGates)
-    # Containment and optional correspondence activity, e.g. containment_used=True.
+    # Optional local correspondence activity.
     fallbacks: FallbackEvidence = Field(default_factory=FallbackEvidence)
     # Supporting observations and conflicts, e.g. independent_region_count=2.
     support: BoundarySupport = Field(default_factory=BoundarySupport)

@@ -6,7 +6,7 @@ from typing import Literal
 
 from provtrail.pipeline.detection.config import HIGH_LINEAGE_CONFIDENCE_MARGIN, RegionVerifierConfig
 from provtrail.pipeline.models.boundary import (
-    BoundaryEditEvidence, BoundaryIdentity, BoundarySupport, FallbackEvidence,
+    BoundaryEditEvidence, BoundaryIdentity, BoundarySupport,
     VerificationGates, VerificationScores, VulnerabilityState, VulnerableRegionPair,
 )
 from provtrail.pipeline.models.evidence import EditDistanceEvidence, RegionVerificationEvidence
@@ -329,13 +329,6 @@ def classify_boundary(
             function_identity_state=function_identity_state,
             edit_anchor_has_identity=selected_anchor_has_identity,
             boundary_identity_gate_passed=boundary_identity_gate_passed,
-        ),
-        fallbacks=FallbackEvidence(
-            containment_attempted=(
-                best_vulnerable.vulnerable.containment_attempted
-                or best_patched.patched.containment_attempted
-            ),
-            containment_used=best_vulnerable.vulnerable.containment_used or best_patched.patched.containment_used,
         ),
         support=BoundarySupport(
             fix_signature_coverage=fix_coverage,

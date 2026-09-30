@@ -92,24 +92,14 @@ REGION_VERIFICATION_EVIDENCE_FIELDS = {
         "token": "token_vulnerable",
         "api_anchor": "api_anchor_vulnerable",
         "local_alignment": "local_alignment_vulnerable",
-        "score": "vulnerable_score",
-        "containment_structural": "containment_structural_vulnerable",
-        "containment_token": "containment_token_vulnerable",
-        "containment_coverage": "containment_coverage_vulnerable",
-        "containment_used": "containment_fallback_vulnerable",
-        "containment_attempted": "containment_fallback_attempted_vulnerable"
+        "score": "vulnerable_score"
     },
     "patched": {
         "structural": "structural_patched",
         "token": "token_patched",
         "api_anchor": "api_anchor_patched",
         "local_alignment": "local_alignment_patched",
-        "score": "patched_score",
-        "containment_structural": "containment_structural_patched",
-        "containment_token": "containment_token_patched",
-        "containment_coverage": "containment_coverage_patched",
-        "containment_used": "containment_fallback_patched",
-        "containment_attempted": "containment_fallback_attempted_patched"
+        "score": "patched_score"
     },
     "comparison": {
         "correspondence_score": "correspondence_score",
@@ -117,8 +107,7 @@ REGION_VERIFICATION_EVIDENCE_FIELDS = {
         "ast_coverage": "ast_coverage",
         "fix_signature_coverage": "fix_signature_coverage",
         "vulnerable_signature_coverage": "vulnerable_signature_coverage",
-        "lineage_confidence": "lineage_confidence",
-        "alignment_fallback_used": "fallback_used"
+        "lineage_confidence": "lineage_confidence"
     },
 }
 
@@ -162,8 +151,6 @@ VULNERABILITY_STATE_FIELDS = {
         "boundary_rejected": "boundary_rejected"
     },
     "fallbacks": {
-        "containment_attempted": "containment_fallback_attempted",
-        "containment_used": "containment_fallback_used",
         "local_correspondence_attempted": "local_correspondence_attempted",
         "local_correspondence_used": "local_correspondence_used",
         "local_correspondence_status": "local_correspondence_status",

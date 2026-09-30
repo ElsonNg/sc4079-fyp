@@ -16,7 +16,6 @@ from provtrail.pipeline.detection.verification.tokens import (
     role_tokens,
     signature_coverage,
 )
-from provtrail.pipeline.detection.verification.fallback import apply_containment
 
 
 def _side_score(candidate: AstRegion, reference: AstRegion) -> ReferenceSideEvidence:
@@ -38,14 +37,10 @@ def verify_region_pair(
     config: RegionVerifierConfig | None = None,
     candidate_function_name: str | None = None,
 ) -> RegionVerificationEvidence:
-    config = config or RegionVerifierConfig()
     # Score the candidate against both versions of the same fix boundary.
     vulnerable = _side_score(candidate_region, pair.vulnerable_region)
     patched = _side_score(candidate_region, pair.patched_region)
 
-    # Try containment when a whole-region comparison fails the structure or token gate.
-    apply_containment(candidate_region, pair.vulnerable_region, vulnerable, config)
-    apply_containment(candidate_region, pair.patched_region, patched, config)
     candidate_tokens = set(role_tokens(candidate_region))
     coverage = min(
         len(candidate_region.ast_shape), len(pair.vulnerable_region.ast_shape),
@@ -74,8 +69,5 @@ def verify_region_pair(
             ast_coverage=coverage,
             fix_signature_coverage=signature_coverage(pair.change.fix_signature_tokens, candidate_tokens),
             vulnerable_signature_coverage=signature_coverage(pair.change.vulnerable_signature_tokens, candidate_tokens),
-            alignment_fallback_used=(
-                vulnerable.containment_used or patched.containment_used
-            ),
         ),
     )

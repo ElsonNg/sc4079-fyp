@@ -22,17 +22,7 @@ def effective_components(
     side: str,
 ) -> tuple[float, float]:
     if side == "vulnerable":
-        if item.vulnerable.containment_used:
-            return (
-                item.vulnerable.containment_structural or 0.0,
-                item.vulnerable.containment_token or 0.0,
-            )
         return item.vulnerable.structural, item.vulnerable.token
-    if item.patched.containment_used:
-        return (
-            item.patched.containment_structural or 0.0,
-            item.patched.containment_token or 0.0,
-        )
     return item.patched.structural, item.patched.token
 
 

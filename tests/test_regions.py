@@ -15,7 +15,7 @@ from provtrail.pipeline.controller.region_extraction import (
 )
 from provtrail.pipeline.controller.region_retrieval import aggregate_region_hits
 from provtrail.pipeline.controller.region_retrieval import RegionRetrievalIndex
-from provtrail.pipeline.detection.verification.aggregation import deduplicate_evidence
+from provtrail.pipeline.detection.verification.aggregation import deduplicate_evidence, effective_components
 from provtrail.pipeline.detection.verification.classification import classify_boundary, classify_evidence
 from provtrail.pipeline.detection.verification.verifier import verify_region_pair
 from provtrail.pipeline.models.boundary import BoundaryIdentity, VerificationGates
@@ -229,7 +229,6 @@ def test_region_verification_prefers_vulnerable_shape_over_patched_shape():
     assert evidence.vulnerable.score > evidence.patched.score
     assert evidence.comparison.margin > 0
     assert evidence.comparison.ast_coverage > 0
-    assert evidence.comparison.alignment_fallback_used is False
     assert evidence.vulnerable.score == pytest.approx(
         min(evidence.vulnerable.structural, evidence.vulnerable.token)
     )
@@ -332,7 +331,7 @@ def test_contrastive_edit_anchors_ignore_statement_shared_by_both_sides():
     assert patched.vulnerable == 0.0
 
 
-def test_containment_fallback_recovers_type3_region_with_extra_code():
+def test_whole_region_scores_are_not_promoted_for_extra_code():
     entry = _entry(
         "function checkValue(value) { return unsafe(value); }",
         "function checkValue(value) { return safe(value); }",
@@ -355,9 +354,36 @@ def test_containment_fallback_recovers_type3_region_with_extra_code():
     evidence = verify_region_pair(candidate, pair, retrieval_similarity=0.9)
 
     assert evidence.vulnerable.structural < 0.70
-    assert evidence.vulnerable.containment_used is True
-    assert evidence.vulnerable.containment_coverage == pytest.approx(0.50)
-    assert evidence.vulnerable.score >= 0.70
+    assert evidence.vulnerable.token < 0.70
+    assert evidence.vulnerable.score == min(
+        evidence.vulnerable.structural, evidence.vulnerable.token,
+    )
+    assert evidence.vulnerable.score < 0.70
+
+
+def test_archived_fallback_scores_cannot_override_correspondence():
+    entry = _entry(
+        "function checkValue(value) { return unsafe(value); }",
+        "function checkValue(value) { return safe(value); }",
+        [DiagnosticLine(kind="removed", vulnerable_line=0, text="return unsafe(value);")],
+    )
+    pair = extract_vulnerability_regions(entry)[0]
+    evidence = verify_region_pair(pair.vulnerable_region, pair, retrieval_similarity=0.9)
+    record = evidence.to_record()
+    record.update(
+        structural_vulnerable=0.4, token_vulnerable=0.5,
+        containment_structural_vulnerable=1.0, containment_token_vulnerable=1.0,
+        containment_fallback_vulnerable=True, fallback_used=True,
+    )
+
+    restored = RegionVerificationEvidence.from_record(record)
+
+    assert effective_components(restored, "vulnerable") == (0.4, 0.5)
+    assert effective_components(restored, "patched") == (
+        evidence.patched.structural, evidence.patched.token,
+    )
+    assert not any(key.startswith("containment_") for key in restored.to_record())
+    assert "fallback_used" not in restored.to_record()
 
 
 def test_renamed_api_anchor_receivers_preserve_operation_similarity():

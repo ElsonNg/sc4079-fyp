@@ -1,10 +1,8 @@
-"""Sequence similarity with bounded containment and unchanged-edge trimming."""
+"""Sequence similarity with unchanged-edge trimming."""
 
 from __future__ import annotations
 
 import difflib
-
-from provtrail.pipeline.detection.verification.edit_distance import fuzzy_substring_similarity
 
 
 def sequence_similarity(left: list[str], right: list[str]) -> float:
@@ -46,16 +44,3 @@ def sequence_similarity(left: list[str], right: list[str]) -> float:
     )
     common_matches = prefix + suffix
     return (2 * common_matches + core_ratio * core_total) / (len(left) + len(right))
-
-
-def containment_similarity(
-    left: list[str], right: list[str], max_cells: int | None = None
-) -> tuple[float, float]:
-    """Score the shorter sequence inside the longer, guarded by size coverage."""
-    if not left or not right:
-        return 0.0, 0.0
-    shorter, longer = (left, right) if len(left) <= len(right) else (right, left)
-    coverage = len(shorter) / len(longer)
-    if max_cells is not None and len(shorter) * len(longer) > max_cells:
-        return 0.0, coverage
-    return fuzzy_substring_similarity(shorter, longer), coverage

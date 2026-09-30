@@ -39,6 +39,18 @@ MODELS = {
 MODELS["HashMatch"] = importlib.import_module("provtrail.pipeline.models.hashing").HashMatch
 
 
+def current_payload(value):
+    """Retain the archived fixture while omitting retired output fields."""
+    if isinstance(value, dict):
+        return {
+            key: current_payload(item) for key, item in value.items()
+            if not key.startswith("containment_") and key != "fallback_used"
+        }
+    if isinstance(value, list):
+        return [current_payload(item) for item in value]
+    return value
+
+
 @pytest.mark.parametrize("name,expected", [
     (name, expected) for name, expected in CONTRACTS["schema_hashes"].items()
     if name not in {"VulnerabilityState", "RegionDetectionResult", "VulnerableRegionPair", "RegionVerificationEvidence", "RegionRetrievalMatch", "RegionAggregate"}
@@ -50,7 +62,7 @@ def test_model_schemas_match_before_refactor(name, expected):
 
 
 @pytest.mark.parametrize("case", CONTRACTS["payloads"].values(), ids=CONTRACTS["payloads"])
-def test_saved_payloads_deserialize_without_changes(case):
+def test_saved_payloads_deserialize_with_retired_fields_omitted(case):
     model = MODELS[case["model"]]
     payload = json.loads(json.dumps(case["payload"]))
     # Older synthetic fixtures supplied counts without their candidate IDs.
@@ -58,11 +70,11 @@ def test_saved_payloads_deserialize_without_changes(case):
         aggregate["support_count"] = len(aggregate["candidate_region_ids"])
     if issubclass(model, FlatRecordModel):
         value = model.from_record(payload)
-        assert value.to_record() == payload
+        assert value.to_record() == current_payload(payload)
     else:
         value = model.model_validate_json(json.dumps(payload))
-        assert value.model_dump(mode="json") == payload
-        assert json.loads(value.model_dump_json()) == payload
+        assert value.model_dump(mode="json") == current_payload(payload)
+        assert json.loads(value.model_dump_json()) == current_payload(payload)
 
 
 def test_configuration_defaults_and_imports_preserve_active_settings():
@@ -85,6 +97,9 @@ def test_configuration_defaults_and_imports_preserve_active_settings():
     current_verifier_defaults = {
         key: value for key, value in CONTRACTS["verifier_defaults"].items()
         if key not in {"include_local_alignment", "local_alignment_trigger"}
+        and not key.startswith("minimum_containment_")
+        and not key.startswith("include_containment_")
+        and not key.startswith("max_containment_")
     }
     current_defaults["verifier"] = current_verifier_defaults
     assert defaults == current_defaults
@@ -137,8 +152,8 @@ def test_grouped_updates_preserve_the_saved_record_contract(model, fixture, grou
     changed = original.model_copy(update={
         group: getattr(original, group).model_copy(update={field: value}),
     })
-    assert changed.to_record() == {**record, legacy: value}
-    assert original.to_record() == record
+    assert changed.to_record() == {**current_payload(record), legacy: value}
+    assert original.to_record() == current_payload(record)
     assert model.from_record(changed.to_record()) == changed
 
 

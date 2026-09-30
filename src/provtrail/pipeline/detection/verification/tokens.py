@@ -1,11 +1,11 @@
-"""Role-normalized tokens, API anchors and containment measurements."""
+"""Role-normalized tokens and API anchors."""
 
 from __future__ import annotations
 
 import re
 
 from provtrail.pipeline.models.region import AstRegion
-from provtrail.pipeline.detection.verification.sequences import sequence_similarity, containment_similarity
+from provtrail.pipeline.detection.verification.sequences import sequence_similarity
 
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
@@ -55,17 +55,6 @@ def role_tokens(region: AstRegion) -> list[str]:
 def token_score(candidate: AstRegion, reference: AstRegion) -> float:
     role_score = sequence_similarity(role_tokens(candidate), role_tokens(reference))
     return role_score
-
-
-def containment_components(
-    candidate: AstRegion, reference: AstRegion, max_cells: int | None = None
-) -> tuple[float, float, float]:
-    shape, shape_coverage = containment_similarity(candidate.ast_shape, reference.ast_shape, max_cells)
-    path, path_coverage = containment_similarity(candidate.ast_path, reference.ast_path, max_cells)
-    token, token_coverage = containment_similarity(
-        role_tokens(candidate), role_tokens(reference), max_cells
-    )
-    return 0.5 * shape + 0.5 * path, token, min(shape_coverage, path_coverage, token_coverage)
 
 
 def _normalize_api_anchor(value: str) -> str:
