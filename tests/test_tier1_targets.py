@@ -1,6 +1,6 @@
 import json
 
-from scripts.validate_tier1_releases import (
+from eval.tier1.validate_tier1_releases import (
     _finding_hashes,
     _finding_matches_target,
     _load_checkpoint,

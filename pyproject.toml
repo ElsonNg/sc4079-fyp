@@ -16,8 +16,6 @@ dependencies = [
     "tree-sitter-javascript",
     "tree-sitter-typescript",
     "faiss-cpu",
-    "fastapi",
-    "uvicorn",
     "requests",
     "python-dotenv",
     "pydantic>=2",

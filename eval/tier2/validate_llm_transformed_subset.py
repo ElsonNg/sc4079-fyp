@@ -5,7 +5,7 @@ fields (no provenance_confidence). Buckets detector.detect(...).priority against
 each record's expected_status, broken down by clone type and language.
 
 Run from the repo root:
-    $env:PYTHONPATH="."; .venv\\Scripts\\python.exe scripts\\validate_llm_transformed_subset.py
+    $env:PYTHONPATH="."; .venv\\Scripts\\python.exe -m eval.tier2.validate_llm_transformed_subset
 """
 
 from __future__ import annotations

@@ -5,7 +5,7 @@ record embeds the vulnerable/patched corpus snapshots so the fixture remains aud
 even if the live corpus is rebuilt later.
 
 Run from the repository root:
-    PYTHONPATH=. .venv/bin/python scripts/generate_candidate_subset.py
+    PYTHONPATH=. .venv/bin/python -m eval.fixtures.generate_candidate_subset
 """
 
 from __future__ import annotations

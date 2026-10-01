@@ -1,12 +1,2 @@
-sentence-transformers
-torch
-tree-sitter
-tree-sitter-javascript
-tree-sitter-typescript
-faiss-cpu
-fastapi
-uvicorn
-requests
-python-dotenv
-pydantic
-pytest
+# Install runtime and test dependencies from pyproject.toml.
+-e .[test]

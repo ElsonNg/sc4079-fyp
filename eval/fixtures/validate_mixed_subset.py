@@ -2,7 +2,7 @@
 
 Run from the repository root:
 
-    PYTHONPATH=. .venv/bin/python -u scripts/validate_mixed_subset.py
+    PYTHONPATH=. .venv/bin/python -m eval.fixtures.validate_mixed_subset
 """
 
 from __future__ import annotations

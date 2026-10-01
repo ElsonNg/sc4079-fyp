@@ -1,5 +1,5 @@
 from provtrail.corpus.models.corpus import CorpusEntry
-from scripts.generate_klaban_verification_subset import generate_fixtures
+from eval.fixtures.generate_klaban_verification_subset import generate_fixtures
 
 
 def _entry(index: int) -> CorpusEntry:

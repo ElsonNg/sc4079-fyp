@@ -11,11 +11,11 @@ from eval.comparison import (
     select_diverse_origins,
 )
 from eval.tool_adapters import normalize_codeql, normalize_osv, normalize_provtrail, normalize_semgrep
-from scripts.build_tool_comparison import build
-from scripts.materialize_tool_comparison import _resolve_target
+from eval.comparison_benchmark.build_tool_comparison import build
+from eval.comparison_benchmark.materialize_tool_comparison import _resolve_target
 from provtrail.pipeline.controller.parsing import extract_function_units
 from provtrail.pipeline.controller.parsing import parse_source
-from scripts.run_tool_comparison import _codeql_extraction
+from eval.comparison_benchmark.run_tool_comparison import _codeql_extraction
 
 
 def _origin(index, language, package=None, ghsa=None):

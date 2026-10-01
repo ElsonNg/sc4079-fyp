@@ -62,7 +62,7 @@ test set. The 30-sample pilot also has no non-clone controls and is too small to
 establish comparative accuracy.
 
 The selection and runner are in
-[`scripts/run_jscpd_clone_30.py`](../scripts/run_jscpd_clone_30.py). Per-case
+[`eval/comparison_benchmark/run_jscpd_clone_30.py`](../eval/comparison_benchmark/run_jscpd_clone_30.py). Per-case
 results and raw jscpd JSON are under `eval/comparison_raw/jscpd_clone_30/`.
 
 ## Matched-pool contrast with ProvTrail retrieval
@@ -97,7 +97,7 @@ still built from vulnerable/patched fix boundaries; this comparison isolates the
 *output being measured* (source linkage), not every piece of upstream knowledge
 available to the two methods.
 The contrast runner is
-[`scripts/compare_clone_30.py`](../scripts/compare_clone_30.py), and its
+[`eval/comparison_benchmark/compare_clone_30.py`](../eval/comparison_benchmark/compare_clone_30.py), and its
 per-case results are in `eval/comparison_raw/jscpd_clone_30/contrast.json`.
 
 ## Local speed check
@@ -172,7 +172,7 @@ to measure false alarms. ProvTrail's index uses vulnerable/patched fix
 boundaries, even though this score excludes its vulnerability verdict.
 
 The fixed selection and runner are in
-[`scripts/compare_clone_100.py`](../scripts/compare_clone_100.py). The case
+[`eval/comparison_benchmark/compare_clone_100.py`](../eval/comparison_benchmark/compare_clone_100.py). The case
 manifest and per-case outputs are under
 `eval/comparison_raw/jscpd_clone_100/` (ignored evaluation artifacts).
 On this single local run, jscpd's near-miss pool scan took 0.164 seconds;

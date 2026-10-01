@@ -71,9 +71,9 @@ review requests. Controllers pass sessions and paths into these modules where ne
 
 Evaluation programs are grouped under `eval/tier1/`, `eval/tier2/`,
 `eval/ablation/`, `eval/comparison_benchmark/` and `eval/fixtures/`. Retained
-`scripts/` commands forward to them. Historical whole-function verification
-results remain in `eval/` for reference. See `eval/README.md` for current build,
-run and scoring commands.
+Python commands run directly with `python -m eval.<group>.<module>`; study-specific
+PowerShell runners remain under `scripts/`. See `eval/README.md` for current
+build, run and scoring commands. Historical provenance remains under `eval/frozen/`.
 
 For a small scan example with matched vulnerable and patched functions, see
 [the paired demo](../examples/paired_demo/README.md). The larger

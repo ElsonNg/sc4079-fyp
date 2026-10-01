@@ -1,5 +1,5 @@
 from provtrail.pipeline.models.retrieval import RetrievalMatch
-from scripts.evaluate_klaban_retrieval import evaluate_recall
+from eval.tier1.evaluate_klaban_retrieval import evaluate_recall
 from tests.test_windowed_retrieval import _entry
 
 

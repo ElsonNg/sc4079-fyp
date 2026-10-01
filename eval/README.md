@@ -1,8 +1,10 @@
 # Evaluation commands
 
 Run commands from the repository root. The Python modules under `eval/` own the
-implementations. Matching files under `scripts/` remain entry points for older
-commands. All defaults write to the top-level `eval/` directory.
+implementations; invoke them with `python -m eval.<group>.<module>`. Duplicate
+Python entry points under `scripts/` have been removed. PowerShell study runners
+remain in `scripts/`; their commands are documented with each study. Output
+locations depend on the command; use explicit paths for historical reruns.
 Set `PROVTRAIL_DATA_DIR=corpus/data` when running from the repository root to
 reuse the existing embedding indexes. Tier 1 release checks fetch GitHub source
 trees and use `GITHUB_TOKEN` from the environment or the working directory's
@@ -16,7 +18,7 @@ trees and use `GITHUB_TOKEN` from the environment or the working directory's
 | Decision ablation | Same 30 positive and 60 negative fixtures | `python -m eval.ablation.run_decision_ablations` | `decision_ablation_k5_evidence20_results.json` |
 | Tool comparison | `python -m eval.comparison_benchmark.build_tool_comparison` | `python -m eval.comparison_benchmark.run_tool_comparison`, then `python -m eval.comparison_benchmark.score_tool_comparison --findings <normalized.jsonl>` | `comparison_summary.json` |
 
-The saved `tier1_production_fp32_results.json` uses the curated label manifest:
+To rerun the historical curated Tier 1 cohort and write a new result:
 
 ```text
 python -m eval.tier1.validate_tier1_releases --labels eval/tier1_curated_labels.jsonl --target-functions-only --max-functions 1 --output eval/tier1_production_fp32_results.json
@@ -69,11 +71,7 @@ synthetic wrapper. This is a positive structural-clone fixture, not a runtime
 semantic-equivalence proof and not a complete accuracy benchmark. A separate
 patched/benign hard-negative set should be evaluated alongside it.
 
-`candidate_subset_30_current_results.json` is a historical August 2026 result
-from the retired whole-function retrieval and hierarchical verification pipeline.
-It flagged 15 of 30 positive candidates and sent the other 15 to manual review.
-The current scanner does not use this verification path, and Tier 1 and Tier 2
-metrics do not consume this file. Run
+The historical whole-function verification output has been removed. Run
 `python -m eval.fixtures.validate_region_candidate_subset` to evaluate these
 fixtures with the current AST-region detector.
 

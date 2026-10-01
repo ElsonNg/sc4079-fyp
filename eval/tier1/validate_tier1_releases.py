@@ -6,7 +6,7 @@ the labeled source file/function contributes to the expected GHSA outcome. No
 package code is executed.
 
 Run from the repo root:
-    $env:PYTHONPATH="."; .venv\\Scripts\\python.exe scripts\\validate_tier1_releases.py
+    $env:PYTHONPATH="."; .venv\\Scripts\\python.exe -m eval.tier1.validate_tier1_releases
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ from eval.metrics import (
     summarize_evaluation,
 )
 from provtrail.pipeline.controller.region_detection import RegionDetectorConfig, build_region_detector
-from provtrail.pipeline.controller.parsing import SUPPORTED_SOURCE_EXTENSIONS, extract_function_units
+from provtrail.pipeline.controller.parsing import extract_function_units
 from provtrail.pipeline.scanning.scanner import (
     RESULT_CACHE_SCHEMA_VERSION,
     ScanConfig,
@@ -204,13 +204,6 @@ def _log(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
-def _count_functions(path: Path) -> int:
-    try:
-        return len(extract_function_units(path.read_text(encoding="utf-8"), filename=str(path)))
-    except (OSError, RuntimeError, ValueError):
-        return 0
-
-
 def _select_source_files(
     sources: dict[str, str], target_path: str, max_functions: int | None
 ) -> tuple[dict[str, str], int, bool]:
@@ -237,45 +230,6 @@ def _select_source_files(
         selected[path] = sources[path]
         total += count
     return selected, total, len(selected) < len(sources)
-
-
-def _apply_function_cap_legacy(dest: Path, target_paths: set[str], max_functions: int) -> tuple[int, int]:
-    """Deprecated compatibility helper retained for old imports."""
-    # The implementation is retained for callers importing the old helper.
-    """Delete source files so at most ~max_functions functions remain, but ALWAYS keep
-    files matching a target advisory's corpus file_path (so recall is never lost to the
-    cap). Returns (kept_functions, removed_files). Purely deletes files — runs nothing.
-    """
-    files = [
-        p for p in dest.rglob("*")
-        if p.is_file() and p.suffix.lower() in SUPPORTED_SOURCE_EXTENSIONS
-    ]
-    normalized_targets = {t.replace("\\", "/") for t in target_paths}
-
-    def is_target(path: Path) -> bool:
-        s = str(path).replace("\\", "/")
-        return any(s.endswith(t) for t in normalized_targets)
-
-    counts = {p: _count_functions(p) for p in files}
-    targets = [p for p in files if is_target(p)]
-    others = sorted((p for p in files if p not in targets), key=lambda p: counts[p])
-
-    kept = set(targets)
-    total = sum(counts[p] for p in targets)
-    for path in others:  # smallest files first, until the budget is used up
-        if counts[path] == 0:
-            continue  # a file with no functions yields nothing to scan -- drop it
-        if total >= max_functions:
-            break
-        kept.add(path)
-        total += counts[path]
-
-    removed = 0
-    for path in files:
-        if path not in kept:
-            path.unlink(missing_ok=True)
-            removed += 1
-    return total, removed
 
 
 def _make_scan_progress(label: str):

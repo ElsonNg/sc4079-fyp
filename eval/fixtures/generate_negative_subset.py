@@ -12,7 +12,7 @@ corpus snapshots as auditable safe controls:
 These are fixed-corpus controls, not a runtime proof that every function is
 safe in every context. Run from the repository root:
 
-    PYTHONPATH=. .venv/bin/python scripts/generate_negative_subset.py
+    PYTHONPATH=. .venv/bin/python -m eval.fixtures.generate_negative_subset
 """
 
 from __future__ import annotations

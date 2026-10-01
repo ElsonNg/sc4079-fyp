@@ -6,7 +6,7 @@ Klaban entries as benign/similar controls.
 
 Run from the repository root:
 
-    PYTHONPATH=. .venv/bin/python scripts/generate_klaban_verification_subset.py
+    PYTHONPATH=. .venv/bin/python -m eval.fixtures.generate_klaban_verification_subset
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Evaluate the AST-region detector on eval/candidate_subset_30.jsonl.
 
 Run from the repository root:
-    PYTHONPATH=. .venv/bin/python -u scripts/validate_region_candidate_subset.py
+    PYTHONPATH=. .venv/bin/python -m eval.fixtures.validate_region_candidate_subset
 
 Candidates are intentionally evaluated serially. This keeps each detector run
 observable and makes it possible to stop after, or diagnose, a specific case.

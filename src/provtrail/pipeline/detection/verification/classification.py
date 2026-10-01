@@ -17,19 +17,6 @@ from provtrail.pipeline.detection.verification.aggregation import (
 )
 
 
-def _weighted_median(values: list[tuple[float, float]]) -> float:
-    if not values:
-        return 0.0
-    ordered = sorted(values)
-    halfway = sum(weight for _, weight in ordered) / 2.0
-    running = 0.0
-    for value, weight in ordered:
-        running += weight
-        if running >= halfway:
-            return value
-    return ordered[-1][0]
-
-
 def classify_boundary(
     evidence: list[RegionVerificationEvidence],
     pair: VulnerableRegionPair,

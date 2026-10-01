@@ -2,8 +2,8 @@
 
 from collections import Counter
 
-from scripts.compare_clone_100 import origin_key, samples_100
-from scripts.run_jscpd_clone_30 import samples as pilot_samples
+from eval.comparison_benchmark.compare_clone_100 import origin_key, samples_100
+from eval.comparison_benchmark.run_jscpd_clone_30 import samples as pilot_samples
 
 
 def test_selection_is_balanced_and_retains_pilot() -> None:

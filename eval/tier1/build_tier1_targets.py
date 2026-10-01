@@ -6,7 +6,7 @@ release (expected not to). This step is offline and cheap — it only reads corp
 metadata. The actual download/extract/scan happens in validate_tier1_releases.py.
 
 Run from the repo root:
-    $env:PYTHONPATH="."; .venv\\Scripts\\python.exe scripts\\build_tier1_targets.py
+    $env:PYTHONPATH="."; .venv\\Scripts\\python.exe -m eval.tier1.build_tier1_targets
 """
 
 from __future__ import annotations

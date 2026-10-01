@@ -7,7 +7,7 @@ silently flip a label. Records reuse the existing candidate/negative schema so t
 scorer and any downstream tooling stay compatible.
 
 Run from the repo root:
-    $env:PYTHONPATH="."; .venv\\Scripts\\python.exe scripts\\generate_llm_transformed_subset.py
+    $env:PYTHONPATH="."; .venv\\Scripts\\python.exe -m eval.tier2.generate_llm_transformed_subset
 """
 
 from __future__ import annotations

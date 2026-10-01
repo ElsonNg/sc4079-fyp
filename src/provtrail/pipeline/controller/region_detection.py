@@ -48,8 +48,6 @@ from provtrail.pipeline.models.region_retrieval import RegionAggregate
 from provtrail.pipeline.models.evidence import RegionVerificationEvidence
 from provtrail.pipeline.models.result import RegionDetectionResult
 
-AdvisoryIdentity = tuple[str, ...]
-
 # Canonical filename per language, used as a language hint for native hash helpers.
 _LANGUAGE_FILENAME = {
     "javascript": "candidate.js",
@@ -66,18 +64,6 @@ def resolve_candidate_language(candidate_id: str | None, language: str | None) -
     if language:
         return source_language(language=language)
     return source_language((candidate_id or "").split("::", 1)[0])
-
-
-def _hash_identity(match) -> AdvisoryIdentity:
-    if match.lineage_id:
-        return "lineage", match.lineage_id
-    return match.advisory.ghsa_id, match.origin.fix_commit_sha, match.origin.file_path, match.origin.function_name
-
-
-def _pair_identity(pair) -> AdvisoryIdentity:
-    if pair.lineage_id:
-        return "lineage", pair.lineage_id
-    return pair.advisory.ghsa_id, pair.origin.fix_commit_sha, pair.origin.file_path, pair.origin.function_name
 
 
 def _infer_candidate_function_name(source: str, filename: str) -> str | None:
