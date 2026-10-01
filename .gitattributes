@@ -66,7 +66,6 @@
 /src/provtrail/corpus/controller/build.py -text
 /src/provtrail/corpus/controller/deduplication.py -text
 /src/provtrail/corpus/controller/extraction.py -text
-/src/provtrail/corpus/controller/klaban.py -text
 /src/provtrail/corpus/controller/release.py -text
 /src/provtrail/corpus/controller/snapshot.py -text
 /src/provtrail/corpus/integrations/__init__.py -text

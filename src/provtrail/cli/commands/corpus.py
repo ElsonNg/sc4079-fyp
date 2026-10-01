@@ -16,11 +16,9 @@ import requests
 from provtrail.corpus.controller.build import build_corpus_result, print_attrition_report, probe_packages
 from provtrail.corpus.controller.deduplication import deduplicate_entries
 from provtrail.corpus.controller.snapshot import SnapshotIntegrityError, promote_snapshot
-from provtrail.corpus.controller.klaban import KLABAN_ID_PREFIX, parse_klaban_corpus, print_klaban_report
 from provtrail.corpus.integrations.sqlite_store import (
     DEFAULT_DB_PATH,
     load_entries,
-    replace_entries_by_ghsa_prefix,
 )
 from provtrail.pipeline.integrations import embedding
 from provtrail.pipeline.integrations.embedding import EMBEDDING_DEVICE_ENV
@@ -224,17 +222,4 @@ def index(args: argparse.Namespace) -> int:
     print(
         f"Indexed {len(entries)} functions and {len(pairs)} AST regions with {args.model}"
     )
-    return 0
-
-
-def ingest_klaban(args: argparse.Namespace) -> int:
-    entries, report = parse_klaban_corpus(args.path)
-    if args.db_path:
-        replace_entries_by_ghsa_prefix(entries, KLABAN_ID_PREFIX, args.db_path)
-    else:
-        replace_entries_by_ghsa_prefix(entries, KLABAN_ID_PREFIX)
-    print_klaban_report(report)
-    print(f"Saved {len(entries)} Klaban entries")
-    if not args.skip_index:
-        return index(args)
     return 0

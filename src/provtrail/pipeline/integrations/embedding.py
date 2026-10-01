@@ -51,15 +51,14 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
 # (embed multiple <=2048-token windows, combine via mean-pool or max-similarity-at-query)
 # to get full-body coverage without paying attention's O(n^2) cost on the whole body at
 # once -- not implemented, revisit if Stage 2 recall on large functions proves to be a
-# problem in the eval suite (module 11). Klaban also contains generated functions up to
-# ~800 KB, making longer full-corpus CPU inference impractical in the supported local
-# environment. Windowed embeddings remain the proper future solution for those outliers.
+# problem in the eval suite (module 11). Longer full-corpus inference remains
+# impractical for generated functions; bounded windows limit that cost.
 DEFAULT_MAX_SEQ_LENGTH = 64
 DEFAULT_EMBEDDING_BATCH_SIZE = 4
 # Hugging Face truncates to DEFAULT_MAX_SEQ_LENGTH tokens, but its native tokenizer
-# still has to scan the complete input first. Klaban includes generated/minified
-# functions approaching 800 KB, after whitespace normalization, a 605 KB single line
-# can segfault the tokenizer before token truncation runs. Typical JavaScript reaches
+# still has to scan the complete input first. Very large generated/minified
+# functions can exhaust or crash the tokenizer before token truncation runs.
+# Typical JavaScript reaches
 # 2,048 tokens within roughly 8 KB, so this cap leaves a generous buffer while
 # keeping pathological inputs out of native code.
 MAX_EMBEDDING_INPUT_CHARS = 16 * 1024

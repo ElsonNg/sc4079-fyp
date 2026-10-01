@@ -177,7 +177,6 @@ Corpus maintenance commands are:
 ```bash
 provtrail corpus stats
 provtrail corpus build --package axios --package express
-provtrail corpus ingest-klaban
 provtrail corpus index
 ```
 
@@ -219,26 +218,6 @@ for executable evidence, source-review evidence, failures and unresolved cases.
 Neither corpus admission nor a similarity score guarantees application exploitability.
 The immutable provenance and quarantine artifacts are retained for evaluation.
 
-The separate `corpus ingest-klaban` evaluation utility is not used by `corpus build`.
-It reads a local manually confirmed Klaban dataset (pass its path or place it under
-`PROVTRAIL_DATA_DIR/raw/kluban/extracted/`), replaces
-previously imported Klaban rows in `PROVTRAIL_DATA_DIR/corpus.db`, and builds both the
-whole-function and AST-region FAISS embedding indexes. Pass `--skip-index` to perform
-only the SQLite import, or `--db-path` and the index-directory options to write isolated
-artifacts.
-Use `--device cpu` when the platform's MPS/CUDA backend is unavailable or unstable.
-Use `--skip-region-index` when only the whole-function FAISS index is required.
-
 Long functions are indexed with bounded, diagnostic-aware windows so code around the
 security fix remains retrievable even when it occurs far beyond the function prefix.
-Kluban overlap analysis and benchmarking are deferred to the later evaluation phase. The
-existing evaluation utility can be run independently with:
-
-```bash
-python -m eval.tier1.evaluate_klaban_retrieval --k 10
-```
-
-The evaluator prints running hit rates, elapsed time, and ETA every 10 queries. Use
-`--progress-every 1` for every query or `--progress-every 0` for quiet operation.
-
 Generated embedding indexes and local scan state are intentionally excluded from Git.

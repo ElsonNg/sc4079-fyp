@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 
 from provtrail.corpus.controller.snapshot import DEFAULT_SNAPSHOTS_DIR
-from provtrail.corpus.controller.klaban import DEFAULT_KLABAN_PATH
 from provtrail.pipeline.integrations.embedding import EMBEDDING_DEVICE_ENV
 from provtrail.pipeline.detection.config import DEFAULT_MODEL_ID
 from provtrail.pipeline.controller.region_retrieval import DEFAULT_REGION_EMBEDDINGS_DIR
@@ -28,7 +27,6 @@ from provtrail.cli.commands.corpus import (
     probe as _corpus_probe,
     stats as _corpus_stats,
     index as _corpus_index,
-    ingest_klaban as _corpus_ingest_klaban,
     _corpus_build_progress,
 )
 
@@ -149,24 +147,6 @@ def build_parser() -> argparse.ArgumentParser:
     probe.add_argument("--include-withdrawn", action="store_true")
     stats = corpus_commands.add_parser("stats", help="Show corpus size and metadata coverage")
     _add_db_path(stats)
-    ingest_klaban = corpus_commands.add_parser(
-        "ingest-klaban",
-        help="Import the manually confirmed Klaban corpus and build its indexes",
-    )
-    ingest_klaban.add_argument("path", nargs="?", type=Path, default=DEFAULT_KLABAN_PATH)
-    _add_db_path(ingest_klaban)
-    ingest_klaban.add_argument("--embed-model", dest="model", default=DEFAULT_MODEL_ID)
-    ingest_klaban.add_argument(
-        "--device", choices=("cpu", "mps", "cuda"), default=None,
-        help=f"Embedding device (also configurable with {EMBEDDING_DEVICE_ENV})",
-    )
-    ingest_klaban.add_argument("--embedding-batch-size", type=int, default=1)
-    ingest_klaban.add_argument("--skip-index", action="store_true")
-    ingest_klaban.add_argument("--skip-region-index", action="store_true")
-    ingest_klaban.add_argument("--embeddings-dir", type=Path, default=DEFAULT_EMBEDDINGS_DIR)
-    ingest_klaban.add_argument(
-        "--region-embeddings-dir", type=Path, default=DEFAULT_REGION_EMBEDDINGS_DIR
-    )
     index = corpus_commands.add_parser("index", help="Build function and AST-region embedding indexes")
     _add_db_path(index)
     index.add_argument("--embed-model", dest="model", default=DEFAULT_MODEL_ID)
@@ -195,9 +175,7 @@ def main(argv: list[str] | None = None) -> int:
         return _corpus_probe(args)
     if args.corpus_command == "stats":
         return _corpus_stats(args)
-    if args.corpus_command == "index":
-        return _corpus_index(args)
-    return _corpus_ingest_klaban(args)
+    return _corpus_index(args)
 
 
 if __name__ == "__main__":

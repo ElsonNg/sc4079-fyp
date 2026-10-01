@@ -183,23 +183,6 @@ def save_entries(entries: list[CorpusEntry], db_path: Path | str = DEFAULT_DB_PA
     conn.close()
 
 
-def replace_entries_by_ghsa_prefix(
-    entries: list[CorpusEntry],
-    ghsa_prefix: str,
-    db_path: Path | str = DEFAULT_DB_PATH,
-) -> None:
-    """Atomically replace one source namespace while preserving other corpus rows."""
-    conn = get_connection(db_path)
-    with conn:
-        conn.execute(
-            "DELETE FROM corpus_entries WHERE substr(ghsa_id, 1, ?) = ?",
-            (len(ghsa_prefix), ghsa_prefix),
-        )
-        for e in entries:
-            conn.execute(_UPSERT_SQL, _entry_values(e))
-    conn.close()
-
-
 def load_entries(db_path: Path | str = DEFAULT_DB_PATH) -> list[CorpusEntry]:
     conn = get_connection(db_path)
     cursor = conn.execute("SELECT * FROM corpus_entries")

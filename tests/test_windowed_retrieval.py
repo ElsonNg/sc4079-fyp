@@ -5,7 +5,7 @@ from provtrail.pipeline.controller.retrieval import WINDOW_CHARS, _corpus_window
 
 def _entry(vulnerable: str, patched: str) -> CorpusEntry:
     return CorpusEntry(
-        ghsa_id="KLABAN-test",
+        ghsa_id="GHSA-test",
         package_name="demo",
         ecosystem="npm",
         repo="acme/demo",

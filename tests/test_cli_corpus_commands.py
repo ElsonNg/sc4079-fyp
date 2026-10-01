@@ -9,13 +9,12 @@ import requests
 
 from provtrail.cli.commands import corpus
 from provtrail.cli.main import main
-from provtrail.corpus.integrations.sqlite_store import load_entries
 from provtrail.corpus.models.corpus import BuildResult, CorpusEntry
 
 
 def _entry():
     return CorpusEntry(
-        ghsa_id="KLABAN-demo", package_name="demo", ecosystem="npm",
+        ghsa_id="GHSA-demo", package_name="demo", ecosystem="npm",
         repo="owner/demo", fix_commit_sha="abc123", file_path="src/check.js",
         function_name="check",
         vulnerable_function="function check(x) { return unsafe(x); }",
@@ -127,19 +126,6 @@ def test_probe_writes_limited_package_selection(monkeypatch, tmp_path):
     assert payload["selected_count"] == 1
 
 
-@pytest.mark.parametrize("skip_index", [True, False])
-def test_ingest_saves_entries_and_optionally_indexes(monkeypatch, tmp_path, skip_index):
-    calls = []
-    monkeypatch.setattr(corpus, "parse_klaban_corpus", lambda path: ([_entry()], object()))
-    monkeypatch.setattr(corpus, "print_klaban_report", lambda report: None)
-    monkeypatch.setattr(corpus, "index", lambda args: calls.append(args.db_path) or 0)
-    database = tmp_path / "corpus.db"
-    args = ["corpus", "ingest-klaban", "fixture.json", "--db-path", str(database)]
-    assert main(args + (["--skip-index"] if skip_index else [])) == 0
-    assert load_entries(database)[0].advisory.ghsa_id == "KLABAN-demo"
-    assert calls == ([] if skip_index else [database])
-
-
 @pytest.mark.parametrize("skip_regions", [True, False])
 def test_index_writes_metadata_and_cleans_temporary_vectors(monkeypatch, tmp_path, skip_regions):
     builds = []
@@ -165,8 +151,8 @@ def test_index_writes_metadata_and_cleans_temporary_vectors(monkeypatch, tmp_pat
     assert main(args + (["--skip-region-index"] if skip_regions else [])) == 0
     assert len(builds) == (1 if skip_regions else 2)
     metadata = json.loads((functions / "test-model.meta.json").read_text())
-    assert metadata["entries"][0]["ghsa_id"] == "KLABAN-demo"
+    assert metadata["entries"][0]["ghsa_id"] == "GHSA-demo"
     assert not list(tmp_path.rglob("*.npy"))
     if not skip_regions:
         metadata = json.loads((regions / "test-model.meta.json").read_text())
-        assert metadata["pairs"][0]["ghsa_id"] == "KLABAN-demo"
+        assert metadata["pairs"][0]["ghsa_id"] == "GHSA-demo"
