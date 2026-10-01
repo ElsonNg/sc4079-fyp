@@ -1,0 +1,29 @@
+{
+  "cases": 1200,
+  "scopes": 72,
+  "status": "passed",
+  "code_sha256": {
+    "eval/ablation/audit_expanded_correspondence.py": "d101f4d13ccb400b9775157f65cc59bb8a0089087c6f42bc6afd6a752ea483cb"
+  },
+  "report_sha256": {
+    "summary.json": "7c67b75bce09246bde98ed79448edb685ccf9a0607ec1a5e758202b595f0c638",
+    "case-changes.json": "c4525e95526d9a772db631083cfb5728589a878f8a0f58c56594b74441807725",
+    "boundary-traces.json": "6921c7dc43a712b0e39fb52e61089d132c0e8d1ee2756ec372b528a414981310",
+    "tables.md": "6d7272f2f1efdc786afe85cbb1866d63c9bc87439211bed4ba5fd1530662ac34"
+  },
+  "decisive_ast_boundaries": {
+    "('expanded_ast', 'vulnerable')": 13,
+    "('expanded_ast_noop', 'vulnerable')": 13,
+    "('expanded_ast', 'patched')": 5,
+    "('expanded_ast_noop', 'patched')": 5
+  },
+  "checks": [
+    "checkpoint seals and identities",
+    "all metrics independently reconstructed",
+    "previous bounded baseline reproduced",
+    "same target boundaries and established verdicts",
+    "hashes and initially non-review results preserved",
+    "L034 and LN018 retained",
+    "no new false alerts or vulnerable releases without alerts"
+  ]
+}

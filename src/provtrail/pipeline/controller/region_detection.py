@@ -7,6 +7,7 @@ from provtrail.corpus.models.corpus import CorpusEntry
 from provtrail.pipeline.detection.verification.edit_distance import score_edit_distance
 from provtrail.pipeline.controller.hashing import HashIndex, build_hash_index, lookup
 from provtrail.pipeline.controller.local_correspondence import decide_local_correspondence
+from provtrail.pipeline.controller.correspondence_verification import verify_uncertain_boundaries
 from provtrail.pipeline.controller.parsing import extract_function_units, source_language
 from provtrail.pipeline.controller.provenance import cluster_corpus_entries
 from provtrail.pipeline.controller.region_extraction import (
@@ -38,6 +39,9 @@ from provtrail.pipeline.detection.lineage import (
     attribute_lineages, lineage_confidence as _confidence, unknown_applicabilities,
 )
 from provtrail.pipeline.detection.priority import derive_priority
+from provtrail.pipeline.detection.revision_relationships import (
+    POLICY as EXPANDED_VERIFIER_POLICY, RevisionRelationships, derive_revision_priority,
+)
 from provtrail.pipeline.models.boundary import VulnerabilityState, VulnerableRegionPair
 from provtrail.pipeline.models.region import CandidateRegion
 from provtrail.pipeline.models.region_retrieval import RegionAggregate
@@ -113,6 +117,10 @@ class RegionDetector:
         }
         self.boundary_diagnostics = {}
         self.lineage_meta = {item.lineage_id: item for item in cluster_corpus_entries(entries)}
+        self.revision_relationships = (
+            RevisionRelationships.from_entries(entries)
+            if self.config.include_expanded_correspondence_fallback else None
+        )
 
     def detect(
         self,
@@ -193,7 +201,7 @@ class RegionDetector:
 
         # scanning.scan_directory later adds project-specific package applicability.
         applications = self._unknown_applicabilities(lineages)
-        return RegionDetectionResult(
+        result = RegionDetectionResult(
             priority=derive_priority(lineages, states, applications),
             candidate_id=candidate_id,
             hash_match_types=hash_types,
@@ -207,6 +215,18 @@ class RegionDetector:
             package_applicabilities=applications,
             message=None if evidence else "No credible AST-region lineage evidence retrieved",
         )
+        if self.config.include_expanded_correspondence_fallback:
+            result.decision_policy = EXPANDED_VERIFIER_POLICY
+            result.priority = derive_revision_priority(result, self.revision_relationships)
+            if (
+                self.config.max_edit_candidate_chars is None
+                or len(candidate_source) <= self.config.max_edit_candidate_chars
+            ):
+                result, _ = verify_uncertain_boundaries(
+                    result, candidate_source, candidate_language, self.pairs,
+                    self.revision_relationships, self.config.verifier,
+                )
+        return result
 
     def _verify_regions(
         self, candidate_regions: list[CandidateRegion], aggregates: list[RegionAggregate],
@@ -303,6 +323,7 @@ class RegionDetector:
             # The optional local fallback gets a final chance to resolve eligible uncertain cases.
             if (
                 self.config.include_local_correspondence_fallback
+                and not self.config.include_expanded_correspondence_fallback
                 and state.status == "uncertain"
                 and state.gates.token_gate_passed
                 and not state.gates.boundary_rejected

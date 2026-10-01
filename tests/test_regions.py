@@ -987,7 +987,8 @@ def test_grouped_fallback_evidence_preserves_opt_in_and_saved_verdict(monkeypatc
                         lambda *args: EditDistanceEvidence(vulnerable=0.95, patched=0.93))
     detector = RegionDetector(
         [entry], RegionRetrievalIndex(model_id="fake", index=None, pairs=[pair]), HashIndex(),
-        RegionDetectorConfig(include_local_correspondence_fallback=enabled),
+        RegionDetectorConfig(include_local_correspondence_fallback=enabled,
+                             include_expanded_correspondence_fallback=False),
     )
     result = detector.detect(vulnerable, _candidate_regions=[candidate], _matches=[match])
     state = result.vulnerability_states[0]

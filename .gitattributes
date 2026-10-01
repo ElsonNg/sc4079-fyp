@@ -179,3 +179,9 @@
 
 # Preserve PDF bytes and cross-reference offsets on Windows checkouts.
 /output/pdf/*.pdf binary
+
+# Preserve the selected verifier and its integration audit source hashes.
+/src/provtrail/pipeline/controller/ast_correspondence.py -text
+/src/provtrail/pipeline/controller/correspondence_verification.py -text
+/src/provtrail/pipeline/detection/revision_relationships.py -text
+/eval/ablation/check_promoted_verifier.py -text

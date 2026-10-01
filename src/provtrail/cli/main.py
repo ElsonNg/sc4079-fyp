@@ -81,7 +81,12 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument(
         "--experimental-local-correspondence",
         action="store_true",
-        help="Enable the default-off bounded regex/guard/order fallback after S/T/E abstains.",
+        help="Use the earlier bounded regex/guard/order verifier instead of the expanded verifier.",
+    )
+    scan.add_argument(
+        "--no-expanded-correspondence",
+        action="store_true",
+        help="Disable the default whole-function correspondence verifier for comparisons.",
     )
     scan.add_argument(
         "--explain-review",

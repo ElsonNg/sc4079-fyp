@@ -213,6 +213,9 @@ Open `/path/to/project/.provtrail/latest-scan.html` in your browser. The same
 directory contains `latest-scan.json` for automation. Repeat the scan to reuse
 unchanged function results.
 
+Scans use the [expanded boundary verifier](docs/expanded-verifier.md) by default.
+Use `--no-expanded-correspondence` to compare with the earlier S/T/E baseline.
+
 For a small example, see the [paired vulnerable/patched demo](examples/paired_demo/README.md).
 
 ## Documentation

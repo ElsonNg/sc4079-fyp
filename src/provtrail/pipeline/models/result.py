@@ -18,6 +18,8 @@ FindingPriority = Literal[
 
 class RegionDetectionResult(BaseModel):
     priority: FindingPriority = "none"
+    # Preserve the completed verifier's decision when adding package context.
+    decision_policy: Literal["baseline", "expanded_ast_v1"] = "baseline"
     candidate_id: str | None = None
     hash_match_types: list[str] = Field(default_factory=list)
     hash_matches: list[HashMatch] = Field(default_factory=list)

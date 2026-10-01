@@ -101,6 +101,9 @@ def run(args: argparse.Namespace) -> int:
         retrieval_threshold=args.retrieval_threshold,
         max_verification_candidates=10,
         include_local_correspondence_fallback=args.experimental_local_correspondence,
+        include_expanded_correspondence_fallback=(
+            not getattr(args, "no_expanded_correspondence", False) and not args.experimental_local_correspondence
+        ),
         verifier=verifier,
     )
     scan_config = ScanConfig(

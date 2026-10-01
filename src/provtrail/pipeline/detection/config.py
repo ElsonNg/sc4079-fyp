@@ -35,6 +35,8 @@ class RegionDetectorConfig:
     max_verification_candidates: int = 5
     max_verification_regions_per_pair: int = 3
     include_local_correspondence_fallback: bool = False
+    # Use the selected whole-function verifier after credible S/T/E abstentions.
+    include_expanded_correspondence_fallback: bool = True
     # Oversized outer functions are skipped. Nested functions remain eligible.
     max_candidate_chars: int | None = None
     max_edit_candidate_chars: int | None = None

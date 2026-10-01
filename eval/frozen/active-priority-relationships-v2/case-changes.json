@@ -1,0 +1,272 @@
+{
+  "policy": "revision_relationship_uncertainty_v2",
+  "changes": [
+    {
+      "arm": "no_changed",
+      "candidate_id": "LN136",
+      "tier": "tier2",
+      "split": "tuning",
+      "expected_status": "cleared",
+      "before": "informational_lineage",
+      "after": "manual_review",
+      "hash_path": false,
+      "boundaries": [
+        [
+          "boundary-0d2cc07bf74724b09ffddaf1c064a8c27ab9458274436a5a0917a0166f3d9ee0",
+          "patched",
+          null
+        ],
+        [
+          "boundary-6ddade01f84e708a87992077d3416d62372af2b8865838987994899329238df1",
+          "patched",
+          null
+        ],
+        [
+          "boundary-728109be43eb4ebe8ec3c33248c68bec314d6f2d5961b2d8df3a78a0d6ad32da",
+          "uncertain",
+          "T_FAILED"
+        ],
+        [
+          "boundary-81d7380c70be8db8b9495508600ea10795487fb5ae0d60958e5bf8577e272444",
+          "patched",
+          null
+        ],
+        [
+          "boundary-a410b47f844efb6ac170641f844cb069513d72a5603c378e330489a31106129b",
+          "patched",
+          null
+        ],
+        [
+          "boundary-aa923031256974346a772002375430d495b49ece32ea66eac531e6a181087329",
+          "patched",
+          null
+        ]
+      ]
+    },
+    {
+      "arm": "no_changed",
+      "candidate_id": "LN144",
+      "tier": "tier2",
+      "split": "tuning",
+      "expected_status": "cleared",
+      "before": "informational_lineage",
+      "after": "manual_review",
+      "hash_path": false,
+      "boundaries": [
+        [
+          "boundary-0d2cc07bf74724b09ffddaf1c064a8c27ab9458274436a5a0917a0166f3d9ee0",
+          "patched",
+          null
+        ],
+        [
+          "boundary-6ddade01f84e708a87992077d3416d62372af2b8865838987994899329238df1",
+          "patched",
+          null
+        ],
+        [
+          "boundary-728109be43eb4ebe8ec3c33248c68bec314d6f2d5961b2d8df3a78a0d6ad32da",
+          "patched",
+          null
+        ],
+        [
+          "boundary-81d7380c70be8db8b9495508600ea10795487fb5ae0d60958e5bf8577e272444",
+          "patched",
+          null
+        ],
+        [
+          "boundary-a410b47f844efb6ac170641f844cb069513d72a5603c378e330489a31106129b",
+          "uncertain",
+          "T_FAILED"
+        ],
+        [
+          "boundary-aa923031256974346a772002375430d495b49ece32ea66eac531e6a181087329",
+          "patched",
+          null
+        ]
+      ]
+    },
+    {
+      "arm": "no_block",
+      "candidate_id": "T2-3b284f0c0740c36a694b",
+      "tier": "tier2",
+      "split": "tuning",
+      "expected_status": "cleared",
+      "before": "informational_lineage",
+      "after": "manual_review",
+      "hash_path": false,
+      "boundaries": [
+        [
+          "boundary-00a3a1ae917c368a8a060a1242db2a5807443f059593a6b34ba58677587abee1",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-030f252f21fe3d7ab8f6bf1b32f5979d641cedacdac87e52b1286f5ef743f1ad",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-222cfb5fb565c6d8976a29b23e23d975c5569357a914bdb5a7e8f2261ab834a7",
+          "patched",
+          null
+        ],
+        [
+          "boundary-289b499aef9da4e1a672d5aef227df6213c05cbeca1a439772153ff734470927",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-b3ad01f3077a626030957cf50c34076847b5b5cb6ca1802878b380be201f7bfa",
+          "patched",
+          null
+        ]
+      ]
+    },
+    {
+      "arm": "no_block",
+      "candidate_id": "T2-4b4f622969b0807eebb2",
+      "tier": "tier2",
+      "split": "tuning",
+      "expected_status": "cleared",
+      "before": "informational_lineage",
+      "after": "manual_review",
+      "hash_path": false,
+      "boundaries": [
+        [
+          "boundary-00a3a1ae917c368a8a060a1242db2a5807443f059593a6b34ba58677587abee1",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-030f252f21fe3d7ab8f6bf1b32f5979d641cedacdac87e52b1286f5ef743f1ad",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-222cfb5fb565c6d8976a29b23e23d975c5569357a914bdb5a7e8f2261ab834a7",
+          "uncertain",
+          "T_FAILED"
+        ],
+        [
+          "boundary-289b499aef9da4e1a672d5aef227df6213c05cbeca1a439772153ff734470927",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-3e7994c3db305df26937cf6bffdafd46523285c325d6c5ae1456c402f8e5eb6d",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-6088a495344b6201e34f30c660e92cce1397ebcaa04d7ac95fef728be48cec21",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-b3ad01f3077a626030957cf50c34076847b5b5cb6ca1802878b380be201f7bfa",
+          "patched",
+          null
+        ],
+        [
+          "boundary-ff15effa5f65d65426485abef391b39280f48de93e12e98943bacf4e56c678b8",
+          "uncertain",
+          "S_FAILED"
+        ]
+      ]
+    },
+    {
+      "arm": "no_function",
+      "candidate_id": "T2-3b284f0c0740c36a694b",
+      "tier": "tier2",
+      "split": "tuning",
+      "expected_status": "cleared",
+      "before": "informational_lineage",
+      "after": "manual_review",
+      "hash_path": false,
+      "boundaries": [
+        [
+          "boundary-00a3a1ae917c368a8a060a1242db2a5807443f059593a6b34ba58677587abee1",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-030f252f21fe3d7ab8f6bf1b32f5979d641cedacdac87e52b1286f5ef743f1ad",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-222cfb5fb565c6d8976a29b23e23d975c5569357a914bdb5a7e8f2261ab834a7",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-289b499aef9da4e1a672d5aef227df6213c05cbeca1a439772153ff734470927",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-b3ad01f3077a626030957cf50c34076847b5b5cb6ca1802878b380be201f7bfa",
+          "patched",
+          null
+        ],
+        [
+          "boundary-ff15effa5f65d65426485abef391b39280f48de93e12e98943bacf4e56c678b8",
+          "uncertain",
+          "S_FAILED"
+        ]
+      ]
+    },
+    {
+      "arm": "no_function",
+      "candidate_id": "T2-4b4f622969b0807eebb2",
+      "tier": "tier2",
+      "split": "tuning",
+      "expected_status": "cleared",
+      "before": "informational_lineage",
+      "after": "manual_review",
+      "hash_path": false,
+      "boundaries": [
+        [
+          "boundary-00a3a1ae917c368a8a060a1242db2a5807443f059593a6b34ba58677587abee1",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-030f252f21fe3d7ab8f6bf1b32f5979d641cedacdac87e52b1286f5ef743f1ad",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-222cfb5fb565c6d8976a29b23e23d975c5569357a914bdb5a7e8f2261ab834a7",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-289b499aef9da4e1a672d5aef227df6213c05cbeca1a439772153ff734470927",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-3e7994c3db305df26937cf6bffdafd46523285c325d6c5ae1456c402f8e5eb6d",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-6e880cf860d880b8bcde23c66b9d2e18106372730588e959acf8f2e6acb9619c",
+          "uncertain",
+          "S_FAILED"
+        ],
+        [
+          "boundary-b3ad01f3077a626030957cf50c34076847b5b5cb6ca1802878b380be201f7bfa",
+          "patched",
+          null
+        ]
+      ]
+    }
+  ]
+}

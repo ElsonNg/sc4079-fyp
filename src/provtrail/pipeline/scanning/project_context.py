@@ -103,7 +103,10 @@ class ProjectEvidenceIndex:
                     detail="declaration alone does not prove candidate ownership",
                 ))
             applications.append(value.model_copy(update={"status": status, "evidence": evidence}))
-        priority = derive_priority(result.lineages, result.vulnerability_states, applications)
+        # Applicability adds ownership context. It must not discard revision-aware
+        # review decisions made by the completed whole-function verifier.
+        priority = (result.priority if result.decision_policy == "expanded_ast_v1"
+                    else derive_priority(result.lineages, result.vulnerability_states, applications))
         return result.model_copy(update={
             "package_applicabilities": applications,
             "priority": priority,

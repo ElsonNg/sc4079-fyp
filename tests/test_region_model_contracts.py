@@ -73,8 +73,12 @@ def test_saved_payloads_deserialize_with_retired_fields_omitted(case):
         assert value.to_record() == current_payload(payload)
     else:
         value = model.model_validate_json(json.dumps(payload))
-        assert value.model_dump(mode="json") == current_payload(payload)
-        assert json.loads(value.model_dump_json()) == current_payload(payload)
+        expected = current_payload(payload)
+        if model is RegionDetectionResult:
+            # Archived results predate the additive decision-policy marker.
+            expected["decision_policy"] = "baseline"
+        assert value.model_dump(mode="json") == expected
+        assert json.loads(value.model_dump_json()) == expected
 
 
 def test_configuration_defaults_and_imports_preserve_active_settings():
@@ -102,6 +106,7 @@ def test_configuration_defaults_and_imports_preserve_active_settings():
         and not key.startswith("max_containment_")
     }
     current_defaults["verifier"] = current_verifier_defaults
+    current_defaults["include_expanded_correspondence_fallback"] = True
     assert defaults == current_defaults
     assert dataclasses.asdict(RegionVerifierConfig()) == current_verifier_defaults
     assert fingerprint_config(legacy_defaults) == CONTRACTS["config_fingerprint"]
