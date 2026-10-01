@@ -1,0 +1,29 @@
+{
+  "study": "c212853adc8feab4ba55b077e3b3b85a009222f1915d8eb6c5b381dfd6d97c70",
+  "verified_cases": 1200,
+  "verified_checkpoints": 3600,
+  "verified_scopes": 24,
+  "checkpoint_set_sha256": "3a5e569e32b96b2dae3d386a0b81323f043e7460e58f5d57bac89413ebc9f8aa",
+  "completion_seals": {
+    "1": "b69cd20d12586ef6892782bdcd61f7372232824bc22ddc7763912ba76e0236b3",
+    "2": "0c094febf4f9eb559cc6a50d9590e127260473b233f4201422d48a7357f40f3d",
+    "3": "dba9fea388eb09efc401c4bc23cc53c84cfcf68bad2dbc886891149f8160fc7b"
+  },
+  "summary_sha256": "a8426158f8e82a2f984d8a7f953cdfcd543d9a25a1534086b34ae1fdbe78dae9",
+  "cpu_replay_summary_sha256": "8eb3fc4fda5dc4bb01253517021069b7a773cdc8246d131de5fc07a8d203c63a",
+  "runtime": {
+    "gpu": "NVIDIA GeForce RTX 4070",
+    "capability": [
+      8,
+      9
+    ],
+    "torch_cuda": "13.0",
+    "cudnn": 92000
+  },
+  "interrupted_repetitions": [],
+  "repeat_decision_or_rank_changes": 0,
+  "cpu_replay_decision_changes": 0,
+  "prior_gpu_retrieval_rank_changes": 0,
+  "note": "All seals, candidate identities, code/input/model hashes, coverage, first-pass verdicts vs selected experimental arm, repeat decisions/ranks, metric scopes and reported timings verified. Quality counted once; detector timing excludes setup, warmup and checkpoint IO.",
+  "content_sha256": "116fef3e1ac8c39be88f163e4bb0c3b5e7cdebb24419c78f7b978fc7f5ec6d92"
+}

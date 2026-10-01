@@ -1,0 +1,10 @@
+{
+  "gpu": "NVIDIA GeForce RTX 4070",
+  "capability": [
+    8,
+    9
+  ],
+  "torch_cuda": "13.0",
+  "cudnn": 92000,
+  "content_sha256": "cff020728cba32f492a7377aa31c55a15b17cd59b79b748ddf572b7127d007e8"
+}

@@ -185,3 +185,5 @@
 /src/provtrail/pipeline/controller/correspondence_verification.py -text
 /src/provtrail/pipeline/detection/revision_relationships.py -text
 /eval/ablation/check_promoted_verifier.py -text
+/eval/ablation/run_expanded_e2e.py -text
+/scripts/run_expanded_verifier_gpu.ps1 -text

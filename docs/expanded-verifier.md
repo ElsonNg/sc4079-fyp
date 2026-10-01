@@ -56,3 +56,36 @@ verifier and reporting policy; retrieval limits and region selection retain thei
 existing behavior. In particular, the CLI still has its existing verification
 budget of 10. A subsequent GPU evaluation must explicitly fix the intended region
 and retrieval configuration and use fresh outputs and protocol locks.
+
+### Fresh GPU detector evaluation
+
+```powershell
+# Check frozen inputs and print the plan without loading the model or writing outputs.
+.\scripts\run_expanded_verifier_gpu.ps1 -Plan
+
+# All 1,200 cases, with three fresh passes for timing and decision stability.
+.\scripts\run_expanded_verifier_gpu.ps1
+```
+
+The selected K5/B10 configuration means five retrieval hits per candidate region
+and up to ten region pairs passed to initial verification. Candidate and reference
+retrieval use only block/function regions. This runner explicitly enables the
+expanded verifier, keeps the chosen thresholds, and requires CUDA FP32. It loads
+the frozen local model and reference index; no hosted model or AI review is called.
+
+To stop, press Ctrl+C. Run the same command to resume from completed case
+checkpoints. Keep the code, inputs, output path and repetition count unchanged.
+Each completed repetition must match the first repetition's decisions and ranks.
+
+For a separate twelve-case pilot:
+
+```powershell
+.\scripts\run_expanded_verifier_gpu.ps1 -SmokeLimit 12 -Repetitions 1
+```
+
+The full output is `eval/frozen/active-expanded-e2e-gpu-v1/combined/tables.md`,
+with detailed metrics in `summary.json` and full first-pass boundary evidence in
+the checkpoints. Pilot outputs use a separate directory. Existing experiment
+outputs are preserved. Quality counts each case once; repeats measure timing.
+The timer covers detector stages and excludes setup, checkpoint IO, directory
+discovery and report rendering.
