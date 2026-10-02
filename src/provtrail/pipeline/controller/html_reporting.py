@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from provtrail.corpus.models.corpus import CorpusEntry
 from provtrail.pipeline.controller.region_extraction import enumerate_candidate_regions
 from provtrail.pipeline.controller.reporting import ACTIVE_STATUSES, audit_summary, finding_detail
+from provtrail.pipeline.scanning.dismissals import is_dismissed
 from provtrail.pipeline.controller.report_evidence import (
     ReportBoundary, boundary_reason, primary_observation, report_boundaries, supports_decision,
 )
@@ -367,6 +368,8 @@ def _build_finding(
     reason, action = boundary_reason(selected[0] if selected else None)
     return {
         "id": str(finding.get("function_id") or ""),
+        "finding_id": finding.get("finding_id"),
+        "dismissal": finding.get("dismissal"),
         "path": str(finding.get("path") or "unknown"),
         "name": finding.get("name") or "<anonymous>",
         "source_language": finding.get("source_language") or "javascript",
@@ -416,6 +419,7 @@ def build_html_report_data(
     config: ScanConfig,
     generated_at: datetime | None = None,
     tool_version: str = "development",
+    report_path: Path | None = None,
 ) -> dict[str, Any]:
     """Normalize live scan data into the private payload embedded in the HTML file."""
 
@@ -434,7 +438,7 @@ def build_html_report_data(
             item["start_line"],
         )
     )
-    active = [item for item in findings if item["priority"] in ACTIVE_STATUSES]
+    active = [item for item in findings if item["priority"] in ACTIVE_STATUSES and not is_dismissed(item)]
     outcome_counts = {
         name: sum(item["outcome"] == name for item in active)
         for name in ("flagged_exact", "flagged_inferred", "manual_review")
@@ -446,7 +450,7 @@ def build_html_report_data(
     # locations, but never embed workstation-specific absolute paths.
     audit.pop("target_root", None)
     audit.pop("state_path", None)
-    return {
+    data = {
         "schema": "provtrail_html_report_v4",
         "project": Path(summary.target_root).name or "project",
         "generated_at": generated_at.isoformat(timespec="seconds"),
@@ -477,6 +481,64 @@ def build_html_report_data(
             "minimum_edit_margin": config.detector.verifier.minimum_edit_margin,
         },
     }
+    if report_path is not None:
+        try:
+            data["review_report_path"] = report_path.resolve().relative_to(Path(summary.target_root).resolve()).as_posix()
+        except ValueError:
+            # Keep workstation-specific paths out of the shareable HTML artifact.
+            data["review_report_path"] = ""
+    else:
+        data["review_report_path"] = ".provtrail/latest-scan.json"
+    refresh_html_dismissals(data, {**public_payload, "dismissal_history": summary.dismissal_history})
+    return data
+
+
+def refresh_html_dismissals(data: dict[str, Any], report: dict[str, Any]) -> None:
+    """Refresh review annotations while retaining all embedded source comparisons."""
+    raw_by_id = {item["function_id"]: item for item in report.get("findings", [])}
+    for item in data["findings"]:
+        raw = raw_by_id.get(item["id"], {})
+        item["finding_id"] = raw.get("finding_id")
+        item["dismissal"] = raw.get("dismissal")
+    data["dismissal_history"] = []
+    for row in report.get("dismissal_history", []):
+        snapshot = dict(row.get("html_finding") or {})
+        if not snapshot:
+            alias = (row.get("advisories") or [{}])[0]
+            snapshot = {
+                "path": row["path"], "name": row.get("name") or "<anonymous>",
+                "start_line": int(row.get("start_line") or 0) + 1,
+                "end_line": int(row.get("end_line") or 0) + 1,
+                "priority": row.get("priority"), "outcome": "manual_review",
+                "primary": {"title": alias.get("advisory_title") or "Previous review", "identifier": alias.get("cve_id") or alias.get("ghsa_id") or "Unknown advisory"},
+                "boundaries": [], "severity": alias.get("severity") or "unknown",
+                "reason": "Original source comparison is unavailable in this artifact.",
+                "recommended_action": "Inspect the current scan before reviewing this finding again.",
+            }
+        snapshot.update({
+            "id": "dismissal:" + row["id"], "finding_id": row["id"], "historical": True,
+            "dismissal": {key: row[key] for key in ("id", "status", "status_label", "reason", "dismissed_at")},
+        })
+        data["dismissal_history"].append(snapshot)
+    data["audit"] = audit_summary(report)
+    data["audit"].pop("target_root", None)
+    data["audit"].pop("state_path", None)
+    active = [item for item in data["findings"] if item["priority"] in ACTIVE_STATUSES and not is_dismissed(item)]
+    data["outcome_counts"] = {
+        outcome: sum(item["outcome"] == outcome for item in active)
+        for outcome in ("flagged_exact", "flagged_inferred", "manual_review")
+    }
+    data["outcome_counts"]["patched"] = sum(item["outcome"] == "patched" for item in data["findings"])
+
+
+def load_html_report_data(path: Path) -> dict[str, Any]:
+    match = re.search(r'<script id="report-data" type="application/json">(.*?)</script>', path.read_text(encoding="utf-8"), re.DOTALL)
+    if not match:
+        raise ValueError(f"No embedded ProvTrail data in {path}")
+    data = json.loads(match.group(1))
+    if not isinstance(data, dict) or data.get("schema") != "provtrail_html_report_v4":
+        raise ValueError(f"Unsupported HTML report in {path}; rescan to regenerate it")
+    return data
 
 
 def render_html_report(data: dict[str, Any]) -> str:

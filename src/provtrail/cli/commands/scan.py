@@ -29,6 +29,7 @@ from provtrail.pipeline.controller.reporting import (
 from provtrail.pipeline.controller.html_reporting import build_html_report_data, write_html_report
 from provtrail.cli import PROVTRAIL_VERSION
 from provtrail.cli.commands.exports import validate_paths, write_exports, write_text_atomic
+from provtrail.pipeline.scanning.dismissals import dismissal_path
 
 
 def _scan_progress(event: dict) -> None:
@@ -82,7 +83,11 @@ def run(args: argparse.Namespace) -> int:
     sarif_path = getattr(args, "sarif_output", None)
     ai_path = getattr(args, "ai_output", None)
     try:
-        validate_paths(sarif_path=sarif_path, ai_path=ai_path, reserved=(output_path, html_output_path), json_stdout=args.json)
+        validate_paths(sarif_path=sarif_path, ai_path=ai_path, reserved=(
+            output_path, html_output_path, dismissal_path(args.path.resolve()),
+            dismissal_path(args.path.resolve()).with_suffix(".lock"),
+            args.state_path or args.path.resolve() / ".provtrail/scan-state.json",
+        ), json_stdout=args.json)
     except ValueError as exc:
         print(f"Invalid output options: {exc}", file=sys.stderr)
         return 2
@@ -140,6 +145,11 @@ def run(args: argparse.Namespace) -> int:
 
     # Write the structured and HTML reports from the same scan summary.
     payload = summary.to_dict()
+    payload["artifacts"] = {
+        "html": str(html_output_path.resolve()),
+        "sarif": str(sarif_path.resolve()) if sarif_path is not None else None,
+        "ai": str(ai_path.resolve()) if ai_path is not None and ai_path != Path("-") else None,
+    }
     write_text_atomic(output_path, json.dumps(payload, indent=2))
 
     html_data = build_html_report_data(
@@ -147,6 +157,7 @@ def run(args: argparse.Namespace) -> int:
         entries=entries,
         config=scan_config,
         tool_version=PROVTRAIL_VERSION,
+        report_path=output_path,
     )
     write_html_report(html_output_path, html_data)
     ai_stdout = write_exports(payload, sarif_path=sarif_path, ai_path=ai_path)

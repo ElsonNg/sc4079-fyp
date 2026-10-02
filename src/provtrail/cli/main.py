@@ -22,6 +22,7 @@ from provtrail.pipeline.controller.review_explanation import (
 from provtrail.cli import PROVTRAIL_VERSION
 from provtrail.cli.commands.scan import run as _scan, _scan_progress
 from provtrail.cli.commands.report import run as _report
+from provtrail.cli.commands.dismiss import run as _dismiss, list_dismissed as _dismissed
 from provtrail.cli.commands.corpus import (
     build as _corpus_build,
     probe as _corpus_probe,
@@ -117,8 +118,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include informational lineage and no-match results in detailed output",
     )
     report.add_argument("--json", action="store_true", help="Print the structured report view")
+    report.add_argument("--include-dismissed", action="store_true", help="Include current dismissed findings in detailed output")
     report.add_argument("--sarif-output", type=Path, default=None, help="Write SARIF 2.1.0 findings")
     report.add_argument("--ai-output", type=Path, default=None, help="Write compact AI findings, or - for stdout")
+
+    dismiss = commands.add_parser("dismiss", help="Dismiss a reviewed finding or undo a dismissal")
+    dismiss.add_argument("path", type=Path, help="Project directory or scan JSON file")
+    dismiss.add_argument("--report", type=Path, default=None, help="Scan JSON path, relative to the project directory")
+    dismiss.add_argument("--finding", required=True, help="Finding ID (or a unique prefix of at least 8 characters)")
+    dismiss.add_argument("--reason", default=None, help="Optional review reason")
+    dismiss.add_argument("--undo", action="store_true", help="Restore a dismissed finding to the review queue")
+    dismissed = commands.add_parser("dismissed", help="List dismissed findings and whether their reviews still apply")
+    dismissed.add_argument("path", type=Path, help="Project directory or scan JSON file")
+    dismissed.add_argument("--report", type=Path, default=None, help="Scan JSON path, relative to the project directory")
+    dismissed.add_argument("--json", action="store_true", help="Print dismissal history as JSON")
 
     corpus = commands.add_parser("corpus", help="Manage the vulnerability corpus")
     corpus_commands = corpus.add_subparsers(dest="corpus_command", required=True)
@@ -169,6 +182,10 @@ def main(argv: list[str] | None = None) -> int:
         return _scan(args)
     if args.command == "report":
         return _report(args)
+    if args.command == "dismiss":
+        return _dismiss(args)
+    if args.command == "dismissed":
+        return _dismissed(args)
     if args.corpus_command == "build":
         return _corpus_build(args)
     if args.corpus_command == "probe":

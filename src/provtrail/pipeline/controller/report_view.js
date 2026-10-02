@@ -10,14 +10,21 @@ const markdown = value => esc(value).replace(/`([^`\n]+)`/g, "<code>$1</code>").
 const label = value => String(value ?? "unknown").replaceAll("_", " ").replace(/\b\w/g, char => char.toUpperCase());
 const score = value => value === null || value === undefined || value === "" ? "Not recorded" : Number.isFinite(Number(value)) ? Number(value).toFixed(3) : "Not recorded";
 const vulnerable = finding => ["flagged_exact", "flagged_inferred"].includes(finding.outcome);
-const matches = report.findings.filter(finding => vulnerable(finding) || ["manual_review", "patched"].includes(finding.outcome));
-const byId = new Map(report.findings.map(finding => [finding.id, finding]));
-const decisionLabel = finding => vulnerable(finding) ? "Vulnerable match" : finding.outcome === "patched" ? "Patched match" : "Review required";
-const decisionTone = finding => vulnerable(finding) ? "vulnerable" : finding.outcome === "patched" ? "patched" : "review";
+const dismissed = finding => finding.dismissal?.status === "dismissed";
+const reviewed = finding => dismissed(finding) || finding.historical;
+const currentMatches = report.findings.filter(finding => vulnerable(finding) || ["manual_review", "patched"].includes(finding.outcome));
+const historyMatches = (report.dismissal_history || []).filter(finding => !currentMatches.some(current => dismissed(current) && current.finding_id === finding.finding_id));
+const matches = [...currentMatches, ...historyMatches];
+const byId = new Map([...report.findings, ...historyMatches].map(finding => [finding.id, finding]));
+const originalDecision = finding => vulnerable(finding) ? "Vulnerable match" : finding.outcome === "patched" ? "Patched match" : "Review required";
+const decisionLabel = finding => reviewed(finding) ? dismissed(finding) ? "Dismissed" : "Dismissal outdated" : originalDecision(finding);
+const decisionTone = finding => reviewed(finding) ? "" : vulnerable(finding) ? "vulnerable" : finding.outcome === "patched" ? "patched" : "review";
 let selectedFile = "";
 let viewFilter = "attention";
 let comparison = null;
 let comparisonMode = "patched";
+let reviewTarget = null;
+let reviewCommand = "";
 
 function facts(rows) {
   return '<dl class="facts">' + rows.filter(([, value]) => value !== null && value !== undefined && value !== "")
@@ -30,11 +37,13 @@ function externalLink(url, text) {
 
 // The overview and file navigation share one filter so their counts always agree.
 function visibleFinding(finding) {
+  if (viewFilter === "dismissed" && !reviewed(finding)) return false;
+  if (viewFilter !== "dismissed" && (finding.historical || (dismissed(finding) && viewFilter !== "all"))) return false;
   if (viewFilter === "attention" && finding.outcome === "patched") return false;
   if (viewFilter === "vulnerable" && !vulnerable(finding)) return false;
   if (["manual_review", "patched"].includes(viewFilter) && finding.outcome !== viewFilter) return false;
   const query = $("#search").value.trim().toLowerCase();
-  const terms = [finding.path, finding.name, finding.primary.title, finding.primary.identifier];
+  const terms = [finding.path, finding.name, finding.primary.title, finding.primary.identifier, finding.finding_id, finding.dismissal?.reason];
   for (const boundary of finding.boundaries) {
     terms.push(boundary.lineage.repo, boundary.lineage.reference_function);
     for (const alias of boundary.advisories) terms.push(alias.identifier, alias.title, alias.ghsa_id, alias.package_name);
@@ -47,10 +56,11 @@ function renderTree() {
   const counts = new Map();
   for (const finding of visible) counts.set(finding.path, (counts.get(finding.path) || 0) + 1);
   const query = $("#search").value.trim().toLowerCase();
-  const paths = report.scanned_files.filter(path => counts.has(path) || (
+  const availablePaths = [...new Set([...report.scanned_files, ...visible.map(finding => finding.path)])];
+  const paths = availablePaths.filter(path => counts.has(path) || (
     $("#show-all-files").checked && (!query || path.toLowerCase().includes(query))
   ));
-  $("#tree-count").textContent = `${paths.length} of ${report.scanned_files.length}`;
+  $("#tree-count").textContent = `${paths.length} of ${availablePaths.length}`;
   $("#tree").innerHTML = paths.sort().map(path => `<button class="tree-file" data-path="${esc(path)}" ${path === selectedFile ? 'aria-current="page"' : ""}><span>${esc(path)}</span><span class="file-count">${counts.get(path) || 0}</span></button>`).join("") || '<p class="muted">No files match these filters.</p>';
 }
 
@@ -60,7 +70,7 @@ function findingCard(finding) {
   const uncertain = finding.outcome === "manual_review";
   return `<details class="finding" data-finding="${esc(finding.id)}">
     <summary><div class="finding-heading">
-      <div class="badges"><span class="badge ${decisionTone(finding)}">${decisionLabel(finding)}</span>${method ? `<span class="badge">${method}</span>` : ""}${verified > 1 ? `<span class="badge">${verified} verified fixes</span>` : ""}</div>
+      <div class="badges"><span class="badge ${decisionTone(finding)}">${decisionLabel(finding)}</span>${finding.dismissal?.status === "reopened" ? '<span class="badge review">Review reopened</span>' : ""}${method ? `<span class="badge">${method}</span>` : ""}${verified > 1 ? `<span class="badge">${verified} verified fixes</span>` : ""}</div>
       <h3>${esc(finding.primary.title || finding.name)}</h3>
       <div class="finding-meta">
         <div class="project-location"><code>${esc(finding.name)}</code><span class="location">${esc(finding.path)}:${finding.start_line}–${finding.end_line}</span></div>
@@ -71,7 +81,7 @@ function findingCard(finding) {
 
 function renderContent() {
   const visible = matches.filter(finding => visibleFinding(finding) && (!selectedFile || finding.path === selectedFile));
-  const title = selectedFile || (viewFilter === "patched" ? "Recognised patched code" : "Review findings");
+  const title = selectedFile || (viewFilter === "dismissed" ? "Dismissed findings and review history" : viewFilter === "patched" ? "Recognised patched code" : "Review findings");
   const fileCount = new Set(visible.map(finding => finding.path)).size;
   const count = `${visible.length} function${visible.length === 1 ? "" : "s"} in ${fileCount} file${fileCount === 1 ? "" : "s"}`;
   const hasFilter = viewFilter !== "attention" || $("#search").value.trim() || selectedFile;
@@ -102,7 +112,7 @@ function populateFinding(card) {
   const boundaries = finding.boundaries;
   const otherVerified = boundaries.slice(1).filter(item => ["vulnerable", "patched"].includes(item.state.status) && !item.state.contradictions?.length);
   const alternatives = boundaries.slice(1).filter(item => !otherVerified.includes(item));
-  body.innerHTML = `<div class="brief">
+  body.innerHTML = reviewPanel(finding) + `<div class="brief">
     <section><h4>What matched</h4><p>${esc(finding.reason)}</p></section>
     <section><h4>What to do next</h4><p>${esc(finding.recommended_action)}</p></section>
   </div>`
@@ -111,6 +121,73 @@ function populateFinding(card) {
     + boundaryGroup("Alternative candidates", alternatives, finding)
     + llmAdvice(finding);
   body.dataset.loaded = "true";
+}
+
+function reviewPanel(finding) {
+  const review = finding.dismissal;
+  const eligible = ["automatic_vulnerability", "manual_review"].includes(finding.priority);
+  if (!eligible && !review) return "";
+  let status = "";
+  if (review) {
+    const heading = reviewed(finding) ? dismissed(finding) ? "Dismissed — still applies" : `Previous review — ${review.status_label || "Outdated"}` : "Review reopened";
+    status = `<strong>${esc(heading)}</strong><p>${esc(review.reason || "No reason recorded.")}</p><p class="muted">Reviewed ${esc(review.dismissed_at)}${reviewed(finding) ? ` · Original decision: ${originalDecision(finding)}` : ` · ${esc(review.status_label || "The finding changed")}`}</p>`;
+  }
+  const action = reviewed(finding) ? dismissed(finding) ? "Undo dismissal" : "Remove previous dismissal" : "Dismiss";
+  const button = finding.finding_id ? `<button class="button ${reviewed(finding) ? "" : "dismiss-button"}" data-review="${esc(finding.id)}">${action}</button>` : '<p class="muted">Rescan with the current scanner to enable dismissals.</p>';
+  return `<section class="review-status ${review?.status === "reopened" ? "reopened" : ""}">${status}<div class="links">${finding.finding_id ? `<span class="muted">Finding ID: <code>${esc(finding.finding_id)}</code></span>` : ""}${button}</div></section>`;
+}
+
+function shellQuote(value) {
+  return "'" + String(value).replaceAll("'", "''") + "'";
+}
+
+function updateReviewCommand() {
+  if (!reviewTarget) return;
+  const quote = shellQuote;
+  const args = ["provtrail", "dismiss", quote($("#review-project").value.trim() || "."), "--finding=" + quote(reviewTarget.finding_id)];
+  const reportPath = $("#review-report").value.trim();
+  if (reportPath && reportPath !== ".provtrail/latest-scan.json") args.push("--report=" + quote(reportPath));
+  if (reviewed(reviewTarget)) args.push("--undo");
+  else if ($("#review-reason").value.trim()) args.push("--reason=" + quote($("#review-reason").value.trim()));
+  reviewCommand = args.join(" ");
+  $("#review-command").innerHTML = "<code>" + args.map((arg, index) => {
+    if (index < 2) return `<span class="command-program">${esc(arg)}</span>`;
+    if (!arg.startsWith("--")) return `<span class="command-value">${esc(arg)}</span>`;
+    const separator = arg.indexOf("=");
+    return separator < 0 ? `<span class="command-option">${esc(arg)}</span>`
+      : `<span class="command-option">${esc(arg.slice(0, separator))}</span>=<span class="command-value">${esc(arg.slice(separator + 1))}</span>`;
+  }).join(" ") + "</code>";
+  $("#review-copy-status").textContent = "";
+}
+
+function openReview(id) {
+  reviewTarget = byId.get(id);
+  const undo = reviewed(reviewTarget);
+  $("#review-title").textContent = undo ? "Undo saved dismissal" : "Dismiss reviewed finding";
+  $("#review-location").textContent = `${reviewTarget.path}:${reviewTarget.start_line} · ${reviewTarget.name}`;
+  $("#review-instructions").textContent = undo ? "Remove this saved decision. If the finding still exists, it will require attention again." : "This dismissal applies while the entire file, function, and finding remain unchanged. Changes elsewhere in this file reopen the review.";
+  $("#review-report").value = report.review_report_path || "";
+  $("#review-reason").value = "";
+  $("#review-reason-label").hidden = undo;
+  updateReviewCommand();
+  $("#review-dialog").showModal();
+}
+
+async function copyReviewCommand() {
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(reviewCommand);
+    copied = true;
+  } catch (_error) {
+    $("#review-command").focus();
+    const range = document.createRange();
+    range.selectNodeContents($("#review-command"));
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    try { copied = document.execCommand("copy"); } catch (_fallbackError) { /* Keep the text selected for manual copying. */ }
+  }
+  $("#review-copy-status").textContent = copied ? "Copied. Run the command in your terminal, then reload this artifact." : "Select and copy the command manually, then run it in your terminal.";
 }
 
 function boundaryGroup(title, boundaries, finding) {
@@ -257,7 +334,7 @@ function openScanInfo() {
     <section class="info-box"><h3>Incremental scan</h3>${facts([
       ["Root hash", report.root_hash], ["Previous root hash", report.previous_root_hash || "First scan"],
       ["Changed files", report.changed_files.length], ["Deleted files", report.deleted_files.length],
-    ])}<p class="unknowns">Patched matches describe the current source. This report does not compare finding lifecycles across scans.</p></section>
+    ])}<p class="unknowns">Dismissal status reflects this artifact's last refresh. Rescan after changing code to reopen outdated reviews.</p></section>
     <section class="info-box"><h3>Optional model advice</h3>${facts([
       ["Enabled", run.enabled ? "Yes" : "No"], ["Model", run.model], ["Generated", run.generated], ["Reused", run.reused], ["Unavailable", run.unavailable],
     ])}<p class="unknowns">Model advice does not change detector verdicts or the inclusion of manual reviews in AI and SARIF exports.</p></section></div>`;
@@ -267,9 +344,12 @@ function openScanInfo() {
 function init() {
   $("#project-title").textContent = report.project;
   $("#summary-meta").textContent = `${report.scanned_files.length} files · ${report.audit.total_functions} functions · Generated ${new Date(report.generated_at).toLocaleString()}`;
-  $("#count-vulnerable").textContent = matches.filter(vulnerable).length;
-  $("#count-review").textContent = matches.filter(finding => finding.outcome === "manual_review").length;
-  $("#count-patched").textContent = matches.filter(finding => finding.outcome === "patched").length;
+  $("#count-vulnerable").textContent = currentMatches.filter(finding => vulnerable(finding) && !dismissed(finding)).length;
+  $("#count-review").textContent = currentMatches.filter(finding => finding.outcome === "manual_review" && !dismissed(finding)).length;
+  $("#count-patched").textContent = currentMatches.filter(finding => finding.outcome === "patched").length;
+  $("#count-dismissed").textContent = currentMatches.filter(dismissed).length;
+  const outdated = historyMatches.length;
+  $("#dismissal-count-note").textContent = outdated ? `Reviewed findings · ${outdated} previous reviews outdated` : "Reviewed findings excluded from attention";
   const warnings = [];
   if (report.coverage.corpus_entries === 0) warnings.push("The corpus is empty. This scan cannot establish coverage of known vulnerabilities.");
   if (report.coverage.unsupported_functions) warnings.push(`${report.coverage.unsupported_functions} functions were marked unsupported. Inspect scan details.`);
@@ -295,14 +375,17 @@ function init() {
     if (event.target.matches("details.finding")) populateFinding(event.target);
   }, true);
   $("#content").addEventListener("click", event => {
-    const button = event.target.closest("[data-compare], [data-info]");
+    const button = event.target.closest("[data-compare], [data-info], [data-review]");
     if (!button) return;
+    if (button.dataset.review) { openReview(button.dataset.review); return; }
     const index = Number(button.dataset.boundary);
     if (button.dataset.compare) openComparison(button.dataset.compare, index);
     else openFindingInfo(button.dataset.info, index);
   });
   $$("[data-comparison-mode]").forEach(button => button.addEventListener("click", () => { comparisonMode = button.dataset.comparisonMode; renderComparison(); }));
   $("#scan-info").addEventListener("click", openScanInfo);
+  ["review-project", "review-report", "review-reason"].forEach(id => $("#" + id).addEventListener("input", updateReviewCommand));
+  $("#copy-review-command").addEventListener("click", copyReviewCommand);
   $("#theme-toggle").addEventListener("click", () => {
     const dark = document.documentElement.dataset.theme !== "dark";
     document.documentElement.dataset.theme = dark ? "dark" : "light";

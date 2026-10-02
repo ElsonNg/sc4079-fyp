@@ -23,6 +23,7 @@
       <button class="counter vulnerable" data-filter="vulnerable" aria-pressed="false"><span>Vulnerable matches</span><strong id="count-vulnerable">0</strong><small>Exact or inferred code matches</small></button>
       <button class="counter review" data-filter="manual_review" aria-pressed="false"><span>Review required</span><strong id="count-review">0</strong><small>Vulnerability not established</small></button>
       <button class="counter patched" data-filter="patched" aria-pressed="false"><span>Patched matches</span><strong id="count-patched">0</strong><small>Patched side of a known fix</small></button>
+      <button class="counter" data-filter="dismissed" aria-pressed="false"><span>Dismissed</span><strong id="count-dismissed">0</strong><small id="dismissal-count-note">Reviewed findings excluded from attention</small></button>
     </div>
     <p class="scope-note">Matches describe known upstream fixes. Runtime reachability and other vulnerabilities are not established by this scan.</p>
   </section>
@@ -38,6 +39,7 @@
       <select id="view-filter">
         <option value="attention">Needs attention</option><option value="all">All matches</option>
         <option value="vulnerable">Vulnerable matches</option><option value="manual_review">Review required</option><option value="patched">Patched matches</option>
+        <option value="dismissed">Dismissed / review history</option>
       </select>
       <button id="clear-filter" class="button">Reset filters</button>
     </div>
@@ -68,6 +70,20 @@
 <dialog id="scan-info-dialog" aria-labelledby="scan-info-title">
   <div class="dialog-head"><h2 id="scan-info-title">Scan details</h2><form method="dialog"><button class="button">Close</button></form></div>
   <div id="scan-info-body" class="dialog-body"></div>
+</dialog>
+<dialog id="review-dialog" aria-labelledby="review-title">
+  <div class="dialog-head"><div><h2 id="review-title">Dismiss reviewed finding</h2><p id="review-location" class="muted"></p></div><form method="dialog"><button class="button">Close</button></form></div>
+  <div class="dialog-body review-form">
+    <p id="review-instructions">This dismissal applies while the entire file, function, and finding remain unchanged. Changes elsewhere in this file reopen the review.</p>
+    <label for="review-project">Project directory<input id="review-project" type="text" value="." spellcheck="false"></label>
+    <p class="muted">Use <code>.</code> when running the command from the scanned project directory, or enter its path.</p>
+    <label for="review-report">Scan JSON path (relative to the project, or absolute)<input id="review-report" type="text" placeholder=".provtrail/latest-scan.json" spellcheck="false"></label>
+    <label for="review-reason" id="review-reason-label">Review reason (optional)<input id="review-reason" type="text" placeholder="Reviewed; not applicable"></label>
+    <div class="command-field"><p id="review-command-label">Command</p><pre id="review-command" tabindex="0" aria-labelledby="review-command-label"></pre></div>
+    <div><button id="copy-review-command" class="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M15 9V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h4"/></svg>Copy</button></div>
+    <p id="review-copy-status" class="muted" role="status" aria-live="polite"></p>
+    <p class="muted">Run this command in PowerShell, then reload this artifact. The command saves the decision and refreshes the reports. This HTML file does not save decisions itself.</p>
+  </div>
 </dialog>
 <script id="report-data" type="application/json">__REPORT_DATA__</script>
 <script>__REPORT_SCRIPT__</script>

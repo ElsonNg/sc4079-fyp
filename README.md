@@ -236,6 +236,7 @@ provtrail report scan.json --verbose
 | `--json` | `scan`, `report` | Print JSON instead of the terminal summary. |
 | `--verbose` | `report` | Show advisory, version, score, and provenance details. |
 | `--include-informational` | `report` | Include informational results in verbose or JSON output. |
+| `--include-dismissed` | `report` | Include current human-dismissed findings in verbose or JSON output. |
 
 `report` accepts either a saved JSON file or the scanned project directory, and
 does not rerun detection. `--ai-output -` cannot be combined with `--json`.
@@ -277,6 +278,55 @@ for an AI assistant to read; generating it does not call an LLM.
 Scan/report exit code **1** means automatic vulnerability or manual-review findings
 need attention; **0** means neither was reported. A clean result is limited by the
 reference corpus and is not a guarantee that the project is vulnerability-free.
+
+### Dismiss reviewed findings
+
+After reviewing a vulnerable match or manual-review finding, dismiss it to remove
+it from future attention counts, the default HTML view, AI/SARIF exports, and the
+scan/report exit-code calculation:
+
+```sh
+provtrail report /path/to/project --verbose
+provtrail dismiss /path/to/project --finding <finding-id> --reason "Reviewed; not applicable"
+provtrail dismissed /path/to/project
+provtrail dismissed /path/to/project --json
+provtrail dismiss /path/to/project --finding <finding-id> --undo
+```
+
+Find the finding ID in the verbose report, scan JSON, AI/SARIF export, or expanded
+HTML finding. A unique ID prefix of at least eight characters also works. Reasons
+are optional. Repeating the same dismissal preserves its original date and reason.
+
+Decisions live in the scanned project's `.provtrail/dismissals.json`, separately
+from the incremental scan cache. Each decision fingerprints the relative file
+path, exact file bytes, function source and location, relevant advisory/fix
+boundaries, detector decision, and dependency assessment. Any change to the file
+(including comments or another function) makes the dismissal outdated. Renaming the file,
+changing a relevant finding, or changing its dependency context also requires
+another review. Unrelated file edits do not invalidate it. A stale scan cannot be used
+to dismiss changed code: rescan first.
+
+The scanner keeps the original verdict and evidence in JSON, alongside review
+metadata and dismissal history. `priority_counts` retains the detector totals;
+`active_priority_counts` reports the remaining queue, and `dismissed_functions`
+counts valid dismissals. Dismissed findings also skip optional Ollama
+explanations. A model's "dismissed" opinion alone does not create a human dismissal.
+`dismissed` lists active and outdated decisions, retaining previous reasons even
+when files or findings disappear. Clearing `scan-state.json` keeps those decisions.
+
+The HTML report remains a self-contained offline artifact. Expand a finding and
+choose **Dismiss** to copy a terminal command, optionally adding a reason. Run it,
+then reload the HTML. The command refreshes the scan JSON, existing HTML, and the
+AI/SARIF files requested by that scan without rerunning detection or loading the
+embedding model. The **Dismissed / review history** view contains the previous
+reviews and their original comparisons, with undo commands. Rescan after editing
+code to see reopened findings and fresh comparisons. No local server or browser
+storage is used.
+
+For a custom scan JSON location, pass the JSON directly or use
+`--report PATH` with a project directory; relative `--report` paths are resolved
+from that project. Set this path in the HTML command panel when needed. Reports
+created before dismissal support was added must be regenerated with `scan`.
 
 ### Data and configuration
 

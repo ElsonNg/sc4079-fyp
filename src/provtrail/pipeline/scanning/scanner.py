@@ -19,6 +19,7 @@ from provtrail.pipeline.scanning.cache import (
 )
 from provtrail.pipeline.scanning.discovery import _extract_file_functions, _js_files
 from provtrail.pipeline.scanning.project_context import ProjectEvidenceIndex, build_project_evidence
+from provtrail.pipeline.scanning.dismissals import active_priority_counts, apply_dismissals, is_dismissed, load_dismissals, public_history
 
 JS_EXTENSIONS = SUPPORTED_SOURCE_EXTENSIONS
 DEFAULT_CORPUS_VERSION = "unknown"
@@ -55,6 +56,7 @@ class ScanSummary:
     priority_counts: dict[str, int]
     findings: list[dict[str, Any]]
     state_path: str
+    dismissal_history: list[dict[str, Any]] = field(default_factory=list)
     explanation_run: dict[str, Any] = field(
         default_factory=lambda: {
             "enabled": False,
@@ -84,8 +86,11 @@ class ScanSummary:
             "scanned_functions": self.scanned_functions,
             "reused_functions": self.reused_functions,
             "priority_counts": self.priority_counts,
+            "active_priority_counts": active_priority_counts(self.findings),
+            "dismissed_functions": sum(is_dismissed(item) for item in self.findings),
             "findings": public_findings,
             "state_path": self.state_path,
+            "dismissal_history": public_history(self.dismissal_history),
             "explanation_run": self.explanation_run,
         }
 
@@ -276,7 +281,7 @@ class _ScanRun:
 
 
 # Called after all files to prepare findings for CLI and HTML reporting.
-def _findings(records: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def _findings(records: dict[str, dict[str, Any]], file_hashes: dict[str, str]) -> list[dict[str, Any]]:
     findings = []
     for record in sorted(records.values(), key=lambda item: (item["path"], item["start_byte"])):
         result = _result_from_record(record, record["function_id"])
@@ -288,6 +293,7 @@ def _findings(records: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
             "start_line": record["start_line"],
             "end_line": record["end_line"],
             "function_hash": record["function_hash"],
+            "file_hash": file_hashes[record["path"]],
             "source_language": record.get("source_language", "javascript"),
             # HTML uses the in-memory source. ScanSummary.to_dict omits it from JSON.
             "source": record["source"],
@@ -335,8 +341,16 @@ def scan_directory(
         run.scan_file(index, path)
 
     # Persist raw detector results and return assessed findings to the CLI.
-    findings = _findings(run.records)
+    findings = _findings(run.records, snapshot.files)
     cache.save(root, config.corpus_version, snapshot, run.records, state_path)
+    try:
+        dismissals = load_dismissals(root)
+    except ValueError as exc:
+        # Invalid review state must never hide a finding or erase saved decisions.
+        print(f"warning: {exc}; no human dismissals applied", file=sys.stderr)
+        dismissals = []
+    review = {"findings": findings}
+    apply_dismissals(review, dismissals, file_hashes=snapshot.files)
     priorities = Counter(finding["result"]["priority"] for finding in findings)
     progress(
         "scan_complete", total_files=len(files), total_functions=len(findings),
@@ -356,6 +370,7 @@ def scan_directory(
         priority_counts=dict(sorted(priorities.items())),
         findings=findings,
         state_path=str(state_path),
+        dismissal_history=review["dismissal_history"],
     )
 
 

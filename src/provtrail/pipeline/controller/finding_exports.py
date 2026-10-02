@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from provtrail.pipeline.controller.reporting import ACTIVE_PRIORITIES, finding_detail
+from provtrail.pipeline.controller.reporting import finding_detail, is_actionable
 
 SARIF_SCHEMA = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
 RULES = {
@@ -31,6 +31,7 @@ class ExportFinding:
     reason: str
     llm_verdict: str | None
     fingerprint: str
+    finding_id: str | None = None
 
 
 def project_findings(report: dict[str, Any]) -> list[ExportFinding]:
@@ -39,7 +40,7 @@ def project_findings(report: dict[str, Any]) -> list[ExportFinding]:
     for finding in report.get("findings", []):
         result = finding.get("result") or {}
         priority = result.get("priority")
-        if priority not in ACTIVE_PRIORITIES:
+        if not is_actionable(finding):
             continue
 
         detail = finding_detail(finding)
@@ -88,6 +89,7 @@ def project_findings(report: dict[str, Any]) -> list[ExportFinding]:
             reason=detail["reason"],
             llm_verdict=str(verdict) if verdict else None,
             fingerprint=fingerprint,
+            finding_id=finding.get("finding_id"),
         ))
     return sorted(
         projected,
@@ -120,6 +122,7 @@ def build_sarif(report: dict[str, Any], *, tool_version: str) -> dict[str, Any]:
                 "confidence": finding.confidence,
                 "reason": finding.reason,
                 "llmVerdict": finding.llm_verdict,
+                "findingId": finding.finding_id,
             }},
         })
     rules = [{
@@ -157,6 +160,8 @@ def format_ai(report: dict[str, Any]) -> str:
             directory = parent
         status = "VULN" if finding.priority == "automatic_vulnerability" else "REVIEW"
         parts = [f"  {path.name}:{finding.start_line}-{finding.end_line}", status]
+        if finding.finding_id:
+            parts.append("finding=" + finding.finding_id)
         if finding.advisory_ids:
             parts.append("ids=" + ",".join(finding.advisory_ids))
         if finding.packages:

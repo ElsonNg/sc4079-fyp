@@ -7,6 +7,7 @@ import json
 import sys
 
 from provtrail.cli.commands.exports import validate_paths, write_exports
+from provtrail.cli.commands.dismiss import reconcile_saved_report
 
 from provtrail.pipeline.controller.reporting import (
     format_audit_summary,
@@ -30,6 +31,7 @@ def run(args: argparse.Namespace) -> int:
         return 2
     try:
         payload = load_scan_report(report_path)
+        reconcile_saved_report(payload)
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"Unable to read scan report: {exc}")
         return 2
@@ -43,9 +45,9 @@ def run(args: argparse.Namespace) -> int:
     if ai_stdout is not None:
         print(ai_stdout, end="")
     elif args.json:
-        print(json.dumps(report_view(payload, include_informational=args.include_informational), indent=2))
+        print(json.dumps(report_view(payload, include_informational=args.include_informational, include_dismissed=getattr(args, "include_dismissed", False)), indent=2))
     elif args.verbose:
-        print(format_verbose(payload, include_informational=args.include_informational))
+        print(format_verbose(payload, include_informational=args.include_informational, include_dismissed=getattr(args, "include_dismissed", False)))
     else:
         print(format_audit_summary(payload))
     return report_exit_code(payload)

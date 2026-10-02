@@ -10,6 +10,7 @@ from typing import Any
 from provtrail.pipeline.controller.report_evidence import (
     boundary_advisories, boundary_reason, decision_boundaries, primary_observation,
 )
+from provtrail.pipeline.scanning.dismissals import is_dismissed
 ACTIVE_PRIORITIES = {"automatic_vulnerability", "manual_review"}
 ACTIVE_STATUSES = ACTIVE_PRIORITIES
 DIVIDER = "─" * 72
@@ -33,6 +34,10 @@ def _result(finding: dict[str, Any]) -> dict[str, Any]:
     return finding.get("result", {})
 
 
+def is_actionable(finding: dict[str, Any]) -> bool:
+    return _result(finding).get("priority") in ACTIVE_PRIORITIES and not is_dismissed(finding)
+
+
 def finding_detail(finding: dict[str, Any]) -> dict[str, Any]:
     result = _result(finding)
     boundaries = decision_boundaries(result)
@@ -47,6 +52,7 @@ def finding_detail(finding: dict[str, Any]) -> dict[str, Any]:
     )
     return {
         "function_id": finding.get("function_id"), "path": finding.get("path"),
+        "finding_id": finding.get("finding_id"), "dismissal": finding.get("dismissal"),
         "name": finding.get("name"), "node_type": finding.get("node_type"),
         "start_line": finding.get("start_line"), "end_line": finding.get("end_line"),
         "priority": result.get("priority", "none"), "severity": severity,
@@ -64,8 +70,8 @@ def finding_detail(finding: dict[str, Any]) -> dict[str, Any]:
 
 def audit_summary(report: dict[str, Any]) -> dict[str, Any]:
     findings = report.get("findings", [])
-    priorities = Counter(_result(item).get("priority", "none") for item in findings)
-    active = [item for item in findings if _result(item).get("priority") in ACTIVE_PRIORITIES]
+    priorities = Counter(_result(item).get("priority", "none") for item in findings if not is_dismissed(item))
+    active = [item for item in findings if is_actionable(item)]
     severity_counts = Counter(finding_detail(item)["severity"] for item in active)
     advisories = {(alias.get("ghsa_id"), alias.get("cve_id"), alias.get("osv_id")) for item in active for alias in finding_detail(item)["advisories"]}
     return {
@@ -75,6 +81,7 @@ def audit_summary(report: dict[str, Any]) -> dict[str, Any]:
         "findings": len(active), "automatic_vulnerability": priorities["automatic_vulnerability"],
         "manual_review": priorities["manual_review"], "informational_lineage": priorities["informational_lineage"],
         "none": priorities["none"], "unique_advisories": len(advisories),
+        "dismissed": sum(is_dismissed(item) for item in findings),
         "severity": {name: severity_counts[name] for name in SEVERITY_ORDER if severity_counts[name]},
         "changed_files": len(report.get("changed_files", [])), "state_path": report.get("state_path"),
     }
@@ -86,7 +93,7 @@ def final_metrics(report: dict[str, Any]) -> dict[str, Any]:
     unavailable = 0
     for finding in report.get("findings", []):
         priority = _result(finding).get("priority")
-        if priority not in ACTIVE_PRIORITIES:
+        if not is_actionable(finding):
             continue
         explanation = finding.get("review_explanation") or {}
         if priority == "manual_review" and explanation.get("status") == "generated":
@@ -108,8 +115,10 @@ def final_metrics(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def report_view(report: dict[str, Any], include_informational: bool = False) -> dict[str, Any]:
-    details = [finding_detail(item) for item in report.get("findings", []) if include_informational or _result(item).get("priority") in ACTIVE_PRIORITIES]
+def report_view(report: dict[str, Any], include_informational: bool = False, include_dismissed: bool = False) -> dict[str, Any]:
+    details = [finding_detail(item) for item in report.get("findings", [])
+               if (include_dismissed or not is_dismissed(item))
+               and (include_informational or _result(item).get("priority") in ACTIVE_PRIORITIES)]
     return {"schema": "provtrail_report_v2", "scan_report": report.get("schema", "unknown"), "audit": audit_summary(report), "findings": details}
 
 
@@ -122,6 +131,7 @@ def format_audit_summary(report: dict[str, Any]) -> str:
         f"  functions reused:        {summary['reused_functions']}", f"  changed files:           {summary['changed_files']}",
         "", DIVIDER, "RESULTS", f"  automatic vulnerability: {summary['automatic_vulnerability']}",
         f"  manual review:           {summary['manual_review']}", f"  informational lineage:   {summary['informational_lineage']}",
+        f"  dismissed by reviewer:   {summary['dismissed']}",
         f"  no lineage:              {summary['none']}", f"  advisories:              {summary['unique_advisories']}", DIVIDER,
     ])
 
@@ -131,11 +141,16 @@ def format_attention(report: dict[str, Any]) -> str:
     return "\n".join(["ATTENTION", *(f"  {name.title():22s}{values[name]}" for name in ("high", "medium", "low")), DIVIDER])
 
 
-def format_verbose(report: dict[str, Any], include_informational: bool = False) -> str:
-    details = report_view(report, include_informational=include_informational)["findings"]
+def format_verbose(report: dict[str, Any], include_informational: bool = False, include_dismissed: bool = False) -> str:
+    details = report_view(report, include_informational=include_informational, include_dismissed=include_dismissed)["findings"]
     lines = [format_audit_summary(report)]
     for index, detail in enumerate(details, 1):
         lines.extend(["", f"Finding {index}: {detail['priority'].upper()}", f"  location: {detail.get('path')}:{int(detail.get('start_line') or 0) + 1}"])
+        if detail.get("finding_id"):
+            lines.append(f"  finding ID: {detail['finding_id']}")
+        review = detail.get("dismissal") or {}
+        if review:
+            lines.append(f"  review: {review['status']} ({review.get('reason') or 'no reason recorded'})")
         for lineage in detail["lineages"]:
             lines.append(f"  lineage: {lineage['lineage_id']} ({lineage['confidence']}, {float(lineage['score']):.3f})")
         for state in detail["vulnerability_states"]:
