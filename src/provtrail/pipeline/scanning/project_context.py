@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from provtrail.pipeline.detection.priority import derive_priority
-from provtrail.pipeline.models.evidence import ApplicabilityEvidence, PackageApplicability
+from provtrail.pipeline.models.evidence import ApplicabilityEvidence
 from provtrail.pipeline.models.result import RegionDetectionResult
 
 _IMPORT_RE = re.compile(

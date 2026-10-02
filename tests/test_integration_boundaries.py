@@ -9,6 +9,7 @@ import pytest
 from provtrail.corpus.controller.release import ReleaseEvidenceError, fetch_npm_metadata
 from provtrail.pipeline.controller.review_explanation import OllamaExplanationConfig
 from provtrail.pipeline.integrations import ollama
+from provtrail.pipeline.integrations import vector_index
 from provtrail.pipeline.integrations.vector_index import load_faiss_index
 
 
@@ -61,3 +62,18 @@ def test_clean_process_faiss_builder_writes_compatible_index(tmp_path):
     assert index.ntotal == 2
     assert ids.tolist() == [[0]]
     assert similarities[0, 0] == pytest.approx(1.0)
+
+
+def test_isolated_index_builder_cleans_temporary_files_when_subprocess_fails(monkeypatch):
+    paths = []
+
+    def fail(args, **kwargs):
+        from pathlib import Path
+        paths.extend([Path(args[3]), Path(args[4])])
+        assert paths[0].exists()
+        raise subprocess.CalledProcessError(1, args)
+
+    monkeypatch.setattr(vector_index.subprocess, "run", fail)
+    with pytest.raises(subprocess.CalledProcessError):
+        vector_index.build_hnsw_index_isolated(np.ones((2, 4), dtype=np.float32), 4, 32, 200, 256)
+    assert paths and all(not path.parent.exists() for path in paths)

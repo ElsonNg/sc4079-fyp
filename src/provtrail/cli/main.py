@@ -12,15 +12,13 @@ from provtrail.corpus.controller.snapshot import DEFAULT_SNAPSHOTS_DIR
 from provtrail.pipeline.integrations.embedding import EMBEDDING_DEVICE_ENV
 from provtrail.pipeline.detection.config import DEFAULT_MODEL_ID
 from provtrail.pipeline.controller.region_retrieval import DEFAULT_REGION_EMBEDDINGS_DIR
-from provtrail.pipeline.controller.retrieval import DEFAULT_EMBEDDINGS_DIR
-from provtrail.pipeline.controller.review_explanation import (
+from provtrail.pipeline.integrations.ollama import (
     DEFAULT_OLLAMA_HOST,
     DEFAULT_OLLAMA_MODEL,
     DEFAULT_OLLAMA_TIMEOUT,
 )
 
-from provtrail.cli import PROVTRAIL_VERSION
-from provtrail.cli.commands.scan import run as _scan, _scan_progress
+from provtrail.cli.commands.scan import run as _scan
 from provtrail.cli.commands.report import run as _report
 from provtrail.cli.commands.dismiss import run as _dismiss, list_dismissed as _dismissed
 from provtrail.cli.commands.corpus import (
@@ -28,7 +26,6 @@ from provtrail.cli.commands.corpus import (
     probe as _corpus_probe,
     stats as _corpus_stats,
     index as _corpus_index,
-    _corpus_build_progress,
 )
 
 
@@ -160,7 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
     probe.add_argument("--include-withdrawn", action="store_true")
     stats = corpus_commands.add_parser("stats", help="Show corpus size and metadata coverage")
     _add_db_path(stats)
-    index = corpus_commands.add_parser("index", help="Build function and AST-region embedding indexes")
+    index = corpus_commands.add_parser("index", help="Build the AST-region embedding index")
     _add_db_path(index)
     index.add_argument("--embed-model", dest="model", default=DEFAULT_MODEL_ID)
     index.add_argument(
@@ -168,8 +165,6 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Embedding device (also configurable with {EMBEDDING_DEVICE_ENV})",
     )
     index.add_argument("--embedding-batch-size", type=int, default=1)
-    index.add_argument("--skip-region-index", action="store_true")
-    index.add_argument("--embeddings-dir", type=Path, default=DEFAULT_EMBEDDINGS_DIR)
     index.add_argument("--region-embeddings-dir", type=Path, default=DEFAULT_REGION_EMBEDDINGS_DIR)
     return parser
 

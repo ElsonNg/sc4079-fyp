@@ -177,7 +177,7 @@ existing indexes too.
 
 ProvTrail uses **Qwen/Qwen3-Embedding-0.6B** by default. The install includes
 PyTorch and Sentence Transformers; the following command downloads the model
-weights on first use, runs the model locally, and builds both search indexes:
+weights on first use, runs the model locally, and builds the AST-region search index:
 
 ```sh
 provtrail corpus index --embed-model qwen3-embedding-0.6b --device cpu

@@ -10,6 +10,10 @@ import requests
 from provtrail.cli.commands import corpus
 from provtrail.cli.main import main
 from provtrail.corpus.models.corpus import BuildResult, CorpusEntry
+from provtrail.pipeline.controller.region_extraction import extract_corpus_region_pairs
+from provtrail.pipeline.controller.region_retrieval import _region_fingerprint, load_region_index, query_regions
+from provtrail.pipeline.integrations import embedding
+from provtrail.pipeline.models.region import CandidateRegion
 
 
 def _entry():
@@ -126,33 +130,59 @@ def test_probe_writes_limited_package_selection(monkeypatch, tmp_path):
     assert payload["selected_count"] == 1
 
 
-@pytest.mark.parametrize("skip_regions", [True, False])
-def test_index_writes_metadata_and_cleans_temporary_vectors(monkeypatch, tmp_path, skip_regions):
-    builds = []
-    monkeypatch.setattr(corpus, "load_entries", lambda *args: [_entry()])
-    monkeypatch.setattr(corpus.embedding, "encode", lambda model, texts, **kwargs: np.ones((len(texts), 4)))
-    monkeypatch.setattr(corpus.embedding, "release_models", lambda: None)
-    monkeypatch.setenv("KMP_DUPLICATE_LIB_OK", "TRUE")
+def test_cli_index_round_trips_both_reference_sides_into_scan_retrieval(monkeypatch, tmp_path):
+    entries = [_entry()]
+    pairs = extract_corpus_region_pairs(entries)
+    texts = list(dict.fromkeys(
+        region.embedding_text for pair in pairs
+        for region in (pair.vulnerable_region, pair.patched_region)
+    ))
+    vectors = np.eye(len(texts), dtype=np.float32)
+    batches = []
 
-    def build_index(args, *, check):
-        assert check is True
-        assert args[1:3] == ["-m", "provtrail.cli.faiss_builder"]
-        assert np.load(args[3]).shape[1] == 4
-        Path(args[4]).write_bytes(b"test index")
-        builds.append(args[4])
+    def encode(model, inputs, batch_size=embedding.DEFAULT_EMBEDDING_BATCH_SIZE):
+        batches.append(batch_size)
+        return vectors[[texts.index(text) for text in inputs]]
 
-    monkeypatch.setattr(corpus.subprocess, "run", build_index)
-    functions = tmp_path / "functions"
+    monkeypatch.setattr(corpus, "load_entries", lambda *args: entries)
+    monkeypatch.setattr(embedding, "encode", encode)
+    monkeypatch.setattr(embedding, "release_models", lambda: None)
     regions = tmp_path / "regions"
-    args = [
+    assert main([
         "corpus", "index", "--embed-model", "test-model",
-        "--embeddings-dir", str(functions), "--region-embeddings-dir", str(regions),
-    ]
-    assert main(args + (["--skip-region-index"] if skip_regions else [])) == 0
-    assert len(builds) == (1 if skip_regions else 2)
-    metadata = json.loads((functions / "test-model.meta.json").read_text())
-    assert metadata["entries"][0]["ghsa_id"] == "GHSA-demo"
+        "--embedding-batch-size", "2", "--region-embeddings-dir", str(regions),
+    ]) == 0
+    assert batches and set(batches) == {2}
+    index = load_region_index(pairs, "test-model", regions)
+    assert index is not None
+    assert index.index.ntotal == 2 * len(pairs)
+    assert index.indexed_pair_ids == [pair.pair_id for pair in pairs for _ in range(2)]
+    assert index.indexed_sides == [side for _ in pairs for side in ("vulnerable", "patched")]
     assert not list(tmp_path.rglob("*.npy"))
-    if not skip_regions:
-        metadata = json.loads((regions / "test-model.meta.json").read_text())
-        assert metadata["pairs"][0]["ghsa_id"] == "GHSA-demo"
+    for side in ("vulnerable", "patched"):
+        candidate = CandidateRegion(region=getattr(pairs[0], f"{side}_region"))
+        matches = query_regions([candidate], index, top_k=index.index.ntotal, threshold=0.99)
+        assert any(match.pair_id == pairs[0].pair_id and match.reference_side == side for match in matches)
+
+    changed = entries[0].model_copy(update={"patched_function": "function check(x) { return newer(x); }"})
+    assert load_region_index(extract_corpus_region_pairs([changed]), "test-model", regions) is None
+
+
+@pytest.mark.parametrize("option", ["--embeddings-dir", "--skip-region-index"])
+def test_function_index_options_are_retired(option):
+    with pytest.raises(SystemExit) as error:
+        main(["corpus", "index", option])
+    assert error.value.code == 2
+
+
+@pytest.mark.parametrize("mapping", [
+    {},
+    {"indexed_pair_ids": [], "indexed_sides": []},
+    {"indexed_pair_ids": ["wrong-pair"], "indexed_sides": ["vulnerable"]},
+])
+def test_saved_index_requires_complete_pair_and_side_mapping(tmp_path, mapping):
+    pairs = extract_corpus_region_pairs([_entry()])
+    metadata = {"fingerprint": _region_fingerprint(pairs, "test-model"), **mapping}
+    (tmp_path / "test-model.faiss").write_bytes(b"must not be loaded")
+    (tmp_path / "test-model.meta.json").write_text(json.dumps(metadata), encoding="utf-8")
+    assert load_region_index(pairs, "test-model", tmp_path) is None

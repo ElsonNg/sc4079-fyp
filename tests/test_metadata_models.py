@@ -9,12 +9,11 @@ from pydantic import ValidationError
 from provtrail.corpus.models.corpus import CorpusEntry
 from provtrail.pipeline.models.boundary import BoundaryEditEvidence, VerificationGates
 from provtrail.pipeline.models.region_retrieval import RegionAggregate, RegionRetrievalMatch
-from provtrail.pipeline.models.retrieval import RetrievalMatch
 from provtrail.shared.metadata import CWE
 
 
 RECORDS = json.loads((Path(__file__).parent / "fixtures/metadata_records.json").read_text())
-MODELS = [CorpusEntry, RetrievalMatch, RegionRetrievalMatch]
+MODELS = [CorpusEntry, RegionRetrievalMatch]
 
 
 @pytest.mark.parametrize("model", MODELS)

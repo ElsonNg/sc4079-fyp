@@ -218,6 +218,11 @@ for executable evidence, source-review evidence, failures and unresolved cases.
 Neither corpus admission nor a similarity score guarantees application exploitability.
 The immutable provenance and quarantine artifacts are retained for evaluation.
 
-Long functions are indexed with bounded, diagnostic-aware windows so code around the
-security fix remains retrievable even when it occurs far beyond the function prefix.
+The AST-region index includes both vulnerable and patched references, including
+changed regions and their surrounding blocks and functions.
 Generated embedding indexes and local scan state are intentionally excluded from Git.
+
+`corpus index` builds the region index consumed by `scan`. Choose its location with
+`--region-embeddings-dir`; the older function-index `--embeddings-dir` and
+`--skip-region-index` options have been removed. Rebuild older vulnerable-only indexes
+with `provtrail corpus index` before reusing them.

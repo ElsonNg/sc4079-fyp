@@ -13,7 +13,6 @@ from typing import Any, Callable
 import requests
 
 from provtrail.pipeline.integrations.ollama import (
-    DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_MODEL, DEFAULT_OLLAMA_TIMEOUT,
     OllamaClient, OllamaExplanationConfig, OllamaExplanationError,
 )
 

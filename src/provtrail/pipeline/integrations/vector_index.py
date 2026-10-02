@@ -1,7 +1,10 @@
 """FAISS index construction, search and binary persistence."""
 
 import json
+import subprocess
+import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 import faiss
@@ -20,8 +23,22 @@ def build_hnsw_index(
     return index
 
 
-def search_index(index: Any, vectors: np.ndarray, k: int):
-    return index.search(vectors, k)
+def build_hnsw_index_isolated(
+    vectors: np.ndarray, dimension: int, m: int,
+    ef_construction: int, ef_search: int,
+) -> Any:
+    """Build in a clean process to isolate FAISS from embedding runtimes."""
+    with TemporaryDirectory(prefix="provtrail-index-") as temporary:
+        directory = Path(temporary)
+        source = directory / "vectors.npy"
+        output = directory / "index.faiss"
+        np.save(source, vectors.reshape(-1, dimension))
+        subprocess.run([
+            sys.executable, "-m", "provtrail.cli.faiss_builder", str(source), str(output),
+            "--m", str(m), "--ef-construction", str(ef_construction),
+            "--ef-search", str(ef_search),
+        ], check=True)
+        return load_faiss_index(output)
 
 
 def search_each(index: Any, vectors: np.ndarray, k: int):

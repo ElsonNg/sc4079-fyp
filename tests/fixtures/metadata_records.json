@@ -33,22 +33,6 @@
     "primary_evidence": true,
     "advisory_aliases": []
   },
-  "RetrievalMatch": {
-    "ghsa_id": "GHSA-test",
-    "cve_id": "CVE-2026-0001",
-    "advisory_title": "",
-    "advisory_description": "",
-    "advisory_url": "",
-    "advisory_references": [],
-    "cwes": [],
-    "severity": "unknown",
-    "repo": "owner/project",
-    "fix_commit_sha": "abc123",
-    "file_path": "src/check.ts",
-    "function_name": "check",
-    "similarity": 0.95,
-    "source_language": "typescript"
-  },
   "RegionRetrievalMatch": {
     "pair_id": "pair-1",
     "lineage_id": null,

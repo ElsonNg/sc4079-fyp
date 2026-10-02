@@ -7,8 +7,12 @@ from provtrail.corpus.models.corpus import CorpusEntry
 from provtrail.pipeline.detection.verification.edit_distance import score_edit_distance
 from provtrail.pipeline.controller.hashing import HashIndex, build_hash_index, lookup
 from provtrail.pipeline.controller.local_correspondence import decide_local_correspondence
-from provtrail.pipeline.controller.correspondence_verification import verify_uncertain_boundaries
-from provtrail.pipeline.controller.parsing import extract_function_units, source_language
+from provtrail.pipeline.controller.correspondence_verification import (
+    apply_correspondence_result, verify_uncertain_boundaries,
+)
+from provtrail.pipeline.controller.parsing import (
+    infer_candidate_function_name as _infer_candidate_function_name, source_language,
+)
 from provtrail.pipeline.controller.provenance import cluster_corpus_entries
 from provtrail.pipeline.controller.region_extraction import (
     candidate_region_is_informative,
@@ -36,7 +40,7 @@ from provtrail.pipeline.detection.config import (
 from provtrail.pipeline.detection.hashing import build_hash_result
 from provtrail.pipeline.detection.retrieval import aggregate_retrieval_matches
 from provtrail.pipeline.detection.lineage import (
-    attribute_lineages, lineage_confidence as _confidence, unknown_applicabilities,
+    attribute_lineages, unknown_applicabilities,
 )
 from provtrail.pipeline.detection.priority import derive_priority
 from provtrail.pipeline.detection.revision_relationships import (
@@ -64,21 +68,6 @@ def resolve_candidate_language(candidate_id: str | None, language: str | None) -
     if language:
         return source_language(language=language)
     return source_language((candidate_id or "").split("::", 1)[0])
-
-
-def _infer_candidate_function_name(source: str, filename: str) -> str | None:
-    """Return a name only when the submitted source has one outer function."""
-    units = extract_function_units(source, filename=filename)
-    outer = [
-        unit for unit in units
-        if not any(
-            other.start_byte <= unit.start_byte
-            and unit.end_byte <= other.end_byte
-            and (other.start_byte, other.end_byte) != (unit.start_byte, unit.end_byte)
-            for other in units
-        )
-    ]
-    return outer[0].name if len(outer) == 1 else None
 
 
 class RegionDetector:
@@ -186,7 +175,7 @@ class RegionDetector:
         lineages = attribute_lineages(evidence, self.pairs, self.lineage_meta)
 
         # scanning.scan_directory later adds project-specific package applicability.
-        applications = self._unknown_applicabilities(lineages)
+        applications = unknown_applicabilities(lineages)
         result = RegionDetectionResult(
             priority=derive_priority(lineages, states, applications),
             candidate_id=candidate_id,
@@ -315,48 +304,18 @@ class RegionDetector:
                 and not state.gates.boundary_rejected
                 and not state.support.contradictions
             ):
-                state = self._apply_local_correspondence(
-                    candidate_source, language_filename, pair, state,
+                local = decide_local_correspondence(
+                    pair.vulnerable_region.source, pair.patched_region.source,
+                    candidate_source, filename=language_filename,
+                )
+                methods = sorted(local["decisive"])
+                state = apply_correspondence_result(
+                    state, local["status"], methods, local["reason"],
+                    "Experimental local correspondence: " + ", ".join(methods),
                 )
             states.append(state)
 
         return states
-
-    def _apply_local_correspondence(
-        self, candidate_source: str, language_filename: str,
-        pair: VulnerableRegionPair, state: VulnerabilityState,
-    ) -> VulnerabilityState:
-        local = decide_local_correspondence(
-            pair.vulnerable_region.source,
-            pair.patched_region.source,
-            candidate_source,
-            filename=language_filename,
-        )
-        decisive_methods = sorted(local["decisive"])
-        fallback_update = {
-            "local_correspondence_attempted": True,
-            "local_correspondence_status": local["status"],
-            "local_correspondence_methods": decisive_methods,
-            "local_correspondence_reason": local["reason"],
-            "local_correspondence_prior_abstention_reason": state.abstention_reason,
-        }
-        update = {}
-        if local["status"] in {"vulnerable", "patched"}:
-            fallback_update["local_correspondence_used"] = True
-            support = state.support.model_copy(update={
-                "fix_evidence": state.support.fix_evidence + [
-                    "Experimental local correspondence: " + ", ".join(decisive_methods)
-                ],
-            })
-            update.update({
-                "status": local["status"],
-                "abstention_reason": None,
-                "support": support,
-            })
-        update["fallbacks"] = state.fallbacks.model_copy(update=fallback_update)
-        return state.model_copy(update=update)
-
-    _unknown_applicabilities = staticmethod(unknown_applicabilities)
 
     def detect_batch(
         self,

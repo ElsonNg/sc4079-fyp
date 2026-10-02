@@ -181,6 +181,21 @@ def extract_function_units(
     return units
 
 
+def infer_candidate_function_name(source: str, filename: str) -> str | None:
+    """Return a name only when the submitted source has one outer function."""
+    units = extract_function_units(source, filename=filename)
+    outer = [
+        unit for unit in units
+        if not any(
+            other.start_byte <= unit.start_byte
+            and unit.end_byte <= other.end_byte
+            and (other.start_byte, other.end_byte) != (unit.start_byte, unit.end_byte)
+            for other in units
+        )
+    ]
+    return outer[0].name if len(outer) == 1 else None
+
+
 def find_enclosing_function(
     line: int, units: list[FunctionUnit]
 ) -> FunctionUnit | None:

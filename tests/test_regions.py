@@ -945,7 +945,11 @@ def test_region_detector_uses_region_path_when_hash_path_is_empty(monkeypatch):
     index.add(np.ones((len(pairs), 8), dtype=np.float32) / np.sqrt(8))
     detector = RegionDetector(
         [entry],
-        RegionRetrievalIndex(model_id="fake", index=index, pairs=pairs, fingerprint="test"),
+        RegionRetrievalIndex(
+            model_id="fake", index=index, pairs=pairs, fingerprint="test",
+            indexed_pair_ids=[pair.pair_id for pair in pairs],
+            indexed_sides=["vulnerable"] * len(pairs),
+        ),
         HashIndex(),
         RegionDetectorConfig(model_id="fake", retrieval_top_k=4, max_candidate_regions=24),
     )
@@ -1033,7 +1037,11 @@ def test_same_language_scope_excludes_cross_language_region_matches(monkeypatch)
     index.add(np.ones((len(pairs), 8), dtype=np.float32) / np.sqrt(8))
     detector = RegionDetector(
         [javascript_entry, typescript_entry],
-        RegionRetrievalIndex(model_id="fake", index=index, pairs=pairs, fingerprint="test"),
+        RegionRetrievalIndex(
+            model_id="fake", index=index, pairs=pairs, fingerprint="test",
+            indexed_pair_ids=[pair.pair_id for pair in pairs],
+            indexed_sides=["vulnerable"] * len(pairs),
+        ),
         HashIndex(),
         RegionDetectorConfig(
             model_id="fake",

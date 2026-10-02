@@ -13,7 +13,7 @@ from provtrail.pipeline.controller.parsing import SUPPORTED_SOURCE_EXTENSIONS
 from provtrail.pipeline.controller.region_detection import RegionDetector, RegionDetectorConfig, build_region_detector
 from provtrail.pipeline.models.result import RegionDetectionResult
 from provtrail.pipeline.scanning.cache import (
-    DEFAULT_STATE_FILENAME, RESULT_CACHE_SCHEMA_VERSION, ScanCache,
+    DEFAULT_STATE_FILENAME, ScanCache,
     build_merkle_snapshot, corpus_fingerprint, _result_from_record,
     prepare_scan_cache,
 )

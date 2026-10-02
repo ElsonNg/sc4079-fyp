@@ -1,6 +1,7 @@
 import json
 
-from provtrail.cli.main import _scan_progress, main
+from provtrail.cli.main import main
+from provtrail.cli.commands.scan import _scan_progress
 from provtrail.pipeline.controller.reporting import (
     audit_summary,
     final_metrics,

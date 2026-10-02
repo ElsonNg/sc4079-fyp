@@ -8,7 +8,6 @@ import io
 import json
 import re
 import tarfile
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 

@@ -5,12 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
-import sys
 import shutil
+import sys
 from collections import Counter
 
-import numpy as np
 import requests
 
 from provtrail.corpus.controller.build import build_corpus_result, print_attrition_report, probe_packages
@@ -20,17 +18,9 @@ from provtrail.corpus.integrations.sqlite_store import (
     DEFAULT_DB_PATH,
     load_entries,
 )
-from provtrail.pipeline.integrations import embedding
 from provtrail.pipeline.integrations.embedding import EMBEDDING_DEVICE_ENV
 from provtrail.pipeline.controller.region_extraction import extract_corpus_region_pairs
-from provtrail.pipeline.controller.region_retrieval import _region_fingerprint
-from provtrail.pipeline.controller.retrieval import (
-    INDEX_FORMAT_VERSION,
-    _corpus_fingerprint,
-    _corpus_windows,
-    _match_from_entry,
-    _normalized_text,
-)
+from provtrail.pipeline.controller.region_retrieval import build_region_index, save_region_index
 from provtrail.pipeline.scanning.cache import corpus_fingerprint
 
 
@@ -155,70 +145,17 @@ def index(args: argparse.Namespace) -> int:
     if args.device:
         os.environ[EMBEDDING_DEVICE_ENV] = args.device
     entries = load_entries(args.db_path) if args.db_path else load_entries()
-    print(f"Building function index for {len(entries)} corpus entries...")
-    function_texts = []
-    function_matches = []
-    for entry in entries:
-        windows = _corpus_windows(entry)
-        function_texts.extend(_normalized_text(window) for window in windows)
-        function_matches.extend(_match_from_entry(entry) for _ in windows)
-    function_vectors = embedding.encode(
-        args.model,
-        function_texts,
-        batch_size=args.embedding_batch_size,
-        progress_callback=lambda done, total: print(f"  embedded {done}/{total} functions")
-        if done == total or done % 320 == 0 else None,
-    )
-    args.embeddings_dir.mkdir(parents=True, exist_ok=True)
-    function_index_path = args.embeddings_dir / f"{args.model}.faiss"
-    function_vector_path = args.embeddings_dir / f".{args.model}.vectors.npy"
-    np.save(function_vector_path, function_vectors)
-    del function_vectors
-    embedding.release_models()
-    subprocess.run(
-        [sys.executable, "-m", "provtrail.cli.faiss_builder", str(function_vector_path), str(function_index_path)],
-        check=True,
-    )
-    function_vector_path.unlink()
-    function_meta = {
-        "model_id": args.model,
-        "max_seq_length": embedding.DEFAULT_MAX_SEQ_LENGTH,
-        "corpus_fingerprint": _corpus_fingerprint(entries),
-        "index_format_version": INDEX_FORMAT_VERSION,
-        "entries": [match.model_dump() for match in function_matches],
-    }
-    (args.embeddings_dir / f"{args.model}.meta.json").write_text(json.dumps(function_meta), encoding="utf-8")
-    if args.skip_region_index:
-        print(f"Indexed {len(function_matches)} windows from {len(entries)} functions with {args.model}")
-        return 0
-
     pairs = extract_corpus_region_pairs(entries)
     print(f"Building AST-region index for {len(pairs)} vulnerable region pairs...")
-    region_vectors = embedding.encode(
-        args.model,
-        [pair.vulnerable_region.embedding_text for pair in pairs],
-        batch_size=args.embedding_batch_size,
+    region_index = build_region_index(
+        pairs,
+        model_id=args.model,
+        embedding_batch_size=args.embedding_batch_size,
+        isolate_faiss=True,
         progress_callback=lambda done, total: print(f"  embedded {done}/{total} regions")
         if done == total or done % 320 == 0 else None,
     )
-    args.region_embeddings_dir.mkdir(parents=True, exist_ok=True)
-    region_index_path = args.region_embeddings_dir / f"{args.model}.faiss"
-    region_vector_path = args.region_embeddings_dir / f".{args.model}.vectors.npy"
-    np.save(region_vector_path, region_vectors)
-    del region_vectors
-    embedding.release_models()
-    subprocess.run(
-        [sys.executable, "-m", "provtrail.cli.faiss_builder", str(region_vector_path), str(region_index_path)],
-        check=True,
-    )
-    region_vector_path.unlink()
-    region_meta = {
-        "model_id": args.model,
-        "max_seq_length": embedding.DEFAULT_MAX_SEQ_LENGTH,
-        "fingerprint": _region_fingerprint(pairs, args.model),
-        "pairs": [pair.to_record() for pair in pairs],
-    }
-    (args.region_embeddings_dir / f"{args.model}.meta.json").write_text(json.dumps(region_meta), encoding="utf-8")
+    save_region_index(region_index, args.region_embeddings_dir)
     print(
         f"Indexed {len(entries)} functions and {len(pairs)} AST regions with {args.model}"
     )

@@ -21,7 +21,7 @@ from provtrail.pipeline.models.result import RegionDetectionResult
 STATE_SCHEMA_VERSION = 1
 DEFAULT_STATE_FILENAME = "scan-state.json"
 # Increment when the saved detector result contract changes.
-RESULT_CACHE_SCHEMA_VERSION = 26
+RESULT_CACHE_SCHEMA_VERSION = 27
 DEFAULT_EXCLUDED_DIRS = frozenset(
     {".git", ".provtrail", "node_modules", ".venv", "__pycache__"}
 )

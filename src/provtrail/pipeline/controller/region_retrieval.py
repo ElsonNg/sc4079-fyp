@@ -48,6 +48,9 @@ def build_region_index(
     ef_search: int = 256,
     m: int = 32,
     progress_callback: Callable[[int, int], None] | None = None,
+    *,
+    embedding_batch_size: int = embedding.DEFAULT_EMBEDDING_BATCH_SIZE,
+    isolate_faiss: bool = False,
 ) -> RegionRetrievalIndex:
     texts = [
         region.embedding_text
@@ -58,7 +61,9 @@ def build_region_index(
     vectors_parts = []
     index_batch_size = 32
     for start in range(0, len(texts), index_batch_size):
-        vectors_parts.append(embedding.encode(model_id, texts[start : start + index_batch_size]))
+        vectors_parts.append(embedding.encode(
+            model_id, texts[start : start + index_batch_size], batch_size=embedding_batch_size,
+        ))
         if progress_callback is not None:
             progress_callback(min(start + index_batch_size, len(texts)), len(texts))
     vectors = (
@@ -71,7 +76,10 @@ def build_region_index(
     else:
         dimension = embedding.get_model(model_id).get_embedding_dimension()
     embedding.release_models()
-    index = vector_index.build_hnsw_index(vectors, dimension, m, ef_construction, ef_search)
+    build_index = (
+        vector_index.build_hnsw_index_isolated if isolate_faiss else vector_index.build_hnsw_index
+    )
+    index = build_index(vectors, dimension, m, ef_construction, ef_search)
     return RegionRetrievalIndex(
         model_id=model_id,
         index=index,
@@ -90,15 +98,21 @@ def query_region_batch(
 ) -> list[list[RegionRetrievalMatch]]:
     if not candidate_regions or not retrieval_index.pairs:
         return [[] for _ in candidate_regions]
+    if (
+        not retrieval_index.indexed_pair_ids
+        or len(retrieval_index.indexed_pair_ids) != len(retrieval_index.indexed_sides)
+    ):
+        raise ValueError("Region index requires explicit pair and side mappings; rebuild with corpus index")
     texts = [candidate.region.embedding_text for candidate in candidate_regions]
     vectors = embedding.encode(retrieval_index.model_id, texts)
-    indexed_count = len(retrieval_index.indexed_pair_ids) or len(retrieval_index.pairs)
+    indexed_count = len(retrieval_index.indexed_pair_ids)
     k = min(top_k, indexed_count)
     # HNSW can choose different members of a tied neighbourhood when FAISS is
     # asked to search a matrix in parallel. Keep model encoding batched (the
     # expensive part), but search each region vector independently so batching
     # does not change the established sequential shortlist semantics.
     searched = vector_index.search_each(retrieval_index.index, vectors, k)
+    pairs_by_id = {pair.pair_id: pair for pair in retrieval_index.pairs}
     results: list[list[RegionRetrievalMatch]] = []
     for candidate, (row_sims, row_ids) in zip(candidate_regions, searched):
         row_sims = row_sims[0]
@@ -107,13 +121,8 @@ def query_region_batch(
         for rank, (similarity, index_id) in enumerate(zip(row_sims, row_ids), start=1):
             if index_id < 0 or float(similarity) < threshold:
                 continue
-            if retrieval_index.indexed_pair_ids:
-                pairs_by_id = {pair.pair_id: pair for pair in retrieval_index.pairs}
-                pair = pairs_by_id[retrieval_index.indexed_pair_ids[int(index_id)]]
-                reference_side = retrieval_index.indexed_sides[int(index_id)]
-            else:
-                pair = retrieval_index.pairs[int(index_id)]
-                reference_side = "vulnerable"
+            pair = pairs_by_id[retrieval_index.indexed_pair_ids[int(index_id)]]
+            reference_side = retrieval_index.indexed_sides[int(index_id)]
             matches.append(
                 RegionRetrievalMatch(
                     pair_id=pair.pair_id,
@@ -191,11 +200,19 @@ def load_region_index(
     expected = _region_fingerprint(pairs, model_id)
     if metadata.get("fingerprint") != expected:
         return None
+    # Persisted indexes must map every vector to its reference pair and side.
+    expected_ids = [pair.pair_id for pair in pairs for _ in range(2)]
+    expected_sides = [side for _pair in pairs for side in ("vulnerable", "patched")]
+    if (
+        metadata.get("indexed_pair_ids") != expected_ids
+        or metadata.get("indexed_sides") != expected_sides
+    ):
+        return None
     return RegionRetrievalIndex(
         model_id=model_id,
         index=vector_index.load_faiss_index(index_path),
         pairs=pairs,
-        indexed_pair_ids=list(metadata.get("indexed_pair_ids", [])),
-        indexed_sides=list(metadata.get("indexed_sides", [])),
+        indexed_pair_ids=metadata["indexed_pair_ids"],
+        indexed_sides=metadata["indexed_sides"],
         fingerprint=expected,
     )
